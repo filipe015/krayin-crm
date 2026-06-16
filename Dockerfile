@@ -1,10 +1,15 @@
 FROM php:8.3-apache
 
-# Extensões necessárias
+# Extensões necessárias + tzdata para fuso horário
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev \
-    libxml2-dev libzip-dev libicu-dev nodejs npm \
+    libxml2-dev libzip-dev libicu-dev nodejs npm tzdata \
     && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath
+
+# Fuso horário do sistema e do PHP
+RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
+    && echo "America/Sao_Paulo" > /etc/timezone \
+    && echo "date.timezone = America/Sao_Paulo" > /usr/local/etc/php/conf.d/timezone.ini
 
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
