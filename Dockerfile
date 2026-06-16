@@ -3,10 +3,8 @@ FROM php:8.3-apache
 # Extensões necessárias
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev \
-    libxml2-dev libzip-dev libicu-dev \
-    libc-client-dev libkrb5-dev nodejs npm \
-    && docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
-    && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath imap
+    libxml2-dev libzip-dev libicu-dev nodejs npm \
+    && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath
 
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
