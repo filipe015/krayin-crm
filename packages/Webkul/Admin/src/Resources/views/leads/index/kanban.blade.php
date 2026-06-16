@@ -27,7 +27,7 @@
 
                 {!! view_render_event('admin.leads.index.kanban.content.before') !!}
 
-                <div class="flex gap-2.5 overflow-x-auto max-h-[calc(100vh-300px)]">
+                <div class="flex gap-2.5 overflow-x-auto h-[calc(100vh-288px)]">
                     <!-- Stage Cards -->
                     <div
                         class="flex min-w-[275px] max-w-[275px] flex-col gap-1 rounded-lg border border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900"
@@ -75,7 +75,7 @@
 
                         <!-- Draggable Stage Lead Cards -->
                         <draggable
-                            class="flex h-[calc(100vh-317px)] flex-col gap-2 overflow-y-auto p-2"
+                            class="flex h-[calc(100vh-305px)] flex-col gap-2 overflow-y-auto p-2"
                             :class="{ 'justify-center': stage.leads.data.length === 0 }"
                             ghost-class="draggable-ghost"
                             handle=".lead-item"
