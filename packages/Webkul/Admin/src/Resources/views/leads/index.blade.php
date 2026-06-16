@@ -4,9 +4,11 @@
     </x-slot>
 
     <!-- Header -->
+    <div class="flex flex-col h-full">
+
     {!! view_render_event('admin.leads.index.header.before') !!}
 
-    <div class="scroll-reactive-sticky sticky top-[60px] z-[1000] flex items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+    <div class="flex-none scroll-reactive-sticky sticky top-0 z-[1000] flex items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
         {!! view_render_event('admin.leads.index.header.left.before') !!}
 
         <div class="flex flex-col gap-2">
@@ -54,7 +56,7 @@
     {!! view_render_event('admin.leads.index.content.before') !!}
 
     <!-- Content -->
-    <div class="[&>*>*>*.toolbarRight]:max-lg:w-full [&>*>*>*.toolbarRight]:max-lg:justify-between [&>*>*>*.toolbarRight]:max-md:gap-y-2 [&>*>*>*.toolbarRight]:max-md:flex-wrap mt-3.5 [&>*>*:nth-child(1)]:max-lg:!flex-wrap">
+    <div class="flex flex-col flex-1 min-h-0 [&>*>*>*.toolbarRight]:max-lg:w-full [&>*>*>*.toolbarRight]:max-lg:justify-between [&>*>*>*.toolbarRight]:max-md:gap-y-2 [&>*>*>*.toolbarRight]:max-md:flex-wrap mt-3.5 [&>*>*:nth-child(1)]:max-lg:!flex-wrap">
         @if ((request()->view_type ?? "kanban") == "table")
             @include('admin::leads.index.table')
         @else
@@ -63,4 +65,6 @@
     </div>
 
     {!! view_render_event('admin.leads.index.content.after') !!}
+
+    </div>{{-- flex flex-col h-full --}}
 </x-admin::layouts>

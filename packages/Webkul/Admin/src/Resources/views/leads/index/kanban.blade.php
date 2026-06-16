@@ -2,7 +2,7 @@
 
 <!-- Kanban Vue Component -->
 <v-leads-kanban ref="leadsKanban">
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 flex-1 min-h-0">
         <!-- Shimmer -->
         <x-admin::shimmer.leads.index.kanban />
     </div>
@@ -16,21 +16,21 @@
         id="v-leads-kanban-template"
     >
         <template v-if="isLoading">
-            <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-4 flex-1 min-h-0">
                 <x-admin::shimmer.leads.index.kanban />
             </div>
         </template>
 
         <template v-else>
-            <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-4 flex-1 min-h-0">
                 @include('admin::leads.index.kanban.toolbar')
 
                 {!! view_render_event('admin.leads.index.kanban.content.before') !!}
 
-                <div class="flex gap-2.5 overflow-x-auto h-[calc(100vh-288px)]">
+                <div class="flex gap-2.5 overflow-x-auto flex-1 min-h-0">
                     <!-- Stage Cards -->
                     <div
-                        class="flex min-w-[275px] max-w-[275px] flex-col gap-1 rounded-lg border border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900"
+                        class="flex min-w-[275px] max-w-[275px] flex-col gap-1 min-h-0 rounded-lg border border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900"
                         v-for="(stage, index) in stageLeads"
                     >
                         {!! view_render_event('admin.leads.index.kanban.content.stage.header.before') !!}
@@ -75,7 +75,7 @@
 
                         <!-- Draggable Stage Lead Cards -->
                         <draggable
-                            class="flex h-[calc(100vh-305px)] flex-col gap-2 overflow-y-auto p-2"
+                            class="flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto p-2"
                             :class="{ 'justify-center': stage.leads.data.length === 0 }"
                             ghost-class="draggable-ghost"
                             handle=".lead-item"

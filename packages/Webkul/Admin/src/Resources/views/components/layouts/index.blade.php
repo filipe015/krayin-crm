@@ -116,9 +116,9 @@
             <!-- Page Sidebar Blade Component -->
             <x-admin::layouts.sidebar.desktop />
 
-            <div class="flex min-h-[calc(100vh-62px)] max-w-full flex-1 flex-col bg-gray-100 transition-all duration-300 dark:bg-gray-950 overflow-x-hidden">
+            <div class="flex h-[calc(100vh-62px)] max-w-full flex-1 flex-col bg-gray-100 transition-all duration-300 dark:bg-gray-950 overflow-hidden">
                 <!-- Page Content Blade Component -->
-                <div class="px-4 pb-4 ltr:lg:pl-[85px] rtl:lg:pr-[85px]">
+                <div id="main-content" class="flex-1 min-h-0 overflow-y-auto px-4 pb-4 ltr:lg:pl-[85px] rtl:lg:pr-[85px]">
                     {{ $slot }}
                 </div>
             </div>

@@ -24,23 +24,45 @@ window.app = createApp({
 
     created() {
         window.addEventListener('click', this.handleFocusOut);
-        this.lastScrollY = Math.max((window.scrollY ?? window.pageYOffset ?? 0), 0);
         document.body.classList.remove('is-scrolling-down');
-        window.addEventListener('scroll', this.handleScrollDirection, { passive: true });
+    },
 
-        // Keep initial load in normal state when page is at/near top.
-        this.handleScrollDirection();
+    mounted() {
+        this.$nextTick(() => {
+            this._scrollEl = document.getElementById('main-content');
+
+            if (this._scrollEl) {
+                this._scrollEl.addEventListener('scroll', this.handleScrollDirection, { passive: true });
+            } else {
+                this.lastScrollY = Math.max((window.scrollY ?? window.pageYOffset ?? 0), 0);
+                window.addEventListener('scroll', this.handleScrollDirection, { passive: true });
+            }
+
+            this.handleScrollDirection();
+        });
     },
 
     beforeDestroy() {
         window.removeEventListener('click', this.handleFocusOut);
-        window.removeEventListener('scroll', this.handleScrollDirection);
+
+        if (this._scrollEl) {
+            this._scrollEl.removeEventListener('scroll', this.handleScrollDirection);
+        } else {
+            window.removeEventListener('scroll', this.handleScrollDirection);
+        }
+
         document.body.classList.remove('is-scrolling-down');
     },
 
     beforeUnmount() {
         window.removeEventListener('click', this.handleFocusOut);
-        window.removeEventListener('scroll', this.handleScrollDirection);
+
+        if (this._scrollEl) {
+            this._scrollEl.removeEventListener('scroll', this.handleScrollDirection);
+        } else {
+            window.removeEventListener('scroll', this.handleScrollDirection);
+        }
+
         document.body.classList.remove('is-scrolling-down');
     },
 
@@ -112,7 +134,10 @@ window.app = createApp({
 
         handleScrollDirection() {
             const topThreshold = 0;
-            const currentScrollY = Math.max((window.scrollY ?? window.pageYOffset ?? 0), 0);
+            const el = this._scrollEl;
+            const currentScrollY = el
+                ? Math.max(el.scrollTop, 0)
+                : Math.max((window.scrollY ?? window.pageYOffset ?? 0), 0);
             const scrollDelta = currentScrollY - this.lastScrollY;
 
             if (currentScrollY == topThreshold) {
