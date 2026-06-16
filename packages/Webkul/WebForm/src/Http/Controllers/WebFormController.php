@@ -48,13 +48,19 @@ class WebFormController extends Controller
      */
     public function formStore(int $id): JsonResponse
     {
-        $person = $this->personRepository
-            ->getModel()
-            ->where('emails', 'like', '%'.request('persons.emails.0.value').'%')
-            ->first();
+        $person = null;
 
-        if ($person) {
-            request()->request->add(['persons' => array_merge(request('persons'), ['id' => $person->id])]);
+        $email = request('persons.emails.0.value');
+
+        if ($email) {
+            $person = $this->personRepository
+                ->getModel()
+                ->where('emails', 'like', '%'.$email.'%')
+                ->first();
+
+            if ($person) {
+                request()->request->add(['persons' => array_merge(request('persons'), ['id' => $person->id])]);
+            }
         }
 
         app(WebForm::class);
