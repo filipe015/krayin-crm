@@ -51,16 +51,24 @@ class WebFormController extends Controller
         $person = null;
 
         $email = request('persons.emails.0.value');
+        $phone = request('persons.contact_numbers.0.value');
 
         if ($email) {
             $person = $this->personRepository
                 ->getModel()
                 ->where('emails', 'like', '%'.$email.'%')
                 ->first();
+        }
 
-            if ($person) {
-                request()->request->add(['persons' => array_merge(request('persons'), ['id' => $person->id])]);
-            }
+        if (! $person && $phone) {
+            $person = $this->personRepository
+                ->getModel()
+                ->where('contact_numbers', 'like', '%'.$phone.'%')
+                ->first();
+        }
+
+        if ($person) {
+            request()->request->add(['persons' => array_merge(request('persons'), ['id' => $person->id])]);
         }
 
         app(WebForm::class);
