@@ -249,7 +249,7 @@ class Lead extends AbstractReporting
         return $this->leadRepository
             ->resetModel()
             ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereBetween('closed_at', [$startDate, $endDate])
             ->sum('lead_value');
     }
 
@@ -278,7 +278,7 @@ class Lead extends AbstractReporting
         return $this->leadRepository
             ->resetModel()
             ->whereIn('lead_pipeline_stage_id', $this->lostStageIds)
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereBetween('closed_at', [$startDate, $endDate])
             ->sum('lead_value');
     }
 
@@ -295,7 +295,7 @@ class Lead extends AbstractReporting
             )
             ->leftJoin('lead_sources', 'leads.lead_source_id', '=', 'lead_sources.id')
             ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
-            ->whereBetween('leads.created_at', [$this->startDate, $this->endDate])
+            ->whereBetween('leads.closed_at', [$this->startDate, $this->endDate])
             ->groupBy('lead_source_id')
             ->get();
     }
@@ -313,7 +313,7 @@ class Lead extends AbstractReporting
             )
             ->leftJoin('lead_types', 'leads.lead_type_id', '=', 'lead_types.id')
             ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
-            ->whereBetween('leads.created_at', [$this->startDate, $this->endDate])
+            ->whereBetween('leads.closed_at', [$this->startDate, $this->endDate])
             ->groupBy('lead_type_id')
             ->get();
     }
