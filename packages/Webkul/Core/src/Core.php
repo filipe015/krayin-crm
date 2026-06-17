@@ -170,7 +170,7 @@ class Core
      */
     public function formatDate($date, $format = 'd M Y h:iA')
     {
-        return Carbon::parse($date)->format($format);
+        return Carbon::parse($date)->setTimezone(config('app.timezone'))->format($format);
     }
 
     /**
