@@ -84,7 +84,11 @@ export default {
              * @returns {string} - The formatted date string.
              */
             formatDate: (dateString, format, timezone) => {
-                const date = new Date(dateString);
+                let normalized = dateString.replace(' ', 'T');
+                if (!normalized.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(normalized)) {
+                    normalized += 'Z';
+                }
+                const date = new Date(normalized);
 
                 const options = { timeZone: timezone };
 
