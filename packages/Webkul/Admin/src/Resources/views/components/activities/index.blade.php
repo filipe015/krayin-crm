@@ -155,7 +155,7 @@
                                                 >
                                                     @lang('admin::app.components.activities.index.scheduled-on'):
 
-                                                    @{{ $admin.formatDate(activity.schedule_from, 'd MMM yyyy, h:mm A', timezone) + ' - ' + $admin.formatDate(activity.schedule_to, 'd MMM yyyy, h:mm A', timezone) }}
+                                                    @{{ $admin.formatDate(activity.schedule_from, 'DD/MM/yyyy, HH:mm', timezone) + ' - ' + $admin.formatDate(activity.schedule_to, 'DD/MM/yyyy, HH:mm', timezone) }}
                                                 </p>
 
                                                 <!-- Activity Participants -->
@@ -225,7 +225,7 @@
 
                                         <!-- Activity Time and User -->
                                         <div class="text-gray-500 dark:text-gray-300">
-                                            @{{ $admin.formatDate(activity.created_at, 'd MMM yyyy, h:mm A', timezone) }},
+                                            @{{ $admin.formatDate(activity.created_at, 'DD/MM/yyyy, HH:mm', timezone) }},
 
                                             @{{ "@lang('admin::app.components.activities.index.by-user', ['user' => 'replace'])".replace('replace', activity.user?.name ?? '@lang('admin::app.components.activities.index.system')') }}
                                         </div>
