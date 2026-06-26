@@ -22,6 +22,7 @@ class Stage extends Model implements StageContract
         'probability',
         'sort_order',
         'lead_pipeline_id',
+        'alert_threshold_days',
     ];
 
     /**

@@ -132,6 +132,8 @@ class LeadRepository extends Repository
             $data['expected_close_date'] = null;
         }
 
+        $data['stage_entered_at'] = Carbon::now();
+
         $lead = parent::create(array_merge([
             'lead_pipeline_id' => 1,
             'lead_pipeline_stage_id' => 1,
@@ -186,6 +188,20 @@ class LeadRepository extends Repository
                 $data['closed_at'] = $data['closed_at'] ?? Carbon::now();
             } else {
                 $data['closed_at'] = null;
+            }
+
+            /**
+             * Only stamp `stage_entered_at` when the stage is actually changing, so that
+             * unrelated edits to the lead (title, description, etc.) never reset the
+             * "time in current stage" clock.
+             */
+            $currentLead = $this->find($id);
+
+            if (
+                $currentLead
+                && $this->hasStageChanged($currentLead->lead_pipeline_stage_id, $data['lead_pipeline_stage_id'])
+            ) {
+                $data['stage_entered_at'] = Carbon::now();
             }
         }
 
@@ -251,5 +267,17 @@ class LeadRepository extends Repository
         }
 
         return $lead;
+    }
+
+    /**
+     * Determines whether a stage transition actually occurred, comparing a lead's
+     * current stage against the one being requested. Shared by any caller that
+     * needs to decide whether `stage_entered_at` should be stamped, including
+     * places that update `lead_pipeline_stage_id` outside of `update()` above
+     * (e.g. CSV import, pipeline stage deletion).
+     */
+    public function hasStageChanged($currentStageId, $newStageId): bool
+    {
+        return (int) $currentStageId !== (int) $newStageId;
     }
 }

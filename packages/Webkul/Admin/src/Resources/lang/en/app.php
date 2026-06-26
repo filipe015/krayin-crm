@@ -1212,6 +1212,7 @@ return [
                 'mark-as-default' => 'Mark as Default',
                 'general' => 'General',
                 'probability' => 'Probability(%)',
+                'alert-threshold-days' => 'Alert Threshold (Days)',
                 'new-stage' => 'New',
                 'won-stage' => 'Won',
                 'lost-stage' => 'Lost',
@@ -1797,6 +1798,7 @@ return [
             ],
             'kanban' => [
                 'rotten-days' => 'Lead is rotten for :days days',
+                'days-in-stage' => 'In this stage for :days days',
                 'empty-list' => 'Your Leads List is Empty',
                 'empty-list-description' => 'Create a lead to organize your goals.',
                 'create-lead-btn' => 'Create Lead',

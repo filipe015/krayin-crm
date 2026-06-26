@@ -39,6 +39,7 @@ class PipelineForm extends FormRequest
                 'name' => 'required|unique:lead_pipelines,name,'.request('id'),
                 'stages.*.name' => 'unique_key',
                 'stages.*.code' => 'unique_key',
+                'stages.*.alert_threshold_days' => 'nullable|integer|min:0',
             ];
         }
 
@@ -47,6 +48,7 @@ class PipelineForm extends FormRequest
             'rotten_days' => 'required',
             'stages.*.name' => 'unique_key',
             'stages.*.code' => 'unique_key',
+            'stages.*.alert_threshold_days' => 'nullable|integer|min:0',
         ];
     }
 

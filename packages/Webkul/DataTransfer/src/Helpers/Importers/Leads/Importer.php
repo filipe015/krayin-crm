@@ -456,12 +456,38 @@ class Importer extends AbstractImporter
                     ...Arr::except($rowData, ['id', 'product']),
                     'created_at' => $rowData['created_at'] ?? now(),
                     'updated_at' => $rowData['updated_at'] ?? now(),
+                    'stage_entered_at' => now(),
                 ];
             }
         }
 
         if (! empty($leads['update'])) {
             $this->updatedItemsCount += count($leads['update']);
+
+            /**
+             * `upsert()` compiles its INSERT columns from the first row of the array and
+             * parameterizes every other row by its own keys, so every row MUST carry the
+             * exact same set of columns or the batch query corrupts (values shifting into
+             * the wrong columns). That's why `stage_entered_at` is stamped on every row
+             * below rather than conditionally added only to the rows that changed stage:
+             * rows whose stage didn't change simply get back the value already stored.
+             */
+            $currentLeadsById = $this->leadRepository
+                ->findWhereIn('id', array_keys($leads['update']), ['id', 'lead_pipeline_stage_id', 'stage_entered_at'])
+                ->keyBy('id');
+
+            foreach ($leads['update'] as $leadId => &$leadData) {
+                $currentLead = $currentLeadsById->get($leadId);
+
+                $leadData['stage_entered_at'] = (
+                    $currentLead
+                    && isset($leadData['lead_pipeline_stage_id'])
+                    && $this->leadRepository->hasStageChanged($currentLead->lead_pipeline_stage_id, $leadData['lead_pipeline_stage_id'])
+                )
+                    ? now()
+                    : $currentLead?->stage_entered_at?->toDateTimeString();
+            }
+            unset($leadData);
 
             $this->leadRepository->upsert(
                 $leads['update'],

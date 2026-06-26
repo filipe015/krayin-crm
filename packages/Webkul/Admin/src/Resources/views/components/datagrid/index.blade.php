@@ -201,13 +201,50 @@
                                 searchAppliedColumn.value = [urlParams.get('search')];
                             }
 
-                            this.get();
+                            this.get().then(() => this.applyUrlColumnFilters(urlParams));
 
                             return;
                         }
                     }
 
-                    this.get();
+                    this.get().then(() => this.applyUrlColumnFilters(urlParams));
+                },
+
+                /**
+                 * Pre-applies filters for any filterable column whose `index` is also present
+                 * as a query parameter in the current page URL (e.g. `?stage=5` from a deep
+                 * link). Runs after the first `get()` so `available.columns` is already
+                 * populated, ensuring we only ever apply filters for columns that are real
+                 * and actually filterable on this specific datagrid.
+                 *
+                 * @param {URLSearchParams} urlParams
+                 * @returns {void}
+                 */
+                applyUrlColumnFilters(urlParams) {
+                    let hasNewFilter = false;
+
+                    this.available.columns
+                        .filter(column => column.filterable && urlParams.has(column.index))
+                        .forEach(column => {
+                            let appliedColumn = this.applied.filters.columns.find(applied => applied.index === column.index);
+
+                            if (! appliedColumn) {
+                                appliedColumn = {
+                                    index: column.index,
+                                    value: [],
+                                };
+
+                                this.applied.filters.columns.push(appliedColumn);
+                            }
+
+                            appliedColumn.value = [urlParams.get(column.index)];
+
+                            hasNewFilter = true;
+                        });
+
+                    if (hasNewFilter) {
+                        this.get();
+                    }
                 },
 
                 /**
@@ -244,7 +281,7 @@
 
                     this.isLoading = true;
 
-                    this.$axios
+                    return this.$axios
                         .get(this.src, {
                             params: { ...params, ...extraParams }
                         })

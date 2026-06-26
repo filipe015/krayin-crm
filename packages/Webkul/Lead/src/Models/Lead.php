@@ -40,6 +40,7 @@ class Lead extends Model implements LeadContract
         'lead_type_id',
         'lead_pipeline_id',
         'lead_pipeline_stage_id',
+        'stage_entered_at',
     ];
 
     /**
@@ -50,6 +51,7 @@ class Lead extends Model implements LeadContract
     protected $casts = [
         'closed_at' => 'datetime:D M d, Y H:i A',
         'expected_close_date' => 'date:D M d, Y',
+        'stage_entered_at' => 'datetime',
     ];
 
     /**
@@ -169,5 +171,55 @@ class Lead extends Model implements LeadContract
         $rottenDate = $this->created_at->addDays($this->pipeline->rotten_days);
 
         return $rottenDate->diffInDays(Carbon::now(), false);
+    }
+
+    /**
+     * Returns the number of days the lead has been sitting in its current stage.
+     * Returns null when `stage_entered_at` was never recorded (e.g. lead created
+     * before this field existed and not moved to another stage since).
+     */
+    public function getDaysInCurrentStageAttribute(): ?int
+    {
+        if (! $this->stage_entered_at) {
+            return null;
+        }
+
+        return $this->stage_entered_at->diffInDays(Carbon::now());
+    }
+
+    /**
+     * Returns the stage alert state for the lead: `normal`, `warning`, or `critical`,
+     * based on how many days it has been sitting in its current stage relative to
+     * the alert threshold configured for that stage.
+     *
+     * Always `normal` when the stage has no threshold configured, or when
+     * `stage_entered_at` was never recorded for this lead.
+     */
+    public function getStageAlertStateAttribute(): string
+    {
+        if (
+            ! $this->stage
+            || ! $this->stage->alert_threshold_days
+        ) {
+            return 'normal';
+        }
+
+        $daysInStage = $this->days_in_current_stage;
+
+        if ($daysInStage === null) {
+            return 'normal';
+        }
+
+        $thresholdDays = $this->stage->alert_threshold_days;
+
+        if ($daysInStage >= $thresholdDays) {
+            return 'critical';
+        }
+
+        if ($daysInStage >= $thresholdDays * 0.8) {
+            return 'warning';
+        }
+
+        return 'normal';
     }
 }

@@ -98,6 +98,8 @@ class LeadController extends Controller
             $stages = $pipeline->stages;
         }
 
+        $createdAtRange = $this->extractCreatedAtRange();
+
         foreach ($stages as $stage) {
             /**
              * We have to create a new instance of the lead repository every time, which is
@@ -112,6 +114,10 @@ class LeadController extends Controller
 
             if ($userIds = bouncer()->getAuthorizedUserIds()) {
                 $query->whereIn('leads.user_id', $userIds);
+            }
+
+            if ($createdAtRange) {
+                $query->whereBetween('leads.created_at', $createdAtRange);
             }
 
             $stage->lead_value = (clone $query)->sum('lead_value');
@@ -130,7 +136,7 @@ class LeadController extends Controller
                     'pipeline.stages',
                     'stage',
                     'attribute_values',
-                ])->orderBy('updated_at', 'desc')->paginate(10)),
+                ])->orderBy('updated_at', 'desc')->paginate(50)),
 
                 'meta' => [
                     'current_page' => $paginator->currentPage(),
@@ -410,7 +416,9 @@ class LeadController extends Controller
 
                 $lead = $this->leadRepository->find($lead->id);
 
-                $lead?->update(['lead_pipeline_stage_id' => $massUpdateRequest->input('value')]);
+                if ($lead) {
+                    $this->leadRepository->update(['lead_pipeline_stage_id' => $massUpdateRequest->input('value')], $lead->id);
+                }
 
                 Event::dispatch('lead.update.before', $lead->id);
             }
@@ -499,6 +507,32 @@ class LeadController extends Controller
                 'message' => trans('admin::app.leads.destroy-failed'),
             ]);
         }
+    }
+
+    /**
+     * Extract the `created_at` date range from the request and strip it from
+     * `search`/`searchFields` before `RequestCriteria` parses them. This is necessary
+     * because RequestCriteria splits search pairs on `:`, which would break on a time
+     * component (e.g. `00:00:00`) if we let it handle the range itself.
+     */
+    private function extractCreatedAtRange(): ?array
+    {
+        $search = request()->query('search', '');
+
+        if (! preg_match('/created_at:([^;]*)/', $search, $matches)) {
+            return null;
+        }
+
+        [$from, $to] = array_pad(explode(',', $matches[1]), 2, null);
+
+        request()->query->set('search', preg_replace('/created_at:[^;]*;?/', '', $search));
+        request()->query->set('searchFields', preg_replace('/created_at:[^;]*;?/', '', request()->query('searchFields', '')));
+
+        if (! $from || ! $to) {
+            return null;
+        }
+
+        return [$from.' 00:00:00', $to.' 23:59:59'];
     }
 
     /**
@@ -643,6 +677,19 @@ class LeadController extends Controller
                         'value' => 'name',
                     ],
                 ],
+            ],
+            [
+                'index' => 'created_at',
+                'label' => trans('admin::app.leads.index.kanban.columns.created-at'),
+                'type' => 'date',
+                'searchable' => false,
+                'search_field' => 'between',
+                'filterable' => true,
+                'filterable_type' => 'date_range',
+                'filterable_options' => [],
+                'allow_multiple_values' => false,
+                'sortable' => true,
+                'visibility' => true,
             ],
         ];
     }

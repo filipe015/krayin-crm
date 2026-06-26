@@ -2,6 +2,7 @@
 
 namespace Webkul\Lead\Repositories;
 
+use Carbon\Carbon;
 use Illuminate\Container\Container;
 use Illuminate\Support\Str;
 use Webkul\Core\Eloquent\Repository;
@@ -89,6 +90,13 @@ class PipelineRepository extends Repository
         foreach ($previousStageIds as $stageId) {
             $pipeline->leads()->where('lead_pipeline_stage_id', $stageId)->update([
                 'lead_pipeline_stage_id' => $pipeline->stages()->first()->id,
+                /**
+                 * Leads are entering a new stage right now, so `stage_entered_at` must be
+                 * stamped here too. This is a single bulk UPDATE (not a multi-row upsert),
+                 * so every affected row safely gets the same value with no column
+                 * misalignment risk.
+                 */
+                'stage_entered_at' => Carbon::now(),
             ]);
 
             $this->stageRepository->delete($stageId);

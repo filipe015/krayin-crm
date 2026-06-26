@@ -220,6 +220,26 @@
                                         </x-admin::form.control-group>
 
                                         {!! view_render_event('admin.settings.pipelines.edit.form.stages.probability.after', ['pipeline' => $pipeline]) !!}
+
+                                        {!! view_render_event('admin.settings.pipelines.edit.form.stages.alert_threshold_days.before', ['pipeline' => $pipeline]) !!}
+
+                                        <!-- Alert Threshold Days -->
+                                        <x-admin::form.control-group>
+                                            <x-admin::form.control-group.label>
+                                                @lang('admin::app.settings.pipelines.edit.alert-threshold-days')
+                                            </x-admin::form.control-group.label>
+
+                                            <x-admin::form.control-group.control
+                                                type="text"
+                                                ::name="'stages[' + element.id + '][alert_threshold_days]'"
+                                                v-model="element['alert_threshold_days']"
+                                                rules="numeric|min_value:0"
+                                                :label="trans('admin::app.settings.pipelines.edit.alert-threshold-days')"
+                                            />
+                                            <x-admin::form.control-group.error ::name="'stages[' + element.id + '][alert_threshold_days]'" />
+                                        </x-admin::form.control-group>
+
+                                        {!! view_render_event('admin.settings.pipelines.edit.form.stages.alert_threshold_days.after', ['pipeline' => $pipeline]) !!}
                                     </div>
                                 </div>
                                 
@@ -297,6 +317,7 @@
                             'code': '',
                             'name': '',
                             'probability': 100,
+                            'alert_threshold_days': null,
                         });
                     },
 

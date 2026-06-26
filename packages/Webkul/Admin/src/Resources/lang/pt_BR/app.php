@@ -1211,6 +1211,7 @@ return [
                 'mark-as-default' => 'Marcar como Padrão',
                 'general' => 'Geral',
                 'probability' => 'Probabilidade (%)',
+                'alert-threshold-days' => 'Limite de Dias para Alerta',
                 'new-stage' => 'Novo',
                 'won-stage' => 'Ganho',
                 'lost-stage' => 'Perdido',
@@ -1796,6 +1797,7 @@ return [
             ],
             'kanban' => [
                 'rotten-days' => 'Negócio estagnado por :days dias',
+                'days-in-stage' => 'Nesta etapa há :days dias',
                 'empty-list' => 'Sua lista de Negócios está vazia',
                 'empty-list-description' => 'Adicione um negócio para organizar seus objetivos.',
                 'create-lead-btn' => 'Adicionar Negócio',

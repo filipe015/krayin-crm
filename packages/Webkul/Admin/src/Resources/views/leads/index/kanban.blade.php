@@ -43,14 +43,23 @@
                                     @{{ stage.name }} (@{{ stage.leads.meta.total }})
                                 </span>
 
-                                @if (bouncer()->hasPermission('leads.create'))
+                                <div class="flex items-center">
+                                    <!-- View Stage as List -->
                                     <a
-                                        :href="'{{ route('admin.leads.create') }}' + '?stage_id=' + stage.id"
-                                        class="icon-add cursor-pointer rounded p-1 text-lg text-gray-600 transition-all hover:bg-gray-200 hover:text-gray-800 dark:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
-                                        target="_blank"
+                                        :href="'{{ route('admin.leads.index') }}' + '?view_type=table&stage=' + stage.id"
+                                        class="icon-list cursor-pointer rounded p-1 text-lg text-gray-600 transition-all hover:bg-gray-200 hover:text-gray-800 dark:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
                                     >
                                     </a>
-                                @endif
+
+                                    @if (bouncer()->hasPermission('leads.create'))
+                                        <a
+                                            :href="'{{ route('admin.leads.create') }}' + '?stage_id=' + stage.id"
+                                            class="icon-add cursor-pointer rounded p-1 text-lg text-gray-600 transition-all hover:bg-gray-200 hover:text-gray-800 dark:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
+                                            target="_blank"
+                                        >
+                                        </a>
+                                    @endif
+                                </div>
                             </div>
 
                             <!-- Stage Total Leads and Amount -->
@@ -124,7 +133,11 @@
                                 {!! view_render_event('admin.leads.index.kanban.content.stage.body.card.before') !!}
 
                                 <a
-                                    class="lead-item flex cursor-pointer flex-col gap-5 rounded-lg border border-gray-300 shadow-xl shadow-slate-200 bg-gray-100 p-2 dark:border-gray-400 dark:bg-gray-400"
+                                    class="lead-item flex cursor-pointer flex-col gap-5 rounded-lg border border-gray-300 shadow-xl shadow-slate-200 bg-gray-100 p-2 dark:border-gray-400 dark:bg-gray-400 ltr:border-l-4 rtl:border-r-4"
+                                    :class="{
+                                        'ltr:border-l-amber-400 rtl:border-r-amber-400': element.stage_alert_state === 'warning',
+                                        'ltr:border-l-red-500 rtl:border-r-red-500': element.stage_alert_state === 'critical',
+                                    }"
                                     :href="'{{ route('admin.leads.view', 'replaceId') }}'.replace('replaceId', element.id)"
                                 >
                                     {!! view_render_event('admin.leads.index.kanban.content.stage.body.card.header.before') !!}
@@ -145,18 +158,42 @@
                                             </div>
                                         </div>
 
-                                        <div
-                                            class="group relative"
-                                            v-if="element.rotten_days > 0"
-                                        >
-                                            <span class="icon-rotten cursor-default text-xl text-rose-600"></span>
+                                        <div class="flex items-center gap-1">
+                                            <!-- Stage Alert Indicator -->
+                                            <div
+                                                class="group relative"
+                                                v-if="element.stage_alert_state !== 'normal'"
+                                            >
+                                                <span
+                                                    class="icon-warning cursor-default text-xl"
+                                                    :class="{
+                                                        'text-amber-500': element.stage_alert_state === 'warning',
+                                                        'text-rose-600': element.stage_alert_state === 'critical',
+                                                    }"
+                                                ></span>
 
-                                            <div class="absolute -top-1 right-7 hidden w-max flex-col items-center group-hover:flex">
-                                                <span class="whitespace-no-wrap relative rounded-md bg-black px-4 py-2 text-xs leading-none text-white shadow-lg">
-                                                    @{{ "@lang('admin::app.leads.index.kanban.rotten-days', ['days' => 'replaceDays'])".replace('replaceDays', element.rotten_days) }}
-                                                </span>
+                                                <div class="absolute -top-1 right-7 hidden w-max flex-col items-center group-hover:flex">
+                                                    <span class="whitespace-no-wrap relative rounded-md bg-black px-4 py-2 text-xs leading-none text-white shadow-lg">
+                                                        @{{ "@lang('admin::app.leads.index.kanban.days-in-stage', ['days' => 'replaceDays'])".replace('replaceDays', element.days_in_current_stage) }}
+                                                    </span>
 
-                                                <div class="absolute -right-1 top-2 h-3 w-3 rotate-45 bg-black"></div>
+                                                    <div class="absolute -right-1 top-2 h-3 w-3 rotate-45 bg-black"></div>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="group relative"
+                                                v-if="element.rotten_days > 0"
+                                            >
+                                                <span class="icon-rotten cursor-default text-xl text-rose-600"></span>
+
+                                                <div class="absolute -top-1 right-7 hidden w-max flex-col items-center group-hover:flex">
+                                                    <span class="whitespace-no-wrap relative rounded-md bg-black px-4 py-2 text-xs leading-none text-white shadow-lg">
+                                                        @{{ "@lang('admin::app.leads.index.kanban.rotten-days', ['days' => 'replaceDays'])".replace('replaceDays', element.rotten_days) }}
+                                                    </span>
+
+                                                    <div class="absolute -right-1 top-2 h-3 w-3 rotate-45 bg-black"></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -422,7 +459,7 @@
                         search: '',
                         searchFields: '',
                         pipeline_id: "{{ request('pipeline_id') }}",
-                        limit: 10,
+                        limit: 50,
                     };
 
                     this.applied.filters.columns.forEach((column) => {
@@ -688,7 +725,7 @@
                         pipeline_stage_id: stage.id,
                         pipeline_id: stage.lead_pipeline_id,
                         page: this.stageLeads[stage.sort_order].leads.meta.current_page + 1,
-                        limit: 10,
+                        limit: 50,
                     });
                 },
 
