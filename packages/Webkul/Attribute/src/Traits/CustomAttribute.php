@@ -45,7 +45,11 @@ trait CustomAttribute
      */
     public function getAttribute($key)
     {
-        if (! method_exists(static::class, $key) && ! isset($this->attributes[$key])) {
+        if (
+            ! method_exists(static::class, $key)
+            && ! $this->hasGetMutator($key)
+            && ! isset($this->attributes[$key])
+        ) {
             if (isset($this->id)) {
                 $this->attributes[$key] = '';
 
