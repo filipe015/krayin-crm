@@ -1799,6 +1799,12 @@ return [
             'kanban' => [
                 'rotten-days' => 'Lead is rotten for :days days',
                 'days-in-stage' => 'In this stage for :days days',
+                'card-preferences' => [
+                    'title' => 'Customize Card',
+                    'show-lead-value' => 'Show value (R$)',
+                    'show-created-at' => 'Show creation date',
+                    'show-source' => 'Show source label',
+                ],
                 'empty-list' => 'Your Leads List is Empty',
                 'empty-list-description' => 'Create a lead to organize your goals.',
                 'create-lead-btn' => 'Create Lead',

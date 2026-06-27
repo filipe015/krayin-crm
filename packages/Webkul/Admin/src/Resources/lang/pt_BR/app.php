@@ -1798,6 +1798,12 @@ return [
             'kanban' => [
                 'rotten-days' => 'Negócio estagnado por :days dias',
                 'days-in-stage' => 'Nesta etapa há :days dias',
+                'card-preferences' => [
+                    'title' => 'Personalizar Card',
+                    'show-lead-value' => 'Mostrar valor (R$)',
+                    'show-created-at' => 'Mostrar data de criação',
+                    'show-source' => 'Mostrar etiqueta da fonte',
+                ],
                 'empty-list' => 'Sua lista de Negócios está vazia',
                 'empty-list-description' => 'Adicione um negócio para organizar seus objetivos.',
                 'create-lead-btn' => 'Adicionar Negócio',

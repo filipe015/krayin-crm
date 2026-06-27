@@ -219,22 +219,25 @@
                                             @{{ element.user.name }}
                                         </div>
 
-                                        <div class="rounded-xl bg-gray-200 px-2 py-1 text-xs font-medium dark:bg-gray-800 dark:text-white">
+                                        <div
+                                            class="rounded-xl bg-gray-200 px-2 py-1 text-xs font-medium dark:bg-gray-800 dark:text-white"
+                                            v-if="cardPreferences.show_lead_value"
+                                        >
                                             @{{ element.formatted_lead_value }}
                                         </div>
 
                                         <div
                                             class="rounded-xl bg-gray-200 px-2 py-1 text-xs font-medium dark:bg-gray-800 dark:text-white"
-                                            v-if="element.source"
+                                            v-if="cardPreferences.show_created_at && element.created_at"
                                         >
-                                            @{{ element.source.name }}
+                                            @{{ $admin.formatDate(element.created_at, 'DD/MM', timezone) }}
                                         </div>
 
                                         <div
                                             class="rounded-xl bg-gray-200 px-2 py-1 text-xs font-medium dark:bg-gray-800 dark:text-white"
-                                            v-if="element.type"
+                                            v-if="cardPreferences.show_source && element.source"
                                         >
-                                            @{{ element.type.name }}
+                                            @{{ element.source.name }}
                                         </div>
 
                                         <!-- Tags -->
@@ -382,6 +385,16 @@
 
                     isLoading: true,
 
+                    timezone: "{{ config('app.timezone') }}",
+
+                    cardPreferencesSrc: 'lead-kanban',
+
+                    cardPreferences: {
+                        show_lead_value: true,
+                        show_created_at: true,
+                        show_source: true,
+                    },
+
                     tagTextColor: {
                         '#FEE2E2': '#DC2626',
                         '#FFEDD5': '#EA580C',
@@ -412,6 +425,8 @@
 
             mounted () {
                 this.boot();
+
+                this.getCardPreferences();
             },
 
             methods: {
@@ -814,6 +829,41 @@
                         this.getKanbansStorageKey(),
                         JSON.stringify(kanbans)
                     );
+                },
+
+                /**
+                 * Fetches the current user's card display preferences for this kanban screen.
+                 *
+                 * @returns {void}
+                 */
+                getCardPreferences() {
+                    this.$axios
+                        .get("{{ route('admin.kanban.card_preferences.index') }}", {
+                            params: { src: this.cardPreferencesSrc }
+                        })
+                        .then(response => {
+                            if (response.data.data?.preferences) {
+                                this.cardPreferences = {
+                                    ...this.cardPreferences,
+                                    ...response.data.data.preferences,
+                                };
+                            }
+                        })
+                        .catch(error => {});
+                },
+
+                /**
+                 * Persists the current user's card display preferences for this kanban screen.
+                 *
+                 * @returns {void}
+                 */
+                saveCardPreferences() {
+                    this.$axios
+                        .post("{{ route('admin.kanban.card_preferences.store') }}", {
+                            src: this.cardPreferencesSrc,
+                            preferences: this.cardPreferences,
+                        })
+                        .catch(error => {});
                 },
             }
         });

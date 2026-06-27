@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Webkul\Admin\Http\Controllers\DashboardController;
 use Webkul\Admin\Http\Controllers\DataGrid\SavedFilterController;
 use Webkul\Admin\Http\Controllers\DataGridController;
+use Webkul\Admin\Http\Controllers\KanbanCardPreferenceController;
 use Webkul\Admin\Http\Controllers\TinyMCEController;
 use Webkul\Admin\Http\Controllers\User\AccountController;
 
@@ -37,6 +38,15 @@ Route::prefix('datagrid')->group(function () {
      * Lookup routes.
      */
     Route::get('datagrid/look-up', [DataGridController::class, 'lookUp'])->name('admin.datagrid.look_up');
+});
+
+/**
+ * Kanban card preference routes.
+ */
+Route::controller(KanbanCardPreferenceController::class)->prefix('kanban/card-preferences')->group(function () {
+    Route::get('', 'get')->name('admin.kanban.card_preferences.index');
+
+    Route::post('', 'storeOrUpdate')->name('admin.kanban.card_preferences.store');
 });
 
 /**
