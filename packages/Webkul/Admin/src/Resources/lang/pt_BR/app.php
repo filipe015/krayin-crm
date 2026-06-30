@@ -167,7 +167,7 @@ return [
                 'meetings' => 'Reuniões',
                 'notes' => 'Notas',
                 'participants' => 'Participantes',
-                'planned' => 'Planejado',
+                'planned' => 'Tarefas',
                 'quotes' => 'Cotações',
                 'scheduled-on' => 'Agendado em',
                 'system' => 'Sistema',
@@ -1798,6 +1798,7 @@ return [
             'kanban' => [
                 'rotten-days' => 'Negócio estagnado por :days dias',
                 'days-in-stage' => 'Nesta etapa há :days dias',
+                'whatsapp' => 'Abrir WhatsApp',
                 'card-preferences' => [
                     'title' => 'Personalizar Card',
                     'show-lead-value' => 'Mostrar valor (R$)',
@@ -1944,6 +1945,7 @@ return [
                 'title' => 'Sobre as Pessoas',
                 'job-title' => ':job_title em :organization',
                 'no-person' => 'Nenhum contato foi atribuído a este lead.',
+                'whatsapp' => 'Abrir WhatsApp',
                 'attach-btn' => 'Anexar Pessoa de Contato',
                 'change-btn' => 'Alterar',
                 'change-title' => 'Alterar Pessoa de Contato',

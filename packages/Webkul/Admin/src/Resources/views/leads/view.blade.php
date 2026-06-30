@@ -110,29 +110,14 @@
             <x-admin::activities
                 :endpoint="route('admin.leads.activities.index', $lead->id)"
                 :email-detach-endpoint="route('admin.leads.emails.detach', $lead->id)"
-                :activeType="request()->query('tab') ?? (request()->query('from') === 'quotes' ? 'quotes' : 'all')"
-                :extra-types="[
-                    ['name' => 'description', 'label' => trans('admin::app.leads.view.tabs.description')],
-                    ['name' => 'products', 'label' => trans('admin::app.leads.view.tabs.products')],
-                    ['name' => 'quotes', 'label' => trans('admin::app.leads.view.tabs.quotes')],
+                :activeType="in_array(request()->query('tab'), ['all', 'planned', 'note', 'meeting', 'system']) ? request()->query('tab') : 'all'"
+                :types="[
+                    ['name' => 'all', 'label' => trans('admin::app.components.activities.index.all')],
+                    ['name' => 'planned', 'label' => trans('admin::app.components.activities.index.planned')],
+                    ['name' => 'note', 'label' => trans('admin::app.components.activities.index.notes')],
+                    ['name' => 'meeting', 'label' => trans('admin::app.components.activities.index.meetings')],
                 ]"
             >
-                <!-- Products -->
-                <x-slot:products>
-                    @include ('admin::leads.view.products')
-                </x-slot>
-
-                <!-- Quotes -->
-                <x-slot:quotes>
-                    @include ('admin::leads.view.quotes')
-                </x-slot>
-
-                <!-- Description -->
-                <x-slot:description>
-                    <div class="p-4 dark:text-white">
-                        {{ $lead->description }}
-                    </div>
-                </x-slot>
             </x-admin::activities>
 
             {!! view_render_event('admin.leads.view.activities.after', ['lead' => $lead]) !!}

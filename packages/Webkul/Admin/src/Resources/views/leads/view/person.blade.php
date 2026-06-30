@@ -82,7 +82,7 @@
                         {!! view_render_event('admin.leads.view.person.contact_numbers.before', ['lead' => $lead]) !!}
 
                         @foreach ($lead->person->contact_numbers ?? [] as $contactNumber)
-                            <div class="flex gap-1">
+                            <div class="flex items-center gap-1">
                                 <a
                                     class="text-brandColor"
                                     href="callto:{{ $contactNumber['value'] }}"
@@ -93,6 +93,26 @@
                                 <span class="text-gray-500 dark:text-gray-300">
                                     ({{ $contactNumber['label'] }})
                                 </span>
+
+                                @php
+                                    $whatsappDigits = preg_replace('/\D/', '', $contactNumber['value']);
+                                    $whatsappNumber = $whatsappDigits && ! str_starts_with($whatsappDigits, '55')
+                                        ? '55'.$whatsappDigits
+                                        : $whatsappDigits;
+                                @endphp
+
+                                @if ($whatsappNumber)
+                                    <a
+                                        href="https://wa.me/{{ $whatsappNumber }}"
+                                        target="_blank"
+                                        class="flex items-center rounded p-1 transition-all hover:bg-gray-200 dark:hover:bg-gray-800"
+                                        title="{{ trans('admin::app.leads.view.persons.whatsapp') }}"
+                                    >
+                                        <svg viewBox="0 0 32 32" class="h-3.5 w-3.5" fill="#25D366">
+                                            <path d="M16.004 3C9.374 3 4 8.373 4 15.002c0 2.474.733 4.77 1.998 6.689L4 29l7.52-1.973a11.94 11.94 0 0 0 4.484.873h.004c6.63 0 12.003-5.373 12.003-12.001C28.011 8.373 22.638 3 16.004 3zm6.997 17.06c-.297.836-1.74 1.6-2.405 1.703-.616.094-1.396.134-2.255-.14-.52-.166-1.187-.387-2.04-.756-3.59-1.55-5.934-5.146-6.115-5.388-.18-.242-1.466-1.95-1.466-3.72 0-1.77.93-2.64 1.26-3.002.33-.362.72-.453.96-.453.24 0 .48.002.69.013.221.012.518-.084.81.618.297.717 1.01 2.476 1.1 2.656.09.18.15.39.03.63-.12.24-.18.39-.36.6-.18.21-.378.469-.54.63-.18.18-.367.375-.157.735.21.36.93 1.535 1.997 2.486 1.374 1.222 2.534 1.6 2.9 1.78.366.18.58.15.793-.09.21-.24.93-1.08 1.18-1.45.24-.36.48-.3.81-.18.33.12 2.085.984 2.445 1.164.36.18.6.27.69.42.09.15.09.87-.21 1.704z"/>
+                                        </svg>
+                                    </a>
+                                @endif
                             </div>
                         @endforeach
 

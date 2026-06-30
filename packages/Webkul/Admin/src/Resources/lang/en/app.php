@@ -167,7 +167,7 @@ return [
                 'meetings' => 'Meetings',
                 'notes' => 'Notes',
                 'participants' => 'Participants',
-                'planned' => 'Planned',
+                'planned' => 'Tasks',
                 'quotes' => 'Quotes',
                 'scheduled-on' => 'Scheduled on',
                 'system' => 'System',
@@ -1799,6 +1799,7 @@ return [
             'kanban' => [
                 'rotten-days' => 'Lead is rotten for :days days',
                 'days-in-stage' => 'In this stage for :days days',
+                'whatsapp' => 'Open WhatsApp',
                 'card-preferences' => [
                     'title' => 'Customize Card',
                     'show-lead-value' => 'Show value (R$)',
@@ -1945,6 +1946,7 @@ return [
                 'title' => 'About Persons',
                 'job-title' => ':job_title at :organization',
                 'no-person' => 'No contact person is allocated to this lead.',
+                'whatsapp' => 'Open WhatsApp',
                 'attach-btn' => 'Attach Contact Person',
                 'change-btn' => 'Change',
                 'change-title' => 'Change Contact Person',

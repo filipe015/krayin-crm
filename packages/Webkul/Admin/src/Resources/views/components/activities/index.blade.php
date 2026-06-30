@@ -40,19 +40,46 @@
             {!! view_render_event('admin.components.activities.content.before') !!}
 
             <div class="rounded-md border border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900">
-                <div class="flex flex-wrap gap-2 border-b border-gray-300 dark:border-gray-800">
-                    {!! view_render_event('admin.components.activities.content.types.before') !!}
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-300 dark:border-gray-800">
+                    <div class="flex flex-wrap gap-2">
+                        {!! view_render_event('admin.components.activities.content.types.before') !!}
 
-                    <div
-                        v-for="type in types"
-                        class="cursor-pointer px-3 py-2.5 text-sm font-medium dark:text-white"
-                        :class="{'border-brandColor border-b-2 !text-brandColor transition': selectedType == type.name }"
-                        @click="onTabChange(type.name)"
-                    >
-                        @{{ type.label }}
+                        <div
+                            v-for="type in types"
+                            class="cursor-pointer px-3 py-2.5 text-sm font-medium dark:text-white"
+                            :class="{'border-brandColor border-b-2 !text-brandColor transition': selectedType == type.name }"
+                            @click="onTabChange(type.name)"
+                        >
+                            @{{ type.label }}
+                        </div>
+
+                        {!! view_render_event('admin.components.activities.content.types.after') !!}
                     </div>
 
-                    {!! view_render_event('admin.components.activities.content.types.after') !!}
+                    <!--
+                        Change Log Shortcut: shown only when the "system" tab has been left out of
+                        the visible `types` list (e.g. screens that trim the tab bar down to a few
+                        types), so the change log stays reachable without taking up a tab slot.
+                        Screens that still list "system" as a normal tab are unaffected.
+                    -->
+                    <div
+                        class="group relative mr-2"
+                        v-if="! types.find(type => type.name === 'system')"
+                    >
+                        <span
+                            class="icon-system-generate cursor-pointer rounded-md p-2 text-xl transition-all hover:bg-gray-100 dark:hover:bg-gray-950"
+                            :class="{ '!text-brandColor': selectedType === 'system' }"
+                            @click="onTabChange('system')"
+                        ></span>
+
+                        <div class="absolute -top-1 right-9 hidden w-max flex-col items-center group-hover:flex">
+                            <span class="whitespace-no-wrap relative rounded-md bg-black px-4 py-2 text-xs leading-none text-white shadow-lg">
+                                @lang('admin::app.components.activities.index.change-log')
+                            </span>
+
+                            <div class="absolute -right-1 top-2 h-3 w-3 rotate-45 bg-black"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Show Default Activities if selectedType not in extraTypes -->
@@ -522,7 +549,16 @@
             computed: {
                 filteredActivities() {
                     if (this.selectedType == 'all') {
-                        return this.activities;
+                        /**
+                         * "All" only aggregates the types actually present in the tab bar
+                         * (plus anything still undone, matching the "Planned" tab's own rule).
+                         * On screens with the full default tab list this is equivalent to
+                         * returning every activity, since every type is covered there.
+                         */
+                        return this.activities.filter(activity =>
+                            ! activity.is_done
+                            || this.types.some(type => type.name === activity.type)
+                        );
                     } else if (this.selectedType == 'planned') {
                         return this.activities.filter(activity => ! activity.is_done);
                     }
