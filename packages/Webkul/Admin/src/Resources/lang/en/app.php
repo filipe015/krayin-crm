@@ -121,6 +121,9 @@ return [
                     'file' => 'File',
                     'save-btn' => 'Save File',
                 ],
+                'whatsapp' => [
+                    'btn' => 'WhatsApp',
+                ],
                 'note' => [
                     'btn' => 'Note',
                     'title' => 'Add Note',
@@ -1906,6 +1909,9 @@ return [
             ],
             'attributes' => [
                 'title' => 'About Lead',
+                'preferences' => [
+                    'title' => 'Visible Fields',
+                ],
             ],
             'quotes' => [
                 'id' => 'ID',

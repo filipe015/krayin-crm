@@ -326,6 +326,28 @@ class LeadController extends Controller
     }
 
     /**
+     * Lists the attributes shown in the lead's "About Lead" section (code, name,
+     * is_required only), used to build the per-user visibility preference menu.
+     * Read-only — any authenticated admin user can list these, no Settings
+     * permission required, since this only powers their own display preference.
+     */
+    public function attributesList(): JsonResponse
+    {
+        $attributes = $this->attributeRepository->findWhere([
+            'entity_type' => 'leads',
+            ['code', 'NOTIN', ['title', 'description', 'lead_pipeline_id', 'lead_pipeline_stage_id']],
+        ])->map(fn ($attribute) => [
+            'code'        => $attribute->code,
+            'name'        => $attribute->name,
+            'is_required' => (bool) $attribute->is_required,
+        ])->values();
+
+        return response()->json([
+            'data' => $attributes,
+        ]);
+    }
+
+    /**
      * Update the lead stage.
      */
     public function updateStage(int $id)

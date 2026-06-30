@@ -121,6 +121,9 @@ return [
                     'file' => 'Arquivo',
                     'save-btn' => 'Salvar Arquivo',
                 ],
+                'whatsapp' => [
+                    'btn' => 'WhatsApp',
+                ],
                 'note' => [
                     'btn' => 'Nota',
                     'title' => 'Adicionar Nota',
@@ -1905,6 +1908,9 @@ return [
             ],
             'attributes' => [
                 'title' => 'Sobre o Negócio',
+                'preferences' => [
+                    'title' => 'Campos Visíveis',
+                ],
             ],
             'quotes' => [
                 'id' => 'ID',
