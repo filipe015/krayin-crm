@@ -92,7 +92,7 @@ return [
     |
      */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'pt_BR'),
 
     /*
     |--------------------------------------------------------------------------
@@ -105,13 +105,7 @@ return [
      */
 
     'available_locales' => [
-        'ar' => 'Arabic',
-        'en' => 'English',
-        'es' => 'Español',
-        'fa' => 'Persian',
         'pt_BR' => 'Portuguese',
-        'tr' => 'Türkçe',
-        'vi' => 'Vietnamese',
     ],
 
     /*

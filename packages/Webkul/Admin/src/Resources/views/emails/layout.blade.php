@@ -15,11 +15,19 @@
                 <!-- Email Header -->
                 <div style="margin-bottom: 45px;">
                     <a href="{{ config('app.url') }}">
-                        <img
-                            src="{{ vite()->asset('images/logo.svg') }}"
-                            alt="{{ config('app.name') }}"
-                            style="height: 40px; width: 110px;"
-                        />
+                        @if ($logo = core()->getConfigData('general.general.admin_logo.logo_image'))
+                            <img
+                                src="{{ Storage::url($logo) }}"
+                                alt="{{ config('app.name') }}"
+                                style="height: 40px; width: 110px;"
+                            />
+                        @else
+                            <img
+                                src="{{ vite()->asset('images/logo.svg') }}"
+                                alt="{{ config('app.name') }}"
+                                style="height: 40px; width: 110px;"
+                            />
+                        @endif
                     </a>
                 </div>
 
