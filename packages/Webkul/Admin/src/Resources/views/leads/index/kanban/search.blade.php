@@ -1,6 +1,7 @@
 {!! view_render_event('admin.leads.index.kanban.search.before') !!}
 
 <v-kanban-search
+    ref="kanbanSearch"
     :is-loading="isLoading"
     :available="available"
     :applied="applied"
@@ -21,12 +22,18 @@
             <input
                 type="text"
                 name="search"
-                class="block w-full rounded-lg border border-gray-300 bg-white py-1.5 leading-6 text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400 dark:focus:border-gray-400 ltr:pl-10 ltr:pr-3 rtl:pl-3 rtl:pr-10"
+                class="block w-full rounded-lg border border-gray-300 bg-white py-1.5 leading-6 text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400 dark:focus:border-gray-400 ltr:pl-10 ltr:pr-7 rtl:pl-7 rtl:pr-10"
                 placeholder="@lang('admin::app.leads.index.kanban.toolbar.search.title')"
                 autocomplete="off"
-                :value="getSearchedValues()"
+                v-model="searchText"
                 @keyup.enter="search"
             >
+
+            <span
+                class="icon-cross-large absolute flex cursor-pointer items-center text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 ltr:right-2.5 rtl:left-2.5"
+                v-if="searchText"
+                @click="clearSearch"
+            ></span>
         </div>
     </script>
 
@@ -43,14 +50,34 @@
                     filters: {
                         columns: [],
                     },
+
+                    searchText: '',
                 };
             },
 
             mounted() {
                 this.filters.columns = this.applied.filters.columns.filter((column) => column.index === 'all');
+
+                this.searchText = (this.filters.columns.find(c => c.index === 'all')?.value ?? [])[0] ?? '';
             },
 
             methods: {
+                /**
+                 * Clear the search field and notify the parent.
+                 *
+                 * @param {boolean} emit - Whether to emit the search event (false when parent drives the reset).
+                 * @returns {void}
+                 */
+                clearSearch(emit = true) {
+                    this.searchText = '';
+
+                    this.filters.columns = this.filters.columns.filter(c => c.index !== 'all');
+
+                    if (emit) {
+                        this.$emit('search', this.filters);
+                    }
+                },
+
                 /**
                  * Perform a search operation based on the input value.
                  *

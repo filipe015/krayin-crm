@@ -1833,6 +1833,7 @@ return [
                         'select' => 'Selecionar',
                         'to' => 'Para',
                     ],
+                    'clear-filters' => 'Limpar filtros',
                 ],
                 'stages' => [
                     'won' => 'Ganho',

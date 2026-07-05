@@ -1834,6 +1834,7 @@ return [
                         'select' => 'Select',
                         'to' => 'To',
                     ],
+                    'clear-filters' => 'Clear filters',
                 ],
                 'stages' => [
                     'won' => 'Won',

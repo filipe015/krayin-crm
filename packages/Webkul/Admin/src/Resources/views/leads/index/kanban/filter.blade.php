@@ -1,6 +1,7 @@
 {!! view_render_event('admin.leads.index.kanban.filter.before') !!}
 
 <v-kanban-filter
+    ref="kanbanFilter"
     :is-loading="isLoading"
     :available="available"
     :applied="applied"
@@ -676,6 +677,21 @@
             },
 
             methods: {
+                /**
+                 * Clear all filter selections without emitting (parent drives the re-fetch),
+                 * or emit applyFilters when called directly (e.g., future use).
+                 *
+                 * @param {boolean} emit
+                 * @returns {void}
+                 */
+                clearAllFilters(emit = true) {
+                    this.filters.columns = [];
+
+                    if (emit) {
+                        this.$emit('applyFilters', this.filters);
+                    }
+                },
+
                 /**
                  * Get applied columns.
                  *

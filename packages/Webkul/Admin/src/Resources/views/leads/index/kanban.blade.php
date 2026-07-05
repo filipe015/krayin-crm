@@ -573,6 +573,25 @@
                 },
 
                 /**
+                 * Clears the search field, all structured filters, and updates localStorage.
+                 * Both child components reset their local state; a single API fetch is triggered.
+                 *
+                 * @returns {void}
+                 */
+                clearAllFilters() {
+                    this.applied.filters.columns = [];
+
+                    this.$refs.kanbanSearch?.clearSearch(false);
+                    this.$refs.kanbanFilter?.clearAllFilters(false);
+
+                    this.get().then(response => {
+                        for (let [sortOrder, data] of Object.entries(response.data)) {
+                            this.stageLeads[sortOrder] = data;
+                        }
+                    });
+                },
+
+                /**
                  * Appends the leads to the stage.
                  *
                  * @param {object} params - The parameters to be appended.

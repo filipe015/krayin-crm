@@ -16,6 +16,15 @@
 
         {!! view_render_event('admin.leads.index.kanban.toolbar.filter.after') !!}
 
+        <!-- Clear Filters -->
+        <button
+            type="button"
+            class="cursor-pointer rounded-md px-3 py-[9px] text-sm font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-950 dark:hover:text-gray-200"
+            @click="clearAllFilters"
+        >
+            @lang('admin::app.leads.index.kanban.toolbar.clear-filters')
+        </button>
+
         <div class="z-10 hidden w-full divide-y divide-gray-100 rounded bg-white shadow dark:bg-gray-900"></div>
     </div>
 
