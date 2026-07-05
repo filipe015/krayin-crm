@@ -24,64 +24,6 @@ return [
     ],
 
     /**
-     * Quotes.
-     */
-    [
-        'key' => 'quotes',
-        'name' => 'admin::app.layouts.quotes',
-        'route' => 'admin.quotes.index',
-        'sort' => 3,
-        'icon-class' => 'icon-quote',
-    ],
-
-    /**
-     * Emails.
-     */
-    [
-        'key' => 'mail',
-        'name' => 'admin::app.layouts.mail.title',
-        'route' => 'admin.mail.index',
-        'params' => ['route' => 'inbox'],
-        'sort' => 4,
-        'icon-class' => 'icon-mail',
-    ], [
-        'key' => 'mail.inbox',
-        'name' => 'admin::app.layouts.mail.inbox',
-        'route' => 'admin.mail.index',
-        'params' => ['route' => 'inbox'],
-        'sort' => 2,
-        'icon-class' => '',
-    ], [
-        'key' => 'mail.draft',
-        'name' => 'admin::app.layouts.mail.draft',
-        'route' => 'admin.mail.index',
-        'params' => ['route' => 'draft'],
-        'sort' => 3,
-        'icon-class' => '',
-    ], [
-        'key' => 'mail.outbox',
-        'name' => 'admin::app.layouts.mail.outbox',
-        'route' => 'admin.mail.index',
-        'params' => ['route' => 'outbox'],
-        'sort' => 4,
-        'icon-class' => '',
-    ], [
-        'key' => 'mail.sent',
-        'name' => 'admin::app.layouts.mail.sent',
-        'route' => 'admin.mail.index',
-        'params' => ['route' => 'sent'],
-        'sort' => 4,
-        'icon-class' => '',
-    ], [
-        'key' => 'mail.trash',
-        'name' => 'admin::app.layouts.mail.trash',
-        'route' => 'admin.mail.index',
-        'params' => ['route' => 'trash'],
-        'sort' => 5,
-        'icon-class' => '',
-    ],
-
-    /**
      * Activities.
      */
     [
@@ -275,16 +217,11 @@ return [
         'route' => 'admin.settings.tags.index',
         'sort' => 1,
         'icon-class' => 'icon-settings-tag',
-    ],
-
-    /**
-     * Configuration.
-     */
-    [
-        'key' => 'configuration',
+    ], [
+        'key' => 'settings.other_settings.configuration',
         'name' => 'admin::app.layouts.configuration',
         'route' => 'admin.configuration.index',
-        'sort' => 9,
+        'sort' => 2,
         'icon-class' => 'icon-configuration',
     ],
 

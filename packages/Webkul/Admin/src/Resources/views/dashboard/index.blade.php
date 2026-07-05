@@ -50,13 +50,6 @@
             <!-- Total Leads Stats -->
             @include('admin::dashboard.index.total-leads')
 
-            <div class="flex gap-4 max-lg:flex-wrap">
-                <!-- Total Products -->
-                @include('admin::dashboard.index.top-selling-products')
-
-                <!-- Total Persons -->
-                @include('admin::dashboard.index.top-persons')
-            </div>
         </div>
 
         {!! view_render_event('admin.dashboard.index.content.left.after') !!}
@@ -71,8 +64,6 @@
             <!-- Revenue by Sources -->
             @include('admin::dashboard.index.revenue-by-sources')
 
-            <!-- Revenue by Types -->
-            @include('admin::dashboard.index.revenue-by-types')
         </div>
 
         {!! view_render_event('admin.dashboard.index.content.left.after') !!}
