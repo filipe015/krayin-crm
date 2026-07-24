@@ -44,7 +44,7 @@
                             v-for="(stat, index) in report.statistics"
                         >
                             <span class="text-sm font-semibold dark:text-gray-100">
-                                @{{ stat.total }}
+                                @{{ stat.total }} leads • @{{ getStagePercentage(stat.total) }}%
                             </span>
 
                             <span class="text-sm font-semibold dark:text-gray-100">
@@ -97,6 +97,14 @@
                 }
             },
 
+            computed: {
+                totalLeads() {
+                    return this.report.statistics.reduce((total, stat) => {
+                        return total + Number(stat.total);
+                    }, 0);
+                },
+            },
+
             mounted() {
                 this.getStats({});
 
@@ -104,6 +112,14 @@
             },
 
             methods: {
+                getStagePercentage(total) {
+                    if (! this.totalLeads) {
+                        return 0;
+                    }
+
+                    return Math.round((Number(total) / this.totalLeads) * 100);
+                },
+
                 getStats(filtets) {
                     this.isLoading = true;
 

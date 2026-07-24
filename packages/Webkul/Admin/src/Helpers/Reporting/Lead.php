@@ -323,18 +323,24 @@ class Lead extends AbstractReporting
      */
     public function getOpenLeadsByStates()
     {
-        return $this->leadRepository
+        return $this->stageRepository
             ->resetModel()
             ->select(
                 'lead_pipeline_stages.name',
-                DB::raw('COUNT(lead_value) as total')
+                'lead_pipeline_stages.sort_order',
+                DB::raw('COUNT(leads.id) as total')
             )
-            ->leftJoin('lead_pipeline_stages', 'leads.lead_pipeline_stage_id', '=', 'lead_pipeline_stages.id')
-            ->whereNotIn('lead_pipeline_stage_id', $this->wonStageIds)
-            ->whereNotIn('lead_pipeline_stage_id', $this->lostStageIds)
-            ->whereBetween('leads.created_at', [$this->startDate, $this->endDate])
-            ->groupBy('lead_pipeline_stage_id')
-            ->orderByDesc('total')
+            ->leftJoin('leads', function ($join) {
+                $join->on('leads.lead_pipeline_stage_id', '=', 'lead_pipeline_stages.id')
+                    ->whereBetween('leads.created_at', [$this->startDate, $this->endDate]);
+            })
+            ->whereNotIn('lead_pipeline_stages.id', $this->lostStageIds)
+            ->groupBy(
+                'lead_pipeline_stages.id',
+                'lead_pipeline_stages.name',
+                'lead_pipeline_stages.sort_order'
+            )
+            ->orderBy('lead_pipeline_stages.sort_order')
             ->get();
     }
 
