@@ -242,7 +242,7 @@
                                             class="rounded-xl bg-gray-200 px-2 py-1 text-xs font-medium dark:bg-gray-800 dark:text-white"
                                             v-if="cardPreferences.show_created_at && element.created_at"
                                         >
-                                            @{{ $admin.formatDate(element.created_at, 'DD/MM', timezone) }}
+                                            @{{ $admin.formatDate(element.created_at, 'DD/MM HH:mm', timezone) }}
                                         </div>
 
                                         <div
