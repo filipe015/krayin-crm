@@ -27,7 +27,16 @@
 
                 {!! view_render_event('admin.leads.index.kanban.content.before') !!}
 
-                <div class="flex gap-2.5 overflow-x-auto flex-1 min-h-0">
+                <div
+                    ref="kanbanScroll"
+                    class="flex gap-2.5 overflow-x-auto flex-1 min-h-0"
+                    :class="isKanbanDragging ? 'cursor-grabbing' : 'cursor-grab'"
+                    @pointerdown="startKanbanDrag"
+                    @pointermove="handleKanbanDrag"
+                    @pointerup="stopKanbanDrag"
+                    @pointercancel="stopKanbanDrag"
+                    @scroll="syncFixedScrollbarFromKanban"
+                >
                     <!-- Stage Cards -->
                     <div
                         class="flex min-w-[275px] max-w-[275px] flex-col gap-1 min-h-0 rounded-lg border border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900"
@@ -279,6 +288,19 @@
                     </div>
                 </div>
 
+                <div
+                    ref="fixedKanbanScrollbar"
+                    class="fixed bottom-0 z-[1001] h-4 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900"
+                    :style="fixedKanbanScrollbarStyle"
+                    v-show="fixedKanbanScrollbar.visible"
+                    @scroll="syncKanbanFromFixedScrollbar"
+                >
+                    <div
+                        class="h-px"
+                        :style="{ width: `${fixedKanbanScrollbar.contentWidth}px` }"
+                    ></div>
+                </div>
+
                 {!! view_render_event('admin.leads.index.kanban.content.after') !!}
             </div>
 
@@ -397,6 +419,24 @@
 
                     isLoading: true,
 
+                    isKanbanDragging: false,
+
+                    kanbanDrag: {
+                        pointerId: null,
+                        startX: 0,
+                        startScrollLeft: 0,
+                        hasMoved: false,
+                    },
+
+                    fixedKanbanScrollbar: {
+                        visible: false,
+                        left: 0,
+                        width: 0,
+                        contentWidth: 0,
+                    },
+
+                    kanbanResizeObserver: null,
+
                     timezone: "{{ config('app.timezone') }}",
 
                     cardPreferencesSrc: 'lead-kanban',
@@ -419,6 +459,13 @@
             },
 
             computed: {
+                fixedKanbanScrollbarStyle() {
+                    return {
+                        left: `${this.fixedKanbanScrollbar.left}px`,
+                        width: `${this.fixedKanbanScrollbar.width}px`,
+                    };
+                },
+
                 /**
                  * Computes the total amount of leads across all stages.
                  *
@@ -441,7 +488,141 @@
                 this.getCardPreferences();
             },
 
+            beforeUnmount() {
+                window.removeEventListener('resize', this.updateFixedKanbanScrollbar);
+                window.removeEventListener('scroll', this.updateFixedKanbanScrollbar);
+
+                this.kanbanResizeObserver?.disconnect();
+            },
+
+            watch: {
+                isLoading(isLoading) {
+                    if (isLoading) {
+                        return;
+                    }
+
+                    this.$nextTick(this.initializeFixedKanbanScrollbar);
+                },
+            },
+
             methods: {
+                initializeFixedKanbanScrollbar() {
+                    const kanbanScroll = this.$refs.kanbanScroll;
+
+                    if (! kanbanScroll) {
+                        return;
+                    }
+
+                    this.kanbanResizeObserver = new ResizeObserver(this.updateFixedKanbanScrollbar);
+                    this.kanbanResizeObserver.observe(kanbanScroll);
+
+                    window.addEventListener('resize', this.updateFixedKanbanScrollbar);
+                    window.addEventListener('scroll', this.updateFixedKanbanScrollbar, { passive: true });
+
+                    this.updateFixedKanbanScrollbar();
+                },
+
+                updateFixedKanbanScrollbar() {
+                    const kanbanScroll = this.$refs.kanbanScroll;
+
+                    if (! kanbanScroll) {
+                        return;
+                    }
+
+                    const bounds = kanbanScroll.getBoundingClientRect();
+
+                    this.fixedKanbanScrollbar = {
+                        visible: (
+                            kanbanScroll.scrollWidth > kanbanScroll.clientWidth
+                            && bounds.top < window.innerHeight
+                            && bounds.bottom > 0
+                        ),
+                        left: bounds.left,
+                        width: bounds.width,
+                        contentWidth: kanbanScroll.scrollWidth,
+                    };
+
+                    this.$nextTick(() => {
+                        if (this.$refs.fixedKanbanScrollbar) {
+                            this.$refs.fixedKanbanScrollbar.scrollLeft = kanbanScroll.scrollLeft;
+                        }
+                    });
+                },
+
+                syncFixedScrollbarFromKanban(event) {
+                    if (! this.$refs.fixedKanbanScrollbar) {
+                        return;
+                    }
+
+                    this.$refs.fixedKanbanScrollbar.scrollLeft = event.target.scrollLeft;
+                },
+
+                syncKanbanFromFixedScrollbar(event) {
+                    if (! this.$refs.kanbanScroll) {
+                        return;
+                    }
+
+                    this.$refs.kanbanScroll.scrollLeft = event.target.scrollLeft;
+                },
+
+                startKanbanDrag(event) {
+                    const kanbanScroll = this.$refs.kanbanScroll;
+
+                    if (
+                        ! kanbanScroll
+                        || event.pointerType !== 'mouse'
+                        || event.button !== 0
+                        || event.target.closest('.lead-item, a, button, input, textarea, select, [role="button"]')
+                    ) {
+                        return;
+                    }
+
+                    this.kanbanDrag = {
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startScrollLeft: kanbanScroll.scrollLeft,
+                        hasMoved: false,
+                    };
+
+                    this.isKanbanDragging = true;
+
+                    kanbanScroll.setPointerCapture(event.pointerId);
+
+                    event.preventDefault();
+                },
+
+                handleKanbanDrag(event) {
+                    if (event.pointerId !== this.kanbanDrag.pointerId) {
+                        return;
+                    }
+
+                    const distance = event.clientX - this.kanbanDrag.startX;
+
+                    if (! this.kanbanDrag.hasMoved && Math.abs(distance) < 4) {
+                        return;
+                    }
+
+                    this.kanbanDrag.hasMoved = true;
+                    this.$refs.kanbanScroll.scrollLeft = this.kanbanDrag.startScrollLeft - distance;
+
+                    event.preventDefault();
+                },
+
+                stopKanbanDrag(event) {
+                    if (event.pointerId !== this.kanbanDrag.pointerId) {
+                        return;
+                    }
+
+                    const kanbanScroll = this.$refs.kanbanScroll;
+
+                    if (kanbanScroll?.hasPointerCapture(event.pointerId)) {
+                        kanbanScroll.releasePointerCapture(event.pointerId);
+                    }
+
+                    this.isKanbanDragging = false;
+                    this.kanbanDrag.pointerId = null;
+                },
+
                 /**
                  * Initialization: This function checks for any previously saved filters in local storage and applies them as needed.
                  *
