@@ -369,6 +369,7 @@ class LeadController extends Controller
             'lead_pipeline_stage_id' => $stage->id,
         ])->only([
             'closed_at',
+            'lead_value',
             'lost_reason',
             'lead_pipeline_stage_id',
             'entity_type',
