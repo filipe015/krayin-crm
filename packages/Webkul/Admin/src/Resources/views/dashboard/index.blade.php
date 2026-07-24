@@ -58,8 +58,11 @@
         {!! view_render_event('admin.dashboard.index.content.right.before') !!}
 
         <div class="flex w-[378px] max-w-full flex-col gap-4 max-sm:w-full">
-            <!-- Revenue by Types -->
-            @include('admin::dashboard.index.open-leads-by-states')
+            <!-- Leads by Stages -->
+            @include('admin::dashboard.index.leads-by-stages-bar')
+
+            <!-- Sales Funnel -->
+            @include('admin::dashboard.index.sales-funnel')
 
             <!-- Revenue by Sources -->
             @include('admin::dashboard.index.revenue-by-sources')
