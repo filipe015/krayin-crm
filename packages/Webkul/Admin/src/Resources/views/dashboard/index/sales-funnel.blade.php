@@ -86,18 +86,18 @@
                 </div>
 
                 <div
-                    class="grid w-full grid-cols-[minmax(120px,0.9fr)_minmax(0,1.1fr)] items-center gap-3"
+                    class="flex w-full items-stretch gap-4"
                     :style="{ height: Math.max(visibleStages.length * 58, 190) + 'px' }"
                     v-if="visibleStages.length"
                 >
-                    <div class="h-full min-w-0">
+                    <div class="relative h-full w-1/2 min-w-0">
                         <canvas
                             :id="$.uid + '_chart'"
-                            class="h-full w-full"
+                            class="!h-full !w-full"
                         ></canvas>
                     </div>
 
-                    <ul class="flex min-w-0 flex-col justify-center gap-2">
+                    <ul class="flex w-1/2 min-w-0 flex-col justify-center gap-2">
                         <li
                             class="min-w-0 border-b border-gray-300 pb-2 last:border-none last:pb-0 dark:border-gray-800"
                             v-for="stage in visibleStages"
@@ -207,25 +207,47 @@
 
                             this.isLoading = false;
 
-                            setTimeout(() => {
+                            this.$nextTick(() => {
                                 this.prepare();
-                            }, 0);
+                            });
                         })
                         .catch(() => {});
                 },
 
                 prepare() {
-                    if (this.chart) {
-                        this.chart.destroy();
-
-                        this.chart = undefined;
-                    }
-
                     if (! this.visibleStages.length) {
+                        if (this.chart) {
+                            this.chart.destroy();
+
+                            this.chart = undefined;
+                        }
+
                         return;
                     }
 
+                    const stages = this.visibleStages.map(stage => ({
+                        name: stage.name,
+                        total: Number(stage.total),
+                    }));
+
                     const ctx = document.getElementById(this.$.uid + '_chart')?.getContext('2d');
+
+                    if (! ctx) {
+                        return;
+                    }
+
+                    if (this.chart && this.chart.canvas === ctx.canvas) {
+                        this.chart.data.labels = stages.map(stage => stage.name);
+                        this.chart.data.datasets[0].data = stages.map(stage => stage.total);
+                        this.chart.update();
+
+                        return;
+                    }
+
+                    if (this.chart) {
+                        this.chart.destroy();
+                    }
+
                     const gradient = ctx.createLinearGradient(0, 0, 0, Math.max(this.visibleStages.length * 58, 190));
 
                     gradient.addColorStop(0, 'rgba(144, 247, 236, 0.8)');
@@ -235,10 +257,10 @@
                         type: 'funnel',
 
                         data: {
-                            labels: this.visibleStages.map(stage => stage.name),
+                            labels: stages.map(stage => stage.name),
 
                             datasets: [{
-                                data: this.visibleStages.map(stage => Number(stage.total)),
+                                data: stages.map(stage => stage.total),
                                 backgroundColor: gradient,
                                 borderColor: 'rgba(0, 0, 0, 0)',
                                 borderWidth: 0,
