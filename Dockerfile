@@ -3,7 +3,7 @@ FROM php:8.3-apache
 # Extensões necessárias + tzdata para fuso horário
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev \
-    libxml2-dev libzip-dev libicu-dev nodejs npm tzdata \
+    libxml2-dev libzip-dev libicu-dev nodejs npm tzdata cron \
     && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath
 
 # Fuso horário do sistema e do PHP
@@ -34,6 +34,9 @@ RUN a2enmod rewrite
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+COPY docker/laravel-scheduler.cron /etc/cron.d/laravel-scheduler
+RUN chmod 0644 /etc/cron.d/laravel-scheduler
 
 EXPOSE 80
 CMD ["/usr/local/bin/docker-entrypoint.sh"]
