@@ -628,7 +628,7 @@
                         visibleCount: 0,
                         selectedDate: new window['Date'](),
                         filters: {
-                            type: [],
+                            type: ['task'],
                             user_id: [],
                             is_done: '',
                         },
