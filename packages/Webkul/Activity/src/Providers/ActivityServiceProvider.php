@@ -4,6 +4,7 @@ namespace Webkul\Activity\Providers;
 
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use Webkul\Activity\Console\Commands\SendActivityReminders;
 use Webkul\Activity\Contracts\Activity as ActivityContract;
 use Webkul\Activity\Contracts\File as FileContract;
 use Webkul\Activity\Contracts\Participant as ParticipantContract;
@@ -22,6 +23,8 @@ class ActivityServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->mergeConfigFrom(__DIR__.'/../Config/reminders.php', 'activity.reminders');
+
         $this->app->bindIf(ActivityContract::class, Activity::class);
         $this->app->bindIf(FileContract::class, File::class);
         $this->app->bindIf(ParticipantContract::class, Participant::class);
@@ -35,6 +38,12 @@ class ActivityServiceProvider extends ServiceProvider
     public function boot(Router $router)
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                SendActivityReminders::class,
+            ]);
+        }
 
         // Guarantee that Concord's model-proxy registry contains the Activity
         // bindings after all providers have booted.  ModelProxy::modelClass()

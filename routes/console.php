@@ -20,3 +20,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('inbound-emails:process')->everyFiveMinutes();
+
+Schedule::command('activities:send-reminders')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

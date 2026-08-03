@@ -32,6 +32,7 @@ class Activity extends Model implements ActivityContract
      * @var array
      */
     protected $casts = [
+        'reminder_sent_at' => 'datetime',
         'schedule_from' => 'datetime',
         'schedule_to' => 'datetime',
     ];
@@ -50,6 +51,7 @@ class Activity extends Model implements ActivityContract
         'schedule_from',
         'schedule_to',
         'is_done',
+        'reminder_sent_at',
         'user_id',
     ];
 
