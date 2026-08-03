@@ -48,6 +48,14 @@ class ActivityController extends Controller
             return datagrid(ActivityDataGrid::class)->process();
         }
 
+        $filters = request()->validate([
+            'type' => ['sometimes', 'array'],
+            'type.*' => ['string', 'in:task,call,meeting,lunch,note,file'],
+            'user_id' => ['sometimes', 'array'],
+            'user_id.*' => ['integer', 'exists:users,id'],
+            'is_done' => ['nullable', 'boolean'],
+        ]);
+
         $startDate = request()->get('startDate')
             ? Carbon::createFromTimeString(request()->get('startDate').' 00:00:01')
             : Carbon::now()->startOfWeek()->format('Y-m-d H:i:s');
@@ -56,7 +64,9 @@ class ActivityController extends Controller
             ? Carbon::createFromTimeString(request()->get('endDate').' 23:59:59')
             : Carbon::now()->endOfWeek()->format('Y-m-d H:i:s');
 
-        $activities = $this->activityRepository->getActivities([$startDate, $endDate])->toArray();
+        $activities = $this->activityRepository
+            ->getActivities([$startDate, $endDate], $filters)
+            ->toArray();
 
         return response()->json([
             'activities' => $activities,

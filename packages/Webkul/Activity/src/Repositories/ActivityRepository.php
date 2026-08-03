@@ -102,17 +102,24 @@ class ActivityRepository extends Repository
     }
 
     /**
-     * @param  string  $dateRange
+     * @param  array  $dateRange
      * @return mixed
      */
-    public function getActivities($dateRange)
+    public function getActivities($dateRange, array $filters = [])
     {
         $tablePrefix = \DB::getTablePrefix();
+
+        $types = ! empty($filters['type'])
+            ? $filters['type']
+            : ['call', 'meeting', 'lunch'];
 
         return $this->select(
             'activities.id',
             'activities.created_at',
             'activities.title',
+            'activities.type',
+            'activities.user_id',
+            'activities.is_done',
             'activities.schedule_from as start',
             'activities.schedule_to as end',
             'users.name as user_name',
@@ -120,8 +127,14 @@ class ActivityRepository extends Repository
             ->addSelect(\DB::raw('IF('.$tablePrefix.'activities.is_done, "done", "") as class'))
             ->leftJoin('activity_participants', 'activities.id', '=', 'activity_participants.activity_id')
             ->leftJoin('users', 'activities.user_id', '=', 'users.id')
-            ->whereIn('type', ['call', 'meeting', 'lunch'])
+            ->whereIn('activities.type', $types)
             ->whereBetween('activities.schedule_from', $dateRange)
+            ->when(! empty($filters['user_id']), function ($query) use ($filters) {
+                $query->whereIn('activities.user_id', $filters['user_id']);
+            })
+            ->when(array_key_exists('is_done', $filters), function ($query) use ($filters) {
+                $query->where('activities.is_done', (bool) $filters['is_done']);
+            })
             ->where(function ($query) {
                 if ($userIds = bouncer()->getAuthorizedUserIds()) {
                     $query->whereIn('activities.user_id', $userIds)

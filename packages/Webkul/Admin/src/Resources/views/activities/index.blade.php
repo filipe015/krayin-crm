@@ -402,7 +402,90 @@
             type="text/x-template"
             id="v-calendar-template"
         >
-            <div class="relative">
+            <div class="relative flex flex-col gap-3">
+                <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <label class="flex min-w-[180px] flex-1 flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Type
+
+                            <select
+                                class="min-h-[88px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brandColor focus:ring-1 focus:ring-brandColor dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                                multiple
+                                v-model="filters.type"
+                                @change="applyFilters"
+                            >
+                                <option v-for="type in activityTypes" :key="type.value" :value="type.value">
+                                    @{{ type.label }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label class="flex min-w-[220px] flex-1 flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Responsible
+
+                            <select
+                                class="min-h-[88px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brandColor focus:ring-1 focus:ring-brandColor dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                                multiple
+                                v-model="filters.user_id"
+                                @change="applyFilters"
+                            >
+                                <option v-for="user in users" :key="user.id" :value="String(user.id)">
+                                    @{{ user.name }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label class="flex min-w-[160px] flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Status
+
+                            <select
+                                class="h-11 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-800 outline-none focus:border-brandColor focus:ring-1 focus:ring-brandColor dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                                v-model="filters.is_done"
+                                @change="applyFilters"
+                            >
+                                <option value="">All</option>
+                                <option value="0">Pending</option>
+                                <option value="1">Completed</option>
+                            </select>
+                        </label>
+
+                        <button
+                            type="button"
+                            class="h-11 cursor-pointer rounded-md border border-brandColor px-4 text-sm font-semibold text-brandColor transition-colors hover:bg-brandColor hover:text-white focus:outline-none focus:ring-2 focus:ring-brandColor focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                            @click="goToToday"
+                        >
+                            Today
+                        </button>
+
+                        <div
+                            class="flex h-11 min-w-[120px] items-center justify-center rounded-md bg-gray-100 px-4 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                            aria-live="polite"
+                        >
+                            @{{ visibleCount }} item@{{ visibleCount === 1 ? '' : 's' }}
+                        </div>
+                    </div>
+
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Hold Ctrl (Windows) or Command (macOS) to select multiple options.
+                    </p>
+
+                    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Activity type color legend">
+                        <span
+                            class="inline-flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300"
+                            v-for="type in activityTypes"
+                            :key="`legend-${type.value}`"
+                        >
+                            <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: type.color }"></span>
+                            @{{ type.label }}
+                        </span>
+
+                        <span class="inline-flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-300">
+                            <span class="flex h-4 w-4 items-center justify-center rounded-full border border-red-600 text-[10px]">!</span>
+                            Overdue
+                        </span>
+                    </div>
+                </div>
+
                 <v-vue-cal
                     ref="calendar"
                     hide-view-selector
@@ -412,6 +495,7 @@
                     style="height: calc(100vh - 240px);"
                     :class="{'vuecal--dark': theme === 'dark'}"
                     :events="events"
+                    :selected-date="selectedDate"
                     :editable-events="false"
                     :time-format="'H:mm'"
                     :events-on-month-view="'stack'"
@@ -437,7 +521,8 @@
 
                         <div
                             class="vuecal__event-content"
-                            :style="{ backgroundColor: event._bgColor || '#0e90d9' }"
+                            :class="{'vuecal__event-content--overdue': event._isOverdue}"
+                            :style="{ backgroundColor: event._bgColor }"
                             draggable="false"
                             @dragstart.prevent
                             v-tooltip="{
@@ -452,6 +537,13 @@
                                 delay: { show: 200, hide: 100 }
                             }"
                         >
+                            <span
+                                class="vuecal__event-overdue-indicator"
+                                v-if="event._isOverdue"
+                                title="Overdue and pending"
+                                aria-label="Overdue and pending"
+                            >!</span>
+
                             <div class="vuecal__event-title font-medium">
                                 @{{ event.title }}
                             </div>
@@ -532,6 +624,22 @@
                 data() {
                     return {
                         events: [],
+                        users: [],
+                        visibleCount: 0,
+                        selectedDate: new window['Date'](),
+                        filters: {
+                            type: [],
+                            user_id: [],
+                            is_done: '',
+                        },
+                        activityTypes: [
+                            { value: 'task', label: 'Task', color: '#4f46e5' },
+                            { value: 'call', label: 'Call', color: '#0369a1' },
+                            { value: 'meeting', label: 'Meeting', color: '#7e22ce' },
+                            { value: 'note', label: 'Note', color: '#b45309' },
+                            { value: 'file', label: 'File', color: '#475569' },
+                            { value: 'lunch', label: 'Lunch', color: '#047857' },
+                        ],
                         theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
                         lastViewRange: null,
                         lastDragUpdateAt: 0,
@@ -550,6 +658,8 @@
                 },
 
                 mounted() {
+                    this.getUsers();
+
                     /**
                      * Listen for the theme change event.
                      *
@@ -576,11 +686,56 @@
 
                         this.$root.pageLoaded = false;
 
-                        this.$axios.get("{{ route('admin.activities.get', ['view_type' => 'calendar']) }}" + `&startDate=${new window['Date'](startDate).toLocaleDateString("en-US")}&endDate=${new window['Date'](endDate).toLocaleDateString("en-US")}`)
+                        const params = {
+                            view_type: 'calendar',
+                            startDate: new window['Date'](startDate).toLocaleDateString('en-US'),
+                            endDate: new window['Date'](endDate).toLocaleDateString('en-US'),
+                        };
+
+                        if (this.filters.type.length) {
+                            params.type = this.filters.type;
+                        }
+
+                        if (this.filters.user_id.length) {
+                            params.user_id = this.filters.user_id;
+                        }
+
+                        if (this.filters.is_done !== '') {
+                            params.is_done = this.filters.is_done;
+                        }
+
+                        this.$axios.get("{{ route('admin.activities.get') }}", { params })
                             .then(response => {
-                                this.events = this.processEvents(response.data.activities);
+                                const activities = response.data.activities ?? [];
+
+                                this.visibleCount = activities.length;
+                                this.events = this.processEvents(activities);
                             })
                             .catch(error => {});
+                    },
+
+                    getUsers() {
+                        this.$axios.get("{{ route('admin.settings.users.search') }}")
+                            .then(response => {
+                                this.users = response.data.data ?? [];
+                            })
+                            .catch(error => {});
+                    },
+
+                    applyFilters() {
+                        if (this.lastViewRange) {
+                            this.getActivities(this.lastViewRange);
+                        }
+                    },
+
+                    goToToday() {
+                        const today = new window['Date']();
+
+                        this.selectedDate = today;
+
+                        if (typeof this.$refs.calendar?.switchView === 'function') {
+                            this.$refs.calendar.switchView('week', today);
+                        }
                     },
 
                     /**
@@ -641,14 +796,18 @@
                         });
 
                         return segments.map(event => {
-                            if (! event._bgColor) {
-                                event._bgColor = this.generateEventColor(String(event.id ?? event.title ?? ''));
-                            }
+                            event._bgColor = this.getActivityTypeColor(event.type);
+                            event._isOverdue = Number(event.is_done) !== 1
+                                && new window['Date'](event._originalEnd ?? event.end).getTime() < window['Date'].now();
 
                             event.background = false;
 
                             return event;
                         });
+                    },
+
+                    getActivityTypeColor(type) {
+                        return this.activityTypes.find(activityType => activityType.value === type)?.color ?? '#475569';
                     },
 
                     beginResize(domEvent, event, mode) {
@@ -882,44 +1041,6 @@
                     },
 
                     /**
-                     * Simple string hash function for consistent color generation
-                     *
-                     * @param {string} str
-                     * @return {number}
-                     */
-                    hashString(str) {
-                        let hash = 0;
-
-                        for (let i = 0; i < str.length; i++) {
-                            hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                            hash |= 0;
-                        }
-
-                        return hash;
-                    },
-
-                    generateEventColor(value) {
-                        const hash = this.hashString(value);
-
-                        const colors = [
-                            '#e11d48',
-                            '#f97316',
-                            '#eab308',
-                            '#22c55e',
-                            '#14b8a6',
-                            '#06b6d4',
-                            '#3b82f6',
-                            '#6366f1',
-                            '#8b5cf6',
-                            '#d946ef',
-                            '#ec4899',
-                            '#84cc16',
-                        ];
-
-                        return colors[Math.abs(hash) % colors.length];
-                    },
-
-                    /**
                      * Format time for display in event template
                      *
                      * @param {object} date
@@ -1060,7 +1181,30 @@
             }
 
             .vuecal__event.done .vuecal__event-content {
-                background-color: #53c41a !important;
+                opacity: 0.68;
+            }
+
+            .vuecal__event-content--overdue {
+                border: 2px solid #dc2626;
+                box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 2px 8px rgba(220, 38, 38, 0.4) !important;
+            }
+
+            .vuecal__event-overdue-indicator {
+                position: absolute;
+                top: 4px;
+                right: 4px;
+                z-index: 2;
+                display: inline-flex;
+                width: 18px;
+                height: 18px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 9999px;
+                color: #991b1b;
+                background: #fff;
+                font-size: 12px;
+                font-weight: 800;
+                line-height: 1;
             }
 
             /* Event Title & Time */
