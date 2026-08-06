@@ -114,25 +114,82 @@
             <!-- Stages Navigation -->
             @include ('admin::leads.view.stages')
 
-            <!-- Activities -->
-            {!! view_render_event('admin.leads.view.activities.before', ['lead' => $lead]) !!}
+            <v-lead-communication-tabs>
+                <template #activities>
+                    {!! view_render_event('admin.leads.view.activities.before', ['lead' => $lead]) !!}
 
-            <x-admin::activities
-                :endpoint="route('admin.leads.activities.index', $lead->id)"
-                :email-detach-endpoint="route('admin.leads.emails.detach', $lead->id)"
-                :activeType="in_array(request()->query('tab'), ['all', 'planned', 'note', 'meeting', 'system']) ? request()->query('tab') : 'all'"
-                :types="[
-                    ['name' => 'all', 'label' => trans('admin::app.components.activities.index.all')],
-                    ['name' => 'planned', 'label' => trans('admin::app.components.activities.index.planned')],
-                    ['name' => 'note', 'label' => trans('admin::app.components.activities.index.notes')],
-                    ['name' => 'meeting', 'label' => trans('admin::app.components.activities.index.meetings')],
-                ]"
-            >
-            </x-admin::activities>
+                    <x-admin::activities
+                        :endpoint="route('admin.leads.activities.index', $lead->id)"
+                        :email-detach-endpoint="route('admin.leads.emails.detach', $lead->id)"
+                        :activeType="in_array(request()->query('tab'), ['all', 'planned', 'note', 'meeting', 'system']) ? request()->query('tab') : 'all'"
+                        :types="[
+                            ['name' => 'all', 'label' => trans('admin::app.components.activities.index.all')],
+                            ['name' => 'planned', 'label' => trans('admin::app.components.activities.index.planned')],
+                            ['name' => 'note', 'label' => trans('admin::app.components.activities.index.notes')],
+                            ['name' => 'meeting', 'label' => trans('admin::app.components.activities.index.meetings')],
+                        ]"
+                    >
+                    </x-admin::activities>
 
-            {!! view_render_event('admin.leads.view.activities.after', ['lead' => $lead]) !!}
+                    {!! view_render_event('admin.leads.view.activities.after', ['lead' => $lead]) !!}
+                </template>
+
+                <template #whatsapp>
+                    @include('whatsapp::leads.messages', ['lead' => $lead])
+                </template>
+            </v-lead-communication-tabs>
         </div>
 
         {!! view_render_event('admin.leads.view.right.after', ['lead' => $lead]) !!}
     </div>
+
+    @pushOnce('scripts')
+        <script type="text/x-template" id="v-lead-communication-tabs-template">
+            <div class="flex flex-col gap-4">
+                <div class="flex gap-2 border-b border-gray-200 dark:border-gray-800">
+                    <button
+                        type="button"
+                        class="px-4 py-3 text-sm font-medium"
+                        :class="activeTab === 'activities'
+                            ? 'border-b-2 border-brandColor text-brandColor'
+                            : 'text-gray-600 dark:text-gray-300'"
+                        @click="activeTab = 'activities'"
+                    >
+                        @lang('whatsapp::app.tabs.activities')
+                    </button>
+
+                    <button
+                        type="button"
+                        class="px-4 py-3 text-sm font-medium"
+                        :class="activeTab === 'whatsapp'
+                            ? 'border-b-2 border-brandColor text-brandColor'
+                            : 'text-gray-600 dark:text-gray-300'"
+                        @click="activeTab = 'whatsapp'"
+                    >
+                        @lang('whatsapp::app.tabs.messages')
+                    </button>
+                </div>
+
+                <div v-show="activeTab === 'activities'">
+                    <slot name="activities"></slot>
+                </div>
+
+                <div v-show="activeTab === 'whatsapp'">
+                    <slot name="whatsapp"></slot>
+                </div>
+            </div>
+        </script>
+
+        <script type="module">
+            app.component('v-lead-communication-tabs', {
+                template: '#v-lead-communication-tabs-template',
+
+                data() {
+                    return {
+                        activeTab: 'activities',
+                    };
+                },
+            });
+        </script>
+    @endPushOnce
 </x-admin::layouts>

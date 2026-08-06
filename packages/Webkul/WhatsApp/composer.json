@@ -1,0 +1,21 @@
+{
+    "name": "krayin/laravel-whatsapp",
+    "license": "MIT",
+    "require": {
+        "krayin/laravel-core": "^1.0",
+        "krayin/laravel-lead": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Webkul\\WhatsApp\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Webkul\\WhatsApp\\Providers\\WhatsAppServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev"
+}
