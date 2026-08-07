@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Webkul\Lead\Models\Lead;
+use Webkul\WhatsApp\Support\PhoneNumberMatcher;
 
 class LookupLeadController extends Controller
 {
@@ -51,7 +52,7 @@ class LookupLeadController extends Controller
                         ? ($contactNumber['value'] ?? null)
                         : $contactNumber;
 
-                    if ($value !== null && preg_replace('/\D/', '', (string) $value) === $phone) {
+                    if ($value !== null && PhoneNumberMatcher::matches((string) $value, $phone)) {
                         return true;
                     }
                 }
