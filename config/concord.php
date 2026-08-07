@@ -19,6 +19,7 @@ return [
         Webkul\Tag\Providers\ModuleServiceProvider::class,
         Webkul\User\Providers\ModuleServiceProvider::class,
         Webkul\Warehouse\Providers\ModuleServiceProvider::class,
+        Webkul\WhatsApp\Providers\ModuleServiceProvider::class,
         Webkul\WebForm\Providers\ModuleServiceProvider::class,
         Webkul\DataTransfer\Providers\ModuleServiceProvider::class,
     ],
