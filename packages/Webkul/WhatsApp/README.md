@@ -126,6 +126,7 @@ comando `php artisan queue:work --sleep=3 --tries=1 --timeout=75` no serviço wo
 
 | Sintoma | Causa provável |
 |---|---|
+| Aparece o **instalador do Krayin** ("Bem-vindo à Instalação") | O Krayin não achou o arquivo `.env` e acha que não está instalado. **Não clique em Continuar**: o instalador recria as tabelas. No Easypanel, deixe **"Create env file"** ligado e não exclua `.env` no `.dockerignore`. Correção imediata, no console do serviço: `touch /var/www/html/storage/installed` |
 | Webhook responde 401 | `WAHA_HMAC_SECRET` diferente do configurado no WAHA (confira espaços e aspas) ou com menos de 16 caracteres |
 | O campo de resposta diz que o número está desconectado | O Krayin ainda não recebeu um `session.status`. Salve de novo o webhook no WAHA para reiniciar a sessão |
 | Mensagens ficam em "enviando" e viram falha | O worker parou (veja `ps aux`) ou o WAHA está fora do ar. Confira `php artisan queue:failed` |

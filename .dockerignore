@@ -1,8 +1,7 @@
-# Never ship local secrets or history into the image
+# Keep history out of the image.
+# .env must NOT be listed here: Krayin shows its installer when there is no .env file,
+# and Easypanel ("Create env file") generates one in the build context that has to reach the image.
 .git
-.env
-.env.*
-!.env.example
 
 # Rebuilt inside the image
 node_modules
