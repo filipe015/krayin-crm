@@ -17,13 +17,29 @@ class Message extends Model implements MessageContract
         'content',
         'message_type',
         'external_message_id',
+        'status',
+        'source',
+        'ack',
+        'media_path',
+        'media_mime',
+        'media_filename',
+        'sent_by_user_id',
+        'error',
+        'delivered_at',
+        'read_at',
+        'edited_at',
+        'revoked_at',
         'created_at',
         'updated_at',
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'created_at'   => 'datetime',
+        'updated_at'   => 'datetime',
+        'delivered_at' => 'datetime',
+        'read_at'      => 'datetime',
+        'edited_at'    => 'datetime',
+        'revoked_at'   => 'datetime',
     ];
 
     public function conversation(): BelongsTo

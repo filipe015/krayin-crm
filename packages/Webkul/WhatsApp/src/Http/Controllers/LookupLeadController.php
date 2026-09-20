@@ -5,11 +5,12 @@ namespace Webkul\WhatsApp\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Webkul\Lead\Models\Lead;
-use Webkul\WhatsApp\Support\PhoneNumberMatcher;
+use Webkul\WhatsApp\Support\LeadPhoneFinder;
 
 class LookupLeadController extends Controller
 {
+    public function __construct(protected LeadPhoneFinder $leadPhoneFinder) {}
+
     public function __invoke(Request $request): JsonResponse
     {
         $configuredSecret = (string) config('whatsapp.webhook_secret');
@@ -33,41 +34,16 @@ class LookupLeadController extends Controller
             ], 422);
         }
 
-        $lead = Lead::query()
-            ->join('persons', 'persons.id', '=', 'leads.person_id')
-            ->whereNotNull('persons.contact_numbers')
-            ->select('leads.id', 'leads.created_at', 'persons.contact_numbers')
-            ->latest('leads.created_at')
-            ->latest('leads.id')
-            ->cursor()
-            ->first(function (Lead $lead) use ($phone) {
-                $contactNumbers = json_decode((string) $lead->contact_numbers, true);
+        $leadId = $this->leadPhoneFinder->find($phone);
 
-                if (! is_array($contactNumbers)) {
-                    return false;
-                }
-
-                foreach ($contactNumbers as $contactNumber) {
-                    $value = is_array($contactNumber)
-                        ? ($contactNumber['value'] ?? null)
-                        : $contactNumber;
-
-                    if ($value !== null && PhoneNumberMatcher::matches((string) $value, $phone)) {
-                        return true;
-                    }
-                }
-
-                return false;
-            });
-
-        if (! $lead) {
+        if ($leadId === null) {
             return response()->json([
                 'message' => 'No lead was found for the provided phone number.',
             ], 404);
         }
 
         return response()->json([
-            'lead_id' => $lead->id,
+            'lead_id' => $leadId,
         ]);
     }
 }
