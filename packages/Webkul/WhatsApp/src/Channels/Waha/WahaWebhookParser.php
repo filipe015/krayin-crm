@@ -5,6 +5,8 @@ namespace Webkul\WhatsApp\Channels\Waha;
 use DateTimeImmutable;
 use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
+use Webkul\WhatsApp\Channels\Events\MessageEdited;
+use Webkul\WhatsApp\Channels\Events\MessageRevoked;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
 
 /**
@@ -16,7 +18,7 @@ use Webkul\WhatsApp\Channels\Events\SessionStatus;
  */
 final class WahaWebhookParser
 {
-    public static function parse(array $envelope): InboundMessage|MessageAck|SessionStatus|null
+    public static function parse(array $envelope): InboundMessage|MessageAck|MessageEdited|MessageRevoked|SessionStatus|null
     {
         $session = (string) ($envelope['session'] ?? '');
         $payload = $envelope['payload'] ?? null;
@@ -28,6 +30,8 @@ final class WahaWebhookParser
         return match ($envelope['event'] ?? null) {
             'message', 'message.any' => self::message($session, $payload),
             'message.ack'            => self::ack($session, $payload),
+            'message.edited'         => self::edited($session, $payload),
+            'message.revoked'        => self::revoked($session, $payload),
             'session.status'         => self::sessionStatus($session, $envelope['me'] ?? null, $payload),
             default                  => null,
         };
@@ -98,6 +102,25 @@ final class WahaWebhookParser
         }
 
         return new MessageAck($session, $ids, (int) $payload['ack']);
+    }
+
+    /**
+     * The payload id belongs to WhatsApp's internal protocol message; the message that
+     * was edited is named by editedMessageId and the new text arrives in body.
+     */
+    private static function edited(string $session, array $payload): ?MessageEdited
+    {
+        $id = self::bareId((string) ($payload['editedMessageId'] ?? ''));
+        $body = self::body($payload);
+
+        return $id === '' || $body === null ? null : new MessageEdited($session, $id, $body);
+    }
+
+    private static function revoked(string $session, array $payload): ?MessageRevoked
+    {
+        $id = self::bareId((string) ($payload['revokedMessageId'] ?? ''));
+
+        return $id === '' ? null : new MessageRevoked($session, $id);
     }
 
     private static function sessionStatus(string $session, mixed $me, array $payload): ?SessionStatus

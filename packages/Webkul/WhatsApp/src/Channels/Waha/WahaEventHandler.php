@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
+use Webkul\WhatsApp\Channels\Events\MessageEdited;
+use Webkul\WhatsApp\Channels\Events\MessageRevoked;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
@@ -25,13 +27,58 @@ class WahaEventHandler
 
     public function __construct(protected LeadPhoneFinder $leads) {}
 
-    public function handle(InboundMessage|MessageAck|SessionStatus $event): void
+    public function handle(InboundMessage|MessageAck|MessageEdited|MessageRevoked|SessionStatus $event): void
     {
         match (true) {
             $event instanceof InboundMessage => $this->message($event),
             $event instanceof MessageAck     => $this->ack($event),
+            $event instanceof MessageEdited  => $this->edited($event),
+            $event instanceof MessageRevoked => $this->revoked($event),
             $event instanceof SessionStatus  => $this->sessionStatus($event),
         };
+    }
+
+    private function findMessage(string $session, string $externalId): ?Message
+    {
+        return Message::query()
+            ->where('external_message_id', $externalId)
+            ->whereHas('conversation.session', fn ($query) => $query
+                ->where('channel', 'waha')
+                ->where('external_id', $session))
+            ->first();
+    }
+
+    private function edited(MessageEdited $event): void
+    {
+        $message = $this->findMessage($event->session, $event->externalId);
+
+        if ($message === null || $message->revoked_at !== null) {
+            return;
+        }
+
+        $message->content = $event->body;
+        $message->edited_at = now();
+        $message->save();
+
+        $conversation = $message->conversation;
+
+        if ((int) Message::query()->where('conversation_id', $conversation->id)->max('id') === $message->id) {
+            $conversation->last_message_preview = Str::limit($event->body, 280, '');
+            $conversation->save();
+        }
+    }
+
+    /**
+     * The content is kept, so the audit trail survives; the Inbox shows it as deleted.
+     */
+    private function revoked(MessageRevoked $event): void
+    {
+        $message = $this->findMessage($event->session, $event->externalId);
+
+        if ($message !== null && $message->revoked_at === null) {
+            $message->revoked_at = now();
+            $message->save();
+        }
     }
 
     private function session(string $name): Session

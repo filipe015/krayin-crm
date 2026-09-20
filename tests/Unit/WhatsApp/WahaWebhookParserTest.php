@@ -2,6 +2,8 @@
 
 use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
+use Webkul\WhatsApp\Channels\Events\MessageEdited;
+use Webkul\WhatsApp\Channels\Events\MessageRevoked;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Channels\Waha\WahaWebhookParser;
 use Webkul\WhatsApp\Support\PhoneNumberMatcher;
@@ -161,6 +163,46 @@ it('falls back to the bare id of the ack payload', function () {
 
     expect($ack->externalIds)->toBe(['3EB0BBBB'])
         ->and($ack->status())->toBe('sent');
+});
+
+it('reads a batched read receipt, which lists many messages in one event', function () {
+    $ack = WahaWebhookParser::parse(wahaEnvelope('message.ack', [
+        'id'      => 'true_111111111111111@lid_3EB0AAAA',
+        'ack'     => 3,
+        'ackName' => 'READ',
+        '_data'   => ['MessageIDs' => ['3EB0AAAA', '3EB0BBBB', '3EB0CCCC'], 'Type' => 'read'],
+    ]));
+
+    expect($ack->externalIds)->toHaveCount(3)
+        ->and($ack->status())->toBe('read');
+});
+
+it('parses an edit using the id of the original message and the new text', function () {
+    $edit = WahaWebhookParser::parse(wahaEnvelope('message.edited', [
+        'id'              => 'false_111111111111111@lid_2A9C3F13',
+        'body'            => 'Texto corrigido',
+        'editedMessageId' => '2A93952B',
+    ]));
+
+    expect($edit)->toBeInstanceOf(MessageEdited::class)
+        ->and($edit->externalId)->toBe('2A93952B')
+        ->and($edit->body)->toBe('Texto corrigido');
+});
+
+it('parses a deletion using revokedMessageId, not the id of the protocol message', function () {
+    $revoked = WahaWebhookParser::parse(wahaEnvelope('message.revoked', [
+        'after'            => ['id' => 'false_111111111111111@lid_2A769EA5'],
+        'before'           => null,
+        'revokedMessageId' => '2A7EDA0A',
+    ]));
+
+    expect($revoked)->toBeInstanceOf(MessageRevoked::class)
+        ->and($revoked->externalId)->toBe('2A7EDA0A');
+});
+
+it('ignores edits and deletions that do not say which message they refer to', function () {
+    expect(WahaWebhookParser::parse(wahaEnvelope('message.edited', ['body' => 'x'])))->toBeNull()
+        ->and(WahaWebhookParser::parse(wahaEnvelope('message.revoked', ['after' => []])))->toBeNull();
 });
 
 it('reads the connected number from the session status', function () {
