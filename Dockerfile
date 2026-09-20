@@ -33,7 +33,8 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 RUN a2enmod rewrite
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker/queue-worker.sh /usr/local/bin/queue-worker.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/queue-worker.sh
 
 COPY docker/laravel-scheduler.cron /etc/cron.d/laravel-scheduler
 RUN chmod 0644 /etc/cron.d/laravel-scheduler

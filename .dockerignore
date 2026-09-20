@@ -1,0 +1,21 @@
+# Never ship local secrets or history into the image
+.git
+.env
+.env.*
+!.env.example
+
+# Rebuilt inside the image
+node_modules
+vendor
+
+# Local dev leftovers
+**/*.log
+storage/framework/sessions/[A-Za-z0-9]*
+.idea
+.vscode
+.claude
+.cursor
+.codex
+.kilocode
+.ai
+.DS_Store

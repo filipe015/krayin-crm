@@ -25,7 +25,11 @@ class SendWhatsAppMessage implements ShouldQueue
      */
     public int $tries = 1;
 
-    public int $timeout = 90;
+    /**
+     * Worst case is the lock wait (30s) plus the throttle gap and two 15s attempts, and it
+     * has to stay under the queue's retry_after (90s) or a slow send would be picked up twice.
+     */
+    public int $timeout = 75;
 
     private const MIN_GAP_MS = 1200;
 
@@ -57,7 +61,7 @@ class SendWhatsAppMessage implements ShouldQueue
         }
 
         try {
-            Cache::lock('whatsapp.send.'.$session->id, 90)->block(60, function () use ($message, $session, $targets) {
+            Cache::lock('whatsapp.send.'.$session->id, 90)->block(30, function () use ($message, $session, $targets) {
                 $this->throttle($session->id);
 
                 try {
