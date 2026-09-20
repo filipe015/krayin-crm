@@ -2,8 +2,10 @@
 
 namespace Webkul\WhatsApp\Providers;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Webkul\WhatsApp\Console\FailStuckMessages;
 
 class WhatsAppServiceProvider extends ServiceProvider
 {
@@ -31,5 +33,14 @@ class WhatsAppServiceProvider extends ServiceProvider
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/whatsapp/inbox')
             ->group(__DIR__.'/../Routes/inbox.php');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([FailStuckMessages::class]);
+        }
+
+        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule
+            ->command('whatsapp:fail-stuck-messages')
+            ->everyMinute()
+            ->withoutOverlapping());
     }
 }

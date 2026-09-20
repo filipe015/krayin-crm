@@ -16,6 +16,7 @@ return [
     'acl' => [
         'whatsapp' => 'WhatsApp',
         'manage'   => 'Gerenciar conversas',
+        'send'     => 'Enviar mensagens',
     ],
     'inbox' => [
         'title'              => 'Inbox WhatsApp',
@@ -56,7 +57,11 @@ return [
         'edited'             => 'editada',
         'failed'             => 'Falha no envio',
         'attachment'         => 'Anexo',
-        'composer_disabled'  => 'O envio de mensagens será ativado em breve. Por enquanto, o Inbox é somente leitura.',
+        'write_message'      => 'Escreva uma mensagem',
+        'send'               => 'Enviar',
+        'retry'              => 'tentar de novo',
+        'session_offline'    => 'O número deste atendimento está desconectado. Reconecte o WhatsApp no WAHA para enviar mensagens.',
+        'no_identity'        => 'Esta conversa não tem um número ou identificador do WhatsApp para receber a mensagem.',
         'types'              => [
             'image'    => 'Imagem',
             'audio'    => 'Áudio',

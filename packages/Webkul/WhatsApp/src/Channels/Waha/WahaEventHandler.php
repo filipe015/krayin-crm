@@ -4,6 +4,7 @@ namespace Webkul\WhatsApp\Channels\Waha;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
@@ -148,7 +149,7 @@ class WahaEventHandler
             $conversation->lead_id = $this->leads->find($conversation->contact_phone);
         }
 
-        $message = Message::query()->createOrFirst(
+        $message = ($event->fromMe ? $this->adoptPendingSend($conversation, $event) : null) ?? Message::query()->createOrFirst(
             ['conversation_id' => $conversation->id, 'external_message_id' => $event->externalId],
             [
                 'direction'      => $event->fromMe ? 'outbound' : 'inbound',
@@ -177,6 +178,52 @@ class WahaEventHandler
         }
 
         $conversation->save();
+    }
+
+    /**
+     * WAHA echoes a message the CRM sent (source "api") back through the webhook, often
+     * before the send request has even returned. Recognise it by its text instead of
+     * storing the same message twice.
+     */
+    private function adoptPendingSend(Conversation $conversation, InboundMessage $event): ?Message
+    {
+        if ($event->source !== 'api' || $event->body === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($conversation, $event) {
+            $alreadyStored = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('external_message_id', $event->externalId)
+                ->exists();
+
+            if ($alreadyStored) {
+                return null;
+            }
+
+            $pending = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('direction', 'outbound')
+                ->where('source', 'crm')
+                ->whereNull('external_message_id')
+                ->whereIn('status', ['queued', 'sending'])
+                ->where('content', $event->body)
+                ->where('created_at', '>=', now()->subMinutes(5))
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($pending === null) {
+                return null;
+            }
+
+            $pending->external_message_id = $event->externalId;
+            $pending->status = 'sent';
+            $pending->ack ??= 1;
+            $pending->save();
+
+            return $pending;
+        });
     }
 
     private function ack(MessageAck $event): void

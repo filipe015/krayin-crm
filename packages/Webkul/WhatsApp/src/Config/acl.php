@@ -22,5 +22,13 @@ return [
             'admin.whatsapp.inbox.lead.link',
         ],
         'sort'  => 1,
+    ], [
+        'key'   => 'whatsapp.send',
+        'name'  => 'whatsapp::app.acl.send',
+        'route' => [
+            'admin.whatsapp.inbox.send',
+            'admin.whatsapp.inbox.retry',
+        ],
+        'sort'  => 2,
     ],
 ];

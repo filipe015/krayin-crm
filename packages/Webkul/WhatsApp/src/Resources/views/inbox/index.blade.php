@@ -64,7 +64,12 @@
             .wa-tick.is-read{color:#0ea5e9;opacity:1}
             .wa-tick.is-failed{color:#dc2626}
             .wa-italic{font-style:italic;opacity:.75}
-            .wa-composer{padding:12px 14px;border-top:1px solid var(--wa-border);background:var(--wa-soft);color:var(--wa-muted);font-size:12px}
+            .wa-composer{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-top:1px solid var(--wa-border);background:var(--wa-soft)}
+            .wa-compose-row{display:flex;align-items:flex-end;gap:8px}
+            .wa-composer textarea{flex:1;min-height:38px;max-height:140px;padding:8px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);color:var(--wa-fg);font:inherit;resize:none}
+            .wa-composer textarea:disabled{opacity:.6}
+            .wa-note{color:var(--wa-muted);font-size:12px}
+            .wa-link{align-self:flex-end;padding:0;border:0;background:transparent;color:#dc2626;font-size:11px;text-decoration:underline}
             .wa-btn{padding:6px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);font-size:12px}
             .wa-btn:hover{background:var(--wa-soft)}
             .wa-btn:disabled{opacity:.5;cursor:default}
@@ -198,12 +203,37 @@
                                                 :title="item.message.status === 'failed' ? labels.failed : ''"
                                             >@{{ tick(item.message) }}</span>
                                         </div>
+
+                                        <button
+                                            v-if="item.message.status === 'failed' && item.message.direction === 'outbound'"
+                                            type="button"
+                                            class="wa-link"
+                                            :title="item.message.error || ''"
+                                            @click="retry(item.message)"
+                                        >@{{ labels.failed }} — @{{ labels.retry }}</button>
                                     </div>
                                 </div>
                             </template>
                         </div>
 
-                        <div class="wa-composer">@{{ labels.composer_disabled }}</div>
+                        <form class="wa-composer" @submit.prevent="send">
+                            <span v-if="sessionOffline" class="wa-note">@{{ labels.session_offline }}</span>
+
+                            <div class="wa-compose-row">
+                                <textarea
+                                    ref="composer"
+                                    v-model="draft"
+                                    rows="1"
+                                    maxlength="4096"
+                                    :placeholder="labels.write_message"
+                                    :disabled="sessionOffline"
+                                    @keydown.enter.exact.prevent="send"
+                                    @input="autosize"
+                                ></textarea>
+
+                                <button type="submit" class="wa-btn is-primary" :disabled="! canSend">@{{ labels.send }}</button>
+                            </div>
+                        </form>
                     </template>
                 </section>
 
@@ -302,6 +332,9 @@
                         threadError: false,
 
                         busy: false,
+                        draft: '',
+                        drafts: {},
+                        sending: false,
                         panelOpen: false,
                         linkOpen: false,
                         linkQuery: '',
@@ -322,6 +355,14 @@
 
                     currentUserId() {
                         return {{ (int) auth()->guard('user')->id() }};
+                    },
+
+                    sessionOffline() {
+                        return !! this.current && this.current.session_status !== 'WORKING';
+                    },
+
+                    canSend() {
+                        return ! this.sending && ! this.sessionOffline && this.draft.trim().length > 0;
                     },
 
                     threadItems() {
@@ -448,6 +489,11 @@
                     },
 
                     async select(conversation) {
+                        if (this.selectedId) {
+                            this.drafts[this.selectedId] = this.draft;
+                        }
+
+                        this.draft = this.drafts[conversation.id] || '';
                         this.selectedId = conversation.id;
                         this.selectedConversation = conversation;
                         this.panelOpen = false;
@@ -642,6 +688,59 @@
                         }
                     },
 
+                    autosize(event) {
+                        const element = event.target;
+
+                        element.style.height = 'auto';
+                        element.style.height = Math.min(element.scrollHeight, 140) + 'px';
+                    },
+
+                    async send() {
+                        const text = this.draft.trim();
+                        const id = this.selectedId;
+
+                        if (! this.canSend || ! text) {
+                            return;
+                        }
+
+                        this.sending = true;
+
+                        try {
+                            const { data } = await this.$axios.post(this.url('send', id), { text });
+
+                            this.draft = '';
+                            delete this.drafts[id];
+                            this.mergeMessages([data.data]);
+                            this.patch(id, { preview: text, status: 'open' });
+
+                            await this.$nextTick();
+
+                            if (this.$refs.composer) {
+                                this.$refs.composer.style.height = 'auto';
+                                this.$refs.composer.focus();
+                            }
+
+                            this.scrollToBottom();
+                            this.loadConversations({ poll: true });
+                        } catch (error) {
+                            this.$emitter.emit('add-flash', {
+                                type: 'error',
+                                message: (error.response && error.response.data && error.response.data.message) || this.labels.action_error,
+                            });
+                        } finally {
+                            this.sending = false;
+                        }
+                    },
+
+                    async retry(message) {
+                        const data = await this.act(() => this.$axios.post(this.url('retry', message.id)).then(response => response.data));
+
+                        if (data) {
+                            this.mergeMessages([data.data]);
+                            this.$nextTick(() => this.scrollToBottom());
+                        }
+                    },
+
                     displayName(conversation) {
                         return conversation.name || (conversation.phone ? '+' + conversation.phone : this.labels.unknown);
                     },
@@ -684,7 +783,7 @@
                     },
 
                     tick(message) {
-                        return { sent: '✓', delivered: '✓✓', read: '✓✓', failed: '!' }[message.status] || '';
+                        return { queued: '…', sending: '…', sent: '✓', delivered: '✓✓', read: '✓✓', failed: '!' }[message.status] || '';
                     },
 
                     typeLabel(message) {

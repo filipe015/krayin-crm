@@ -16,6 +16,7 @@ return [
     'acl' => [
         'whatsapp' => 'WhatsApp',
         'manage'   => 'Manage conversations',
+        'send'     => 'Send messages',
     ],
     'inbox' => [
         'title'              => 'WhatsApp Inbox',
@@ -56,7 +57,11 @@ return [
         'edited'             => 'edited',
         'failed'             => 'Sending failed',
         'attachment'         => 'Attachment',
-        'composer_disabled'  => 'Sending messages will be enabled soon. For now, the Inbox is read-only.',
+        'write_message'      => 'Write a message',
+        'send'               => 'Send',
+        'retry'              => 'try again',
+        'session_offline'    => 'This number is disconnected. Reconnect WhatsApp in WAHA to send messages.',
+        'no_identity'        => 'This conversation has no WhatsApp number or identifier to send to.',
         'types'              => [
             'image'    => 'Image',
             'audio'    => 'Audio',

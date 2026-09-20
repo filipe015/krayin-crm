@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\InboxPresenter;
 
 class InboxController extends Controller
 {
@@ -28,6 +29,8 @@ class InboxController extends Controller
                 'claim'         => route('admin.whatsapp.inbox.claim', ['id' => '__ID__']),
                 'status'        => route('admin.whatsapp.inbox.status', ['id' => '__ID__']),
                 'link'          => route('admin.whatsapp.inbox.lead.link', ['id' => '__ID__']),
+                'send'          => route('admin.whatsapp.inbox.send', ['id' => '__ID__']),
+                'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
             ],
         ]);
@@ -56,7 +59,7 @@ class InboxController extends Controller
 
         $query = Conversation::query()
             ->whereNotNull('session_id')
-            ->with(['lead:id,title', 'assignedUser:id,name'])
+            ->with(['lead:id,title', 'assignedUser:id,name', 'session:id,status'])
             ->withCount(['messages as unread_count' => $unread]);
 
         match ($filters['tab'] ?? 'queue') {
@@ -118,7 +121,7 @@ class InboxController extends Controller
         $rows = $query->get();
 
         return response()->json([
-            'data'     => $rows->take(self::THREAD_SIZE)->reverse()->values()->map(fn (Message $message) => $this->messageData($message)),
+            'data'     => $rows->take(self::THREAD_SIZE)->reverse()->values()->map(fn (Message $message) => InboxPresenter::message($message)),
             'has_more' => $rows->count() > self::THREAD_SIZE,
         ]);
     }
@@ -179,6 +182,7 @@ class InboxController extends Controller
         return [
             'id'         => $conversation->id,
             'session_id' => $conversation->session_id,
+            'session_status' => $conversation->session?->status,
             'name'       => $conversation->contact_name,
             'phone'      => $conversation->contact_phone,
             'status'     => $conversation->status,
@@ -193,26 +197,6 @@ class InboxController extends Controller
             'assigned' => $conversation->assignedUser
                 ? ['id' => $conversation->assignedUser->id, 'name' => $conversation->assignedUser->name]
                 : null,
-        ];
-    }
-
-    private function messageData(Message $message): array
-    {
-        return [
-            'id'          => $message->id,
-            'direction'   => $message->direction,
-            'type'        => $message->message_type,
-            'content'     => $message->content,
-            'status'      => $message->status,
-            'sender_name' => $message->sender_name,
-            'created_at'  => $message->created_at?->toIso8601String(),
-            'edited'      => $message->edited_at !== null,
-            'revoked'     => $message->revoked_at !== null,
-            'media'       => $message->media_path ? [
-                'url'      => route('admin.whatsapp.inbox.messages.media', $message->id),
-                'mime'     => $message->media_mime,
-                'filename' => $message->media_filename,
-            ] : null,
         ];
     }
 }
