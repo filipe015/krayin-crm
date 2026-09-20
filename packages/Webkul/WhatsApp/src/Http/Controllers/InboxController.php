@@ -1,0 +1,218 @@
+<?php
+
+namespace Webkul\WhatsApp\Http\Controllers;
+
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
+use Webkul\WhatsApp\Models\Conversation;
+use Webkul\WhatsApp\Models\Message;
+use Webkul\WhatsApp\Models\Session;
+
+class InboxController extends Controller
+{
+    private const LIST_SIZE = 30;
+
+    private const THREAD_SIZE = 50;
+
+    public function index(): View
+    {
+        return view('whatsapp::inbox.index', [
+            'sessions' => Session::query()->orderBy('name')->get(['id', 'name']),
+            'urls'     => [
+                'conversations' => route('admin.whatsapp.inbox.conversations'),
+                'messages'      => route('admin.whatsapp.inbox.messages', ['id' => '__ID__']),
+                'read'          => route('admin.whatsapp.inbox.read', ['id' => '__ID__']),
+                'claim'         => route('admin.whatsapp.inbox.claim', ['id' => '__ID__']),
+                'status'        => route('admin.whatsapp.inbox.status', ['id' => '__ID__']),
+                'link'          => route('admin.whatsapp.inbox.lead.link', ['id' => '__ID__']),
+                'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
+            ],
+        ]);
+    }
+
+    public function conversations(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'tab'        => ['nullable', 'in:queue,mine,all,closed'],
+            'search'     => ['nullable', 'string', 'max:100'],
+            'unread'     => ['nullable', 'boolean'],
+            'session_id' => ['nullable', 'integer'],
+            'page'       => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $userId = (int) auth()->guard('user')->id();
+
+        // Inbound messages newer than what this user has already read in the conversation.
+        $unread = fn ($query) => $query
+            ->where('whatsapp_messages.direction', 'inbound')
+            ->where('whatsapp_messages.id', '>', fn ($sub) => $sub
+                ->from('whatsapp_conversation_reads as r')
+                ->selectRaw('coalesce(max(r.last_read_message_id), 0)')
+                ->whereColumn('r.conversation_id', 'whatsapp_messages.conversation_id')
+                ->where('r.user_id', $userId));
+
+        $query = Conversation::query()
+            ->whereNotNull('session_id')
+            ->with(['lead:id,title', 'assignedUser:id,name'])
+            ->withCount(['messages as unread_count' => $unread]);
+
+        match ($filters['tab'] ?? 'queue') {
+            'queue'  => $query->where('status', 'open')->whereNull('assigned_user_id'),
+            'mine'   => $query->where('status', 'open')->where('assigned_user_id', $userId),
+            'all'    => $query->where('status', 'open'),
+            'closed' => $query->where('status', 'closed'),
+        };
+
+        if (filled($filters['search'] ?? null)) {
+            $like = '%'.addcslashes(trim($filters['search']), '%_\\').'%';
+            $digits = preg_replace('/\D/', '', $filters['search']);
+
+            $query->where(function ($search) use ($like, $digits) {
+                $search->where('contact_name', 'like', $like)->orWhere('last_message_preview', 'like', $like);
+
+                if ($digits !== '') {
+                    $search->orWhere('contact_phone', 'like', '%'.$digits.'%');
+                }
+            });
+        }
+
+        if ($request->boolean('unread')) {
+            $query->whereHas('messages', $unread);
+        }
+
+        if (! empty($filters['session_id'])) {
+            $query->where('session_id', $filters['session_id']);
+        }
+
+        $offset = (((int) ($filters['page'] ?? 1)) - 1) * self::LIST_SIZE;
+
+        $rows = $query
+            ->orderByRaw('coalesce(last_message_at, created_at) desc')
+            ->orderByDesc('id')
+            ->offset($offset)
+            ->limit(self::LIST_SIZE + 1)
+            ->get();
+
+        return response()->json([
+            'data'     => $rows->take(self::LIST_SIZE)->map(fn (Conversation $conversation) => $this->conversationData($conversation))->values(),
+            'has_more' => $rows->count() > self::LIST_SIZE,
+        ]);
+    }
+
+    public function messages(Request $request, int $id): JsonResponse
+    {
+        $conversation = $this->conversation($id);
+
+        $query = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->orderByDesc('id')
+            ->limit(self::THREAD_SIZE + 1);
+
+        if ($request->filled('before_id')) {
+            $query->where('id', '<', (int) $request->query('before_id'));
+        }
+
+        $rows = $query->get();
+
+        return response()->json([
+            'data'     => $rows->take(self::THREAD_SIZE)->reverse()->values()->map(fn (Message $message) => $this->messageData($message)),
+            'has_more' => $rows->count() > self::THREAD_SIZE,
+        ]);
+    }
+
+    public function markRead(int $id): JsonResponse
+    {
+        $conversation = $this->conversation($id);
+
+        $lastInboundId = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', 'inbound')
+            ->max('id');
+
+        if ($lastInboundId) {
+            DB::table('whatsapp_conversation_reads')->upsert([[
+                'conversation_id'      => $conversation->id,
+                'user_id'              => auth()->guard('user')->id(),
+                'last_read_message_id' => $lastInboundId,
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]], ['conversation_id', 'user_id'], ['last_read_message_id', 'updated_at']);
+        }
+
+        return response()->json(['unread' => 0]);
+    }
+
+    public function claim(Request $request, int $id): JsonResponse
+    {
+        $conversation = $this->conversation($id);
+        $user = auth()->guard('user')->user();
+
+        $conversation->assigned_user_id = $request->boolean('release') ? null : $user->id;
+        $conversation->save();
+
+        return response()->json([
+            'assigned' => $conversation->assigned_user_id ? ['id' => $user->id, 'name' => $user->name] : null,
+        ]);
+    }
+
+    public function status(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['status' => ['required', 'in:open,closed']]);
+
+        $conversation = $this->conversation($id);
+        $conversation->status = $data['status'];
+        $conversation->save();
+
+        return response()->json(['status' => $conversation->status]);
+    }
+
+    private function conversation(int $id): Conversation
+    {
+        return Conversation::query()->whereNotNull('session_id')->findOrFail($id);
+    }
+
+    private function conversationData(Conversation $conversation): array
+    {
+        return [
+            'id'         => $conversation->id,
+            'session_id' => $conversation->session_id,
+            'name'       => $conversation->contact_name,
+            'phone'      => $conversation->contact_phone,
+            'status'     => $conversation->status,
+            'preview'    => $conversation->last_message_preview,
+            'unread'     => (int) $conversation->unread_count,
+            'sort_at'    => ($conversation->last_message_at ?? $conversation->created_at)?->toIso8601String(),
+            'lead'       => $conversation->lead ? [
+                'id'    => $conversation->lead->id,
+                'title' => $conversation->lead->title,
+                'url'   => route('admin.leads.view', $conversation->lead->id),
+            ] : null,
+            'assigned' => $conversation->assignedUser
+                ? ['id' => $conversation->assignedUser->id, 'name' => $conversation->assignedUser->name]
+                : null,
+        ];
+    }
+
+    private function messageData(Message $message): array
+    {
+        return [
+            'id'          => $message->id,
+            'direction'   => $message->direction,
+            'type'        => $message->message_type,
+            'content'     => $message->content,
+            'status'      => $message->status,
+            'sender_name' => $message->sender_name,
+            'created_at'  => $message->created_at?->toIso8601String(),
+            'edited'      => $message->edited_at !== null,
+            'revoked'     => $message->revoked_at !== null,
+            'media'       => $message->media_path ? [
+                'url'      => route('admin.whatsapp.inbox.messages.media', $message->id),
+                'mime'     => $message->media_mime,
+                'filename' => $message->media_filename,
+            ] : null,
+        ];
+    }
+}

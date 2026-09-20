@@ -10,6 +10,8 @@ class WhatsAppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../Config/whatsapp.php', 'whatsapp');
+        $this->mergeConfigFrom(__DIR__.'/../Config/menu.php', 'menu.admin');
+        $this->mergeConfigFrom(__DIR__.'/../Config/acl.php', 'acl');
     }
 
     public function boot(): void
@@ -25,5 +27,9 @@ class WhatsAppServiceProvider extends ServiceProvider
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/leads')
             ->group(__DIR__.'/../Routes/admin.php');
+
+        Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/whatsapp/inbox')
+            ->group(__DIR__.'/../Routes/inbox.php');
     }
 }

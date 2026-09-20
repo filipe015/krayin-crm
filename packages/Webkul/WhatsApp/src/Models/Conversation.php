@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Webkul\Lead\Models\LeadProxy;
+use Webkul\User\Models\UserProxy;
 use Webkul\WhatsApp\Contracts\Conversation as ConversationContract;
 
 class Conversation extends Model implements ConversationContract
@@ -41,6 +42,11 @@ class Conversation extends Model implements ConversationContract
     public function session(): BelongsTo
     {
         return $this->belongsTo(SessionProxy::modelClass(), 'session_id');
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(UserProxy::modelClass(), 'assigned_user_id');
     }
 
     public function messages(): HasMany

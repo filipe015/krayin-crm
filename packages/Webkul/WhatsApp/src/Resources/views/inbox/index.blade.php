@@ -1,0 +1,697 @@
+<x-admin::layouts>
+    <x-slot:title>
+        @lang('whatsapp::app.inbox.title')
+    </x-slot>
+
+    <v-whatsapp-inbox
+        :urls="{{ Illuminate\Support\Js::from($urls) }}"
+        :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.inbox')) }}"
+        :sessions="{{ Illuminate\Support\Js::from($sessions) }}"
+    >
+        <div class="p-6 text-sm text-gray-500">
+            @lang('whatsapp::app.inbox.loading')
+        </div>
+    </v-whatsapp-inbox>
+
+    @pushOnce('scripts')
+        <style>
+            .wa-inbox{position:relative;--wa-bg:#fff;--wa-fg:#111827;--wa-muted:#6b7280;--wa-border:#e5e7eb;--wa-soft:#f3f4f6;--wa-accent:#0e90d9;--wa-in:#f3f4f6;--wa-out:#dcfce7;--wa-out-fg:#14532d;display:flex;height:calc(100vh - 130px);min-height:420px;overflow:hidden;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);color:var(--wa-fg);font-size:14px}
+            .dark .wa-inbox{--wa-bg:#111827;--wa-fg:#e5e7eb;--wa-muted:#9ca3af;--wa-border:#1f2937;--wa-soft:#1f2937;--wa-in:#1f2937;--wa-out:#14532d;--wa-out-fg:#dcfce7}
+            .wa-inbox *{box-sizing:border-box}
+            .wa-inbox button{cursor:pointer;font:inherit;color:inherit}
+            .wa-inbox input[type=text],.wa-inbox select{width:100%;padding:6px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);color:var(--wa-fg);font:inherit}
+            .wa-col{display:flex;flex-direction:column;min-width:0}
+            .wa-list{width:320px;flex:none;border-right:1px solid var(--wa-border)}
+            .wa-thread{flex:1}
+            .wa-panel{display:none;width:300px;flex:none;overflow-y:auto;padding:16px;border-left:1px solid var(--wa-border);background:var(--wa-bg);gap:14px}
+            .wa-panel.is-open{display:flex;position:absolute;top:0;right:0;bottom:0;z-index:5;width:min(320px,100%);box-shadow:-6px 0 16px rgba(0,0,0,.12)}
+            @media (min-width:1280px){.wa-panel,.wa-panel.is-open{display:flex;position:static;width:300px;box-shadow:none}.wa-details,.wa-panel-close{display:none!important}}
+            @media (max-width:767px){.wa-list{width:100%;border-right:0}.wa-inbox[data-selected="true"] .wa-list{display:none}.wa-inbox[data-selected="false"] .wa-thread{display:none}}
+            @media (min-width:768px){.wa-back{display:none!important}}
+            .wa-head{display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--wa-border)}
+            .wa-tabs{display:flex;gap:4px}
+            .wa-tab{flex:1;padding:6px 4px;border:0;border-radius:6px;background:var(--wa-soft);font-size:12px;font-weight:500}
+            .wa-tab.is-active{background:var(--wa-accent);color:#fff}
+            .wa-row{display:flex;align-items:center;gap:8px;font-size:12px}
+            .wa-scroll{flex:1;overflow-y:auto}
+            .wa-item{display:flex;width:100%;gap:10px;padding:10px 12px;border:0;border-bottom:1px solid var(--wa-border);background:transparent;text-align:left}
+            .wa-item:hover{background:var(--wa-soft)}
+            .wa-item.is-active{background:var(--wa-soft);box-shadow:inset 3px 0 0 var(--wa-accent)}
+            .wa-avatar{display:flex;flex:none;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--wa-accent);color:#fff;font-size:13px;font-weight:600}
+            .wa-item-body{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+            .wa-item-line{display:flex;align-items:center;justify-content:space-between;gap:8px}
+            .wa-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            .wa-muted{color:var(--wa-muted);font-size:12px}
+            .wa-badge{flex:none;min-width:20px;padding:1px 6px;border-radius:10px;background:#16a34a;color:#fff;font-size:11px;font-weight:600;text-align:center}
+            .wa-tag{align-self:flex-start;padding:0 6px;border-radius:4px;background:var(--wa-soft);color:var(--wa-muted);font-size:11px}
+            .wa-more{width:100%;padding:10px;border:0;background:transparent;color:var(--wa-accent);font-size:12px}
+            .wa-state{padding:24px 16px;color:var(--wa-muted);text-align:center}
+            .wa-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--wa-border)}
+            .wa-back{border:0;background:transparent;font-size:13px}
+            .wa-title{flex:1;min-width:0}
+            .wa-messages{display:flex;flex:1;flex-direction:column;gap:6px;overflow-y:auto;padding:14px}
+            .wa-day{align-self:center;margin:6px 0;padding:2px 10px;border-radius:10px;background:var(--wa-soft);color:var(--wa-muted);font-size:11px}
+            .wa-msg{display:flex}
+            .wa-msg.is-out{justify-content:flex-end}
+            .wa-bubble{max-width:78%;padding:7px 10px;border-radius:10px;background:var(--wa-in)}
+            .is-out .wa-bubble{background:var(--wa-out);color:var(--wa-out-fg)}
+            .wa-bubble p{margin:0;white-space:pre-wrap;word-break:break-word}
+            .wa-bubble img,.wa-bubble video{display:block;max-width:100%;max-height:300px;border-radius:6px}
+            .wa-bubble audio{max-width:100%}
+            .wa-bubble a{text-decoration:underline}
+            .wa-meta{display:flex;justify-content:flex-end;gap:6px;margin-top:2px;color:var(--wa-muted);font-size:11px}
+            .is-out .wa-meta{color:inherit;opacity:.7}
+            .wa-tick.is-read{color:#0ea5e9;opacity:1}
+            .wa-tick.is-failed{color:#dc2626}
+            .wa-italic{font-style:italic;opacity:.75}
+            .wa-composer{padding:12px 14px;border-top:1px solid var(--wa-border);background:var(--wa-soft);color:var(--wa-muted);font-size:12px}
+            .wa-btn{padding:6px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);font-size:12px}
+            .wa-btn:hover{background:var(--wa-soft)}
+            .wa-btn:disabled{opacity:.5;cursor:default}
+            .wa-btn.is-primary{border-color:var(--wa-accent);background:var(--wa-accent);color:#fff}
+            .wa-label{color:var(--wa-muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+            .wa-block{display:flex;flex-direction:column;gap:6px}
+            .wa-result{padding:6px 8px;border:1px solid var(--wa-border);border-radius:6px;background:transparent;text-align:left;font-size:13px}
+            .wa-result:hover{background:var(--wa-soft)}
+        </style>
+
+        <script type="text/x-template" id="v-whatsapp-inbox-template">
+            <div class="wa-inbox" :data-selected="selectedId ? 'true' : 'false'">
+                <aside class="wa-col wa-list">
+                    <div class="wa-head">
+                        <div class="wa-tabs">
+                            <button
+                                v-for="name in tabs"
+                                :key="name"
+                                type="button"
+                                class="wa-tab"
+                                :class="{ 'is-active': tab === name }"
+                                @click="tab = name"
+                            >
+                                @{{ labels.tabs[name] }}
+                            </button>
+                        </div>
+
+                        <input type="text" v-model="search" :placeholder="labels.search_placeholder">
+
+                        <div class="wa-row">
+                            <label class="wa-row">
+                                <input type="checkbox" v-model="unreadOnly">
+                                @{{ labels.unread_only }}
+                            </label>
+
+                            <select v-if="sessions.length > 1" v-model="sessionId" style="margin-left:auto;width:auto">
+                                <option value="">@{{ labels.all_sessions }}</option>
+                                <option v-for="session in sessions" :key="session.id" :value="session.id">@{{ session.name }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="wa-scroll">
+                        <div v-if="loadingList" class="wa-state">@{{ labels.loading }}</div>
+                        <div v-else-if="listError" class="wa-state">@{{ labels.error }}</div>
+                        <div v-else-if="! conversations.length" class="wa-state">@{{ labels.empty_list }}</div>
+
+                        <template v-else>
+                            <button
+                                v-for="conversation in conversations"
+                                :key="conversation.id"
+                                type="button"
+                                class="wa-item"
+                                :class="{ 'is-active': conversation.id === selectedId }"
+                                @click="select(conversation)"
+                            >
+                                <span class="wa-avatar">@{{ initials(conversation) }}</span>
+
+                                <span class="wa-item-body">
+                                    <span class="wa-item-line">
+                                        <strong class="wa-ellipsis">@{{ displayName(conversation) }}</strong>
+                                        <span class="wa-muted">@{{ listTime(conversation.sort_at) }}</span>
+                                    </span>
+
+                                    <span class="wa-item-line">
+                                        <span class="wa-ellipsis wa-muted">@{{ conversation.preview }}</span>
+                                        <span v-if="conversation.unread" class="wa-badge">@{{ conversation.unread }}</span>
+                                    </span>
+
+                                    <span v-if="! conversation.lead" class="wa-tag">@{{ labels.no_lead }}</span>
+                                </span>
+                            </button>
+
+                            <button v-if="hasMore" type="button" class="wa-more" @click="loadConversations({ more: true })">
+                                @{{ labels.load_more }}
+                            </button>
+                        </template>
+                    </div>
+                </aside>
+
+                <section class="wa-col wa-thread">
+                    <div v-if="! current" class="wa-state" style="margin:auto">@{{ labels.empty_thread }}</div>
+
+                    <template v-else>
+                        <div class="wa-bar">
+                            <button type="button" class="wa-back" @click="selectedId = null">&larr; @{{ labels.back }}</button>
+
+                            <div class="wa-title">
+                                <strong class="wa-ellipsis" style="display:block">@{{ displayName(current) }}</strong>
+                                <span v-if="current.phone" class="wa-muted">+@{{ current.phone }}</span>
+                            </div>
+
+                            <a v-if="current.lead" :href="current.lead.url" class="wa-btn">@{{ labels.open_lead }}</a>
+
+                            <button type="button" class="wa-btn wa-details" @click="panelOpen = ! panelOpen">@{{ labels.details }}</button>
+                        </div>
+
+                        <div class="wa-messages" ref="thread">
+                            <button v-if="hasMoreMessages" type="button" class="wa-more" @click="loadOlder">
+                                @{{ labels.load_older }}
+                            </button>
+
+                            <div v-if="loadingMessages" class="wa-state">@{{ labels.loading }}</div>
+                            <div v-else-if="threadError" class="wa-state">@{{ labels.error }}</div>
+
+                            <template v-for="item in threadItems" :key="item.key">
+                                <div v-if="item.day" class="wa-day">@{{ item.day }}</div>
+
+                                <div v-else class="wa-msg" :class="{ 'is-out': item.message.direction === 'outbound' }">
+                                    <div class="wa-bubble">
+                                        <template v-if="item.message.media && ! item.message.revoked">
+                                            <img v-if="['image', 'sticker'].includes(item.message.type)" :src="item.message.media.url" loading="lazy" alt="">
+                                            <audio v-else-if="item.message.type === 'audio'" :src="item.message.media.url" controls preload="none"></audio>
+                                            <video v-else-if="item.message.type === 'video'" :src="item.message.media.url" controls preload="none"></video>
+                                            <a v-else :href="item.message.media.url" target="_blank" rel="noopener">
+                                                <i class="icon-attachment"></i> @{{ item.message.media.filename || labels.attachment }}
+                                            </a>
+                                        </template>
+
+                                        <p v-if="item.message.revoked" class="wa-italic">@{{ labels.deleted }}</p>
+                                        <p v-else-if="item.message.content">@{{ item.message.content }}</p>
+                                        <p v-else-if="! item.message.media" class="wa-italic">@{{ typeLabel(item.message) }}</p>
+
+                                        <div class="wa-meta">
+                                            <span v-if="item.message.edited && ! item.message.revoked">@{{ labels.edited }}</span>
+                                            <span>@{{ clock(item.message.created_at) }}</span>
+                                            <span
+                                                v-if="item.message.direction === 'outbound'"
+                                                class="wa-tick"
+                                                :class="{ 'is-read': item.message.status === 'read', 'is-failed': item.message.status === 'failed' }"
+                                                :title="item.message.status === 'failed' ? labels.failed : ''"
+                                            >@{{ tick(item.message) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="wa-composer">@{{ labels.composer_disabled }}</div>
+                    </template>
+                </section>
+
+                <aside v-if="current" class="wa-col wa-panel" :class="{ 'is-open': panelOpen }">
+                    <button type="button" class="wa-btn wa-panel-close" @click="panelOpen = false">@{{ labels.close_panel }}</button>
+
+                    <div class="wa-block">
+                        <span class="wa-label">@{{ labels.contact }}</span>
+                        <strong>@{{ displayName(current) }}</strong>
+                        <span v-if="current.phone" class="wa-muted">@{{ labels.phone }}: +@{{ current.phone }}</span>
+                    </div>
+
+                    <div class="wa-block">
+                        <span class="wa-label">@{{ labels.responsible }}</span>
+                        <span>@{{ current.assigned ? current.assigned.name : labels.nobody }}</span>
+
+                        <div class="wa-row">
+                            <button
+                                v-if="! current.assigned || current.assigned.id !== currentUserId"
+                                type="button" class="wa-btn is-primary" :disabled="busy" @click="claim(false)"
+                            >@{{ labels.claim }}</button>
+
+                            <button v-else type="button" class="wa-btn" :disabled="busy" @click="claim(true)">@{{ labels.release }}</button>
+
+                            <button
+                                type="button" class="wa-btn" :disabled="busy"
+                                @click="setStatus(current.status === 'closed' ? 'open' : 'closed')"
+                            >@{{ current.status === 'closed' ? labels.reopen : labels.close }}</button>
+                        </div>
+                    </div>
+
+                    <div class="wa-block">
+                        <span class="wa-label">@{{ labels.lead }}</span>
+
+                        <template v-if="current.lead">
+                            <a :href="current.lead.url" style="color:var(--wa-accent)">@{{ current.lead.title }}</a>
+                            <div class="wa-row">
+                                <a :href="current.lead.url" class="wa-btn">@{{ labels.open_lead }}</a>
+                                <button type="button" class="wa-btn" :disabled="busy" @click="linkLead(null)">@{{ labels.unlink }}</button>
+                            </div>
+                        </template>
+
+                        <template v-else>
+                            <span class="wa-muted">@{{ labels.no_lead }}</span>
+                            <button v-if="! linkOpen" type="button" class="wa-btn" @click="linkOpen = true">@{{ labels.link_lead }}</button>
+
+                            <template v-else>
+                                <input type="text" v-model="linkQuery" :placeholder="labels.search_lead">
+                                <button
+                                    v-for="lead in linkResults"
+                                    :key="lead.id"
+                                    type="button"
+                                    class="wa-result"
+                                    @click="linkLead(lead)"
+                                >
+                                    @{{ lead.title }}<span v-if="lead.person" class="wa-muted"> — @{{ lead.person }}</span>
+                                </button>
+                                <span v-if="linkQuery.trim().length >= 2 && linkSearched && ! linkResults.length" class="wa-muted">@{{ labels.no_results }}</span>
+                            </template>
+                        </template>
+                    </div>
+                </aside>
+            </div>
+        </script>
+
+        <script type="module">
+            app.component('v-whatsapp-inbox', {
+                template: '#v-whatsapp-inbox-template',
+
+                props: {
+                    urls: { type: Object, required: true },
+                    labels: { type: Object, required: true },
+                    sessions: { type: Array, default: () => [] },
+                },
+
+                data() {
+                    return {
+                        tabs: ['queue', 'mine', 'all', 'closed'],
+                        tab: 'queue',
+                        search: '',
+                        unreadOnly: false,
+                        sessionId: '',
+
+                        conversations: [],
+                        hasMore: false,
+                        page: 1,
+                        loadingList: true,
+                        listError: false,
+                        listSeq: 0,
+
+                        selectedId: null,
+                        selectedConversation: null,
+                        messages: [],
+                        hasMoreMessages: false,
+                        loadingMessages: false,
+                        threadError: false,
+
+                        busy: false,
+                        panelOpen: false,
+                        linkOpen: false,
+                        linkQuery: '',
+                        linkResults: [],
+                        linkSearched: false,
+
+                        listTimer: null,
+                        threadTimer: null,
+                        searchTimer: null,
+                        linkTimer: null,
+                    };
+                },
+
+                computed: {
+                    current() {
+                        return this.conversations.find(conversation => conversation.id === this.selectedId) || this.selectedConversation;
+                    },
+
+                    currentUserId() {
+                        return {{ (int) auth()->guard('user')->id() }};
+                    },
+
+                    threadItems() {
+                        const items = [];
+                        let day = null;
+
+                        for (const message of this.messages) {
+                            const key = new Date(message.created_at).toDateString();
+
+                            if (key !== day) {
+                                day = key;
+                                items.push({ key: 'd' + key, day: this.dayLabel(message.created_at) });
+                            }
+
+                            items.push({ key: 'm' + message.id, message });
+                        }
+
+                        return items;
+                    },
+                },
+
+                watch: {
+                    tab() { this.loadConversations(); },
+                    unreadOnly() { this.loadConversations(); },
+                    sessionId() { this.loadConversations(); },
+
+                    search() {
+                        clearTimeout(this.searchTimer);
+                        this.searchTimer = setTimeout(() => this.loadConversations(), 250);
+                    },
+
+                    linkQuery() {
+                        clearTimeout(this.linkTimer);
+                        this.linkTimer = setTimeout(() => this.searchLeads(), 300);
+                    },
+                },
+
+                mounted() {
+                    this.loadConversations();
+
+                    this.listTimer = setInterval(() => {
+                        if (! document.hidden) {
+                            this.loadConversations({ poll: true });
+                        }
+                    }, 5000);
+
+                    this.threadTimer = setInterval(() => {
+                        if (! document.hidden && this.selectedId) {
+                            this.refreshThread();
+                        }
+                    }, 3000);
+                },
+
+                beforeUnmount() {
+                    [this.listTimer, this.threadTimer].forEach(clearInterval);
+                    [this.searchTimer, this.linkTimer].forEach(clearTimeout);
+                },
+
+                methods: {
+                    url(name, id) {
+                        return this.urls[name].replace('__ID__', id);
+                    },
+
+                    listParams(page) {
+                        return {
+                            tab: this.tab,
+                            search: this.search.trim() || undefined,
+                            unread: this.unreadOnly ? 1 : undefined,
+                            session_id: this.sessionId || undefined,
+                            page,
+                        };
+                    },
+
+                    async loadConversations({ poll = false, more = false } = {}) {
+                        const seq = ++this.listSeq;
+                        const page = more ? this.page + 1 : 1;
+
+                        if (! poll && ! more) {
+                            this.loadingList = true;
+                        }
+
+                        try {
+                            const { data } = await this.$axios.get(this.urls.conversations, { params: this.listParams(page) });
+
+                            if (seq !== this.listSeq) {
+                                return;
+                            }
+
+                            this.listError = false;
+
+                            if (more) {
+                                this.conversations = [...this.conversations, ...data.data];
+                                this.page = page;
+                                this.hasMore = data.has_more;
+                            } else {
+                                // On a refresh, keep the older pages the user has already scrolled through.
+                                const oldest = data.data.length ? data.data[data.data.length - 1].sort_at : null;
+                                const tail = poll && data.has_more && oldest
+                                    ? this.conversations.filter(conversation => conversation.sort_at < oldest)
+                                    : [];
+
+                                this.conversations = [...data.data, ...tail];
+                                this.hasMore = tail.length ? this.hasMore : data.has_more;
+
+                                if (! tail.length) {
+                                    this.page = 1;
+                                }
+                            }
+
+                            const open = this.conversations.find(conversation => conversation.id === this.selectedId);
+
+                            if (open) {
+                                this.selectedConversation = open;
+                            }
+                        } catch (error) {
+                            if (! poll) {
+                                this.listError = true;
+                            }
+                        } finally {
+                            if (seq === this.listSeq) {
+                                this.loadingList = false;
+                            }
+                        }
+                    },
+
+                    async select(conversation) {
+                        this.selectedId = conversation.id;
+                        this.selectedConversation = conversation;
+                        this.panelOpen = false;
+                        this.messages = [];
+                        this.hasMoreMessages = false;
+                        this.linkOpen = false;
+                        this.linkQuery = '';
+                        this.linkResults = [];
+
+                        await this.refreshThread(true);
+                        this.markRead();
+                    },
+
+                    mergeMessages(fresh) {
+                        const byId = new Map(this.messages.map(message => [message.id, message]));
+
+                        fresh.forEach(message => byId.set(message.id, message));
+                        this.messages = [...byId.values()].sort((a, b) => a.id - b.id);
+                    },
+
+                    async refreshThread(initial = false) {
+                        const id = this.selectedId;
+
+                        if (! id) {
+                            return;
+                        }
+
+                        const element = this.$refs.thread;
+                        const stick = initial || ! element || element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                        const lastId = this.messages.length ? this.messages[this.messages.length - 1].id : 0;
+
+                        if (initial) {
+                            this.loadingMessages = true;
+                            this.threadError = false;
+                        }
+
+                        try {
+                            const { data } = await this.$axios.get(this.url('messages', id));
+
+                            if (id !== this.selectedId) {
+                                return;
+                            }
+
+                            this.mergeMessages(data.data);
+
+                            if (initial) {
+                                this.hasMoreMessages = data.has_more;
+                            }
+
+                            const arrived = data.data.some(message => message.id > lastId && message.direction === 'inbound');
+
+                            if (arrived && ! initial && ! document.hidden) {
+                                this.markRead();
+                            }
+
+                            if (stick) {
+                                this.$nextTick(() => this.scrollToBottom());
+                            }
+                        } catch (error) {
+                            if (initial) {
+                                this.threadError = true;
+                            }
+                        } finally {
+                            if (initial) {
+                                this.loadingMessages = false;
+                            }
+                        }
+                    },
+
+                    async loadOlder() {
+                        const first = this.messages[0];
+                        const element = this.$refs.thread;
+
+                        if (! first || ! element) {
+                            return;
+                        }
+
+                        const previousHeight = element.scrollHeight;
+
+                        try {
+                            const { data } = await this.$axios.get(this.url('messages', this.selectedId), { params: { before_id: first.id } });
+
+                            this.mergeMessages(data.data);
+                            this.hasMoreMessages = data.has_more;
+
+                            await this.$nextTick();
+                            element.scrollTop = element.scrollHeight - previousHeight;
+                        } catch (error) {
+                            this.actionFailed();
+                        }
+                    },
+
+                    scrollToBottom() {
+                        const element = this.$refs.thread;
+
+                        if (element) {
+                            element.scrollTop = element.scrollHeight;
+                        }
+                    },
+
+                    markRead() {
+                        const conversation = this.current;
+
+                        if (! conversation) {
+                            return;
+                        }
+
+                        this.$axios.post(this.url('read', conversation.id))
+                            .then(() => this.patch(conversation.id, { unread: 0 }))
+                            .catch(() => {});
+                    },
+
+                    patch(id, fields) {
+                        const item = this.conversations.find(conversation => conversation.id === id);
+
+                        if (item) {
+                            Object.assign(item, fields);
+                        }
+
+                        if (this.selectedConversation && this.selectedConversation.id === id) {
+                            Object.assign(this.selectedConversation, fields);
+                        }
+                    },
+
+                    async act(request) {
+                        this.busy = true;
+
+                        try {
+                            return await request();
+                        } catch (error) {
+                            this.actionFailed();
+                        } finally {
+                            this.busy = false;
+                        }
+                    },
+
+                    actionFailed() {
+                        this.$emitter.emit('add-flash', { type: 'error', message: this.labels.action_error });
+                    },
+
+                    async claim(release) {
+                        const id = this.selectedId;
+                        const data = await this.act(() => this.$axios.post(this.url('claim', id), { release: release ? 1 : 0 }).then(response => response.data));
+
+                        if (data) {
+                            this.patch(id, { assigned: data.assigned });
+                            this.loadConversations({ poll: true });
+                        }
+                    },
+
+                    async setStatus(status) {
+                        const id = this.selectedId;
+                        const data = await this.act(() => this.$axios.post(this.url('status', id), { status }).then(response => response.data));
+
+                        if (data) {
+                            this.patch(id, { status: data.status });
+                            this.loadConversations({ poll: true });
+                        }
+                    },
+
+                    async searchLeads() {
+                        const term = this.linkQuery.trim();
+
+                        this.linkSearched = false;
+
+                        if (term.length < 2) {
+                            this.linkResults = [];
+                            return;
+                        }
+
+                        try {
+                            const { data } = await this.$axios.get(this.urls.leadSearch, { params: { q: term } });
+
+                            if (term === this.linkQuery.trim()) {
+                                this.linkResults = data.data;
+                                this.linkSearched = true;
+                            }
+                        } catch (error) {
+                            this.actionFailed();
+                        }
+                    },
+
+                    async linkLead(lead) {
+                        const id = this.selectedId;
+                        const data = await this.act(() => this.$axios.post(this.url('link', id), { lead_id: lead ? lead.id : null }).then(response => response.data));
+
+                        if (data) {
+                            this.patch(id, { lead: data.lead });
+                            this.linkOpen = false;
+                            this.linkQuery = '';
+                            this.linkResults = [];
+                        }
+                    },
+
+                    displayName(conversation) {
+                        return conversation.name || (conversation.phone ? '+' + conversation.phone : this.labels.unknown);
+                    },
+
+                    initials(conversation) {
+                        const name = (conversation.name || '').trim();
+
+                        return name ? name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() : '#';
+                    },
+
+                    listTime(iso) {
+                        if (! iso) {
+                            return '';
+                        }
+
+                        const date = new Date(iso);
+
+                        return date.toDateString() === new Date().toDateString()
+                            ? this.clock(iso)
+                            : date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+                    },
+
+                    clock(iso) {
+                        return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    },
+
+                    dayLabel(iso) {
+                        const date = new Date(iso);
+                        const yesterday = new Date();
+
+                        yesterday.setDate(yesterday.getDate() - 1);
+
+                        if (date.toDateString() === new Date().toDateString()) {
+                            return this.labels.today;
+                        }
+
+                        return date.toDateString() === yesterday.toDateString()
+                            ? this.labels.yesterday
+                            : date.toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' });
+                    },
+
+                    tick(message) {
+                        return { sent: '✓', delivered: '✓✓', read: '✓✓', failed: '!' }[message.status] || '';
+                    },
+
+                    typeLabel(message) {
+                        return this.labels.types[message.type] || this.labels.types.text;
+                    },
+                },
+            });
+        </script>
+    @endPushOnce
+</x-admin::layouts>
