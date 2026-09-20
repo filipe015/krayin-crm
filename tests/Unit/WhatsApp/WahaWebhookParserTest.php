@@ -80,6 +80,30 @@ it('uses the chat, the recipient phone and no contact name for messages sent fro
         ->and($message->contactName)->toBeNull();
 });
 
+it('parses a message sent through the API, whose chat is named by phone instead of LID', function () {
+    $message = WahaWebhookParser::parse(wahaEnvelope('message.any', [
+        'id'       => 'true_551188887777@c.us_3EB0DDDD',
+        'timestamp' => 1789939881,
+        'from'     => '551188887777@c.us',
+        'fromMe'   => true,
+        'source'   => 'api',
+        'body'     => 'teste via api',
+        'hasMedia' => false,
+        'media'    => null,
+        '_data'    => ['Info' => [
+            'Chat' => '551188887777@s.whatsapp.net', 'IsGroup' => false, 'SenderAlt' => '', 'RecipientAlt' => '',
+            'ID'   => '3EB0DDDD', 'PushName' => '', 'MediaType' => '',
+        ]],
+    ]));
+
+    expect($message->fromMe)->toBeTrue()
+        ->and($message->source)->toBe('api')
+        ->and($message->chatId)->toBe('551188887777@c.us')
+        ->and($message->phone)->toBe('551188887777')
+        ->and($message->lid)->toBeNull()
+        ->and($message->externalId)->toBe('3EB0DDDD');
+});
+
 it('keeps only the path of the media url, because WAHA reports localhost', function () {
     $message = WahaWebhookParser::parse(wahaEnvelope('message.any', wahaIncomingText([
         'body'     => null,

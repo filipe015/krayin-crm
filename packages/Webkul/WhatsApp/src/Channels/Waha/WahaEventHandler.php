@@ -12,6 +12,7 @@ use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Support\LeadPhoneFinder;
+use Webkul\WhatsApp\Support\PhoneNumberMatcher;
 
 class WahaEventHandler
 {
@@ -51,15 +52,44 @@ class WahaEventHandler
         $session->save();
     }
 
+    /**
+     * WAHA names the same contact by LID in one event and by phone in another (for
+     * instance a message sent through the API), so a chat is matched by any identity
+     * we know before a new conversation is opened.
+     */
+    private function conversation(Session $session, InboundMessage $event): Conversation
+    {
+        $phones = $event->phone !== null ? PhoneNumberMatcher::variants($event->phone) : [];
+
+        $existing = Conversation::query()
+            ->where('session_id', $session->id)
+            ->where(function ($query) use ($event, $phones) {
+                $query->where('chat_id', $event->chatId);
+
+                if ($event->lid !== null) {
+                    $query->orWhere('contact_lid', $event->lid);
+                }
+
+                if ($phones !== []) {
+                    $query->orWhereIn('contact_phone', $phones);
+                }
+            })
+            ->orderByRaw('chat_id = ? desc', [$event->chatId])
+            ->orderBy('id')
+            ->first();
+
+        return $existing ?? Conversation::query()->createOrFirst(
+            ['session_id' => $session->id, 'chat_id' => $event->chatId],
+            ['canal_origem' => 'waha'],
+        );
+    }
+
     private function message(InboundMessage $event): void
     {
         $session = $this->session($event->session);
         $sentAt = Carbon::instance($event->sentAt)->setTimezone(config('app.timezone'));
 
-        $conversation = Conversation::query()->createOrFirst(
-            ['session_id' => $session->id, 'chat_id' => $event->chatId],
-            ['canal_origem' => 'waha'],
-        );
+        $conversation = $this->conversation($session, $event);
 
         $conversation->contact_phone ??= $event->phone;
         $conversation->contact_lid ??= $event->lid;

@@ -25,6 +25,25 @@ class PhoneNumberMatcher
     }
 
     /**
+     * Every spelling under which the same number may be stored, country code included,
+     * so it can be used in an IN () lookup.
+     *
+     * @return list<string>
+     */
+    public static function variants(string $phone): array
+    {
+        $digits = self::normalize($phone);
+
+        // Only a number that already carries the 55 prefix is safe to read as Brazilian;
+        // 10-11 digits without it could just as well be another country's number.
+        if (! in_array(strlen($digits), [12, 13], true) || ! str_starts_with($digits, '55')) {
+            return [$digits];
+        }
+
+        return array_map(fn (string $number) => '55'.$number, self::brazilianVariants($digits)) ?: [$digits];
+    }
+
+    /**
      * Brazilian mobile numbers may show up with or without the ninth digit
      * (e.g. 553198966398 and 5531998966398), and with or without the 55 prefix.
      * Returns the national forms (DDD + number) of both spellings, or an empty
