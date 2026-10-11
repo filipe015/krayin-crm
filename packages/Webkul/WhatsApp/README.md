@@ -247,3 +247,17 @@ No composer, o relógio 🕒 (ao lado de Enviar, quando há texto ou anexo) agen
 - **Atenção a anexos:** o arquivo fica em `storage/app/whatsapp/outbound` até o envio. Um deploy entre o agendamento e a hora apaga o arquivo e a mensagem falha com aviso; para texto não há esse risco.
 - **Migração nova:** `2026_10_13_000001_add_scheduled_at_to_whatsapp_messages`. Rode `php artisan migrate --force` depois do deploy. Sem ela a Inbox dá erro ao abrir uma conversa.
 - **Permissões:** quem pode enviar mensagens (`whatsapp.send`) agenda, muda o horário e cancela.
+
+
+### Agendar pelo painel lateral
+
+No painel direito da conversa, o bloco **Agendamentos** (🕒) lista as mensagens agendadas dela e permite preparar uma nova sem usar o composer:
+
+1. **Novo agendamento**.
+2. **Título** (opcional, só para você se organizar, ex.: "Lembrete da consulta"), **data e hora** (ou "Amanhã 9h" / "Em 1 hora") e **mensagem**.
+3. **Inserir resposta rápida...** preenche o texto já com `{{nome}}` e `{{atendente}}` resolvidos.
+4. **Salvar agendamento**. Cada item tem **Editar** (título, horário e texto) e **Cancelar agendamento**.
+
+- O título também aparece em negrito na mensagem agendada, no fim da conversa, e pode ser dado pelo relógio do composer.
+- O painel agenda **texto**; para agendar com arquivo, use o relógio do composer. Um agendamento com arquivo pode ter horário, título e legenda editados no painel.
+- **Migração nova:** `2026_10_13_000002_add_scheduled_title_to_whatsapp_messages`. Rode `php artisan migrate --force` depois do deploy.

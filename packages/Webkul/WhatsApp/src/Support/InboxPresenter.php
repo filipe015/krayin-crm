@@ -20,6 +20,7 @@ class InboxPresenter
             'edited'      => $message->edited_at !== null,
             'revoked'     => $message->revoked_at !== null,
             'scheduled_at' => $message->status === 'scheduled' ? $message->scheduled_at?->toIso8601String() : null,
+            'scheduled_title' => $message->status === 'scheduled' ? $message->scheduled_title : null,
             'media'       => $message->media_path ? [
                 'url'      => route('admin.whatsapp.inbox.messages.media', $message->id),
                 'mime'     => $message->media_mime,

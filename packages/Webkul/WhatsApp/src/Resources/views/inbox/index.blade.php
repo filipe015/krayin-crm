@@ -99,6 +99,11 @@
             .wa-scheduled .wa-bubble{border:1px dashed var(--wa-accent);background:transparent}
             .wa-sched-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--wa-muted)}
             .wa-sched-meta input{width:auto;padding:3px 6px}
+            .wa-sched-item{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px dashed var(--wa-border);border-radius:6px}
+            .wa-sched-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;white-space:pre-wrap;word-break:break-word}
+            .wa-sched-form{display:flex;flex-direction:column;gap:8px}
+            .wa-sched-form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--wa-muted)}
+            .wa-sched-form input[type=text],.wa-sched-form input[type=datetime-local],.wa-sched-form textarea{width:100%;padding:6px 8px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);color:var(--wa-fg);font:inherit}
             .wa-sched-count{margin-left:6px;font-size:11px;color:var(--wa-accent)}
             .wa-schedule-pop{position:absolute;right:0;bottom:calc(100% + 6px);z-index:7;display:flex;flex-direction:column;gap:8px;min-width:250px;padding:12px;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);box-shadow:0 6px 18px rgba(0,0,0,.14)}
             .wa-typing{color:#16a34a;font-size:12px;font-style:italic}
@@ -283,6 +288,7 @@
                                         <a v-else :href="scheduled.media.url" target="_blank" rel="noopener">@{{ scheduled.media.filename || labels.attachment }}</a>
                                     </template>
 
+                                    <strong v-if="scheduled.scheduled_title" style="display:block">@{{ scheduled.scheduled_title }}</strong>
                                     <p v-if="scheduled.content">@{{ scheduled.content }}</p>
 
                                     <div class="wa-sched-meta">
@@ -371,6 +377,7 @@
                                 <div v-if="draft.trim() || attachment" style="position:relative;display:flex">
                                     <div v-if="scheduleOpen" class="wa-schedule-pop">
                                         <strong>@{{ labels.schedule_title }}</strong>
+                                        <input type="text" v-model="scheduleName" maxlength="100" :placeholder="labels.schedule_name_ph">
                                         <input type="datetime-local" v-model="scheduleAt" :min="nowLocal()">
 
                                         <div class="wa-row">
@@ -478,6 +485,58 @@
                             </select>
                         </template>
                     </div>
+
+                    <div class="wa-block">
+                        <span class="wa-label">&#128338; @{{ labels.schedules }}</span>
+
+                        <span v-if="! scheduledMessages.length && ! panelSchedule" class="wa-muted">@{{ labels.schedule_none }}</span>
+
+                        <div v-for="item in scheduledMessages" :key="'p' + item.id" class="wa-sched-item">
+                            <strong v-if="item.scheduled_title">@{{ item.scheduled_title }}</strong>
+                            <span class="wa-muted">&#128338; @{{ scheduleLabel(item.scheduled_at) }}</span>
+                            <span class="wa-sched-text">@{{ item.content || (item.media ? (item.media.filename || labels.attachment) : '') }}</span>
+                            <span v-if="item.media && item.content" class="wa-muted">&#128206; @{{ labels.schedule_file }}</span>
+
+                            <div class="wa-row">
+                                <button type="button" class="wa-btn" :disabled="busy" @click="openPanelSchedule(item)">@{{ labels.schedule_edit }}</button>
+                                <button type="button" class="wa-btn" :disabled="busy" @click="cancelScheduled(item)">@{{ labels.scheduled_cancel }}</button>
+                            </div>
+                        </div>
+
+                        <form v-if="panelSchedule" class="wa-sched-form" @submit.prevent="savePanelSchedule">
+                            <label>
+                                @{{ labels.schedule_name }}
+                                <input type="text" v-model="panelSchedule.title" maxlength="100" :placeholder="labels.schedule_name_ph">
+                            </label>
+
+                            <label>
+                                @{{ labels.schedule_when }}
+                                <input type="datetime-local" v-model="panelSchedule.at" :min="nowLocal()" required>
+                            </label>
+
+                            <div class="wa-row">
+                                <button type="button" class="wa-btn" @click="panelSchedule.at = tomorrowAt9()">@{{ labels.schedule_tomorrow }}</button>
+                                <button type="button" class="wa-btn" @click="panelSchedule.at = inOneHour()">@{{ labels.schedule_hour }}</button>
+                            </div>
+
+                            <label>
+                                @{{ labels.schedule_text }}
+                                <textarea v-model="panelSchedule.text" rows="4" maxlength="4096" :required="! panelSchedule.hasMedia"></textarea>
+                            </label>
+
+                            <select v-if="quickReplies.length && ! panelSchedule.hasMedia" @change="insertIntoPanel($event)">
+                                <option value="">@{{ labels.schedule_insert }}</option>
+                                <option v-for="reply in quickReplies" :key="reply.id" :value="reply.id">/@{{ reply.shortcut }} · @{{ reply.title }}</option>
+                            </select>
+
+                            <div class="wa-row">
+                                <button type="submit" class="wa-btn is-primary" :disabled="busy || sessionOffline">@{{ labels.schedule_save }}</button>
+                                <button type="button" class="wa-btn" @click="panelSchedule = null">@{{ labels.schedule_confirm_cancel }}</button>
+                            </div>
+                        </form>
+
+                        <button v-else type="button" class="wa-btn is-primary" :disabled="sessionOffline" @click="openPanelSchedule(null)">&#128338; @{{ labels.schedule_new }}</button>
+                    </div>
                 </aside>
             </div>
         </script>
@@ -524,6 +583,8 @@
                         scheduledMessages: [],
                         scheduleOpen: false,
                         scheduleAt: '',
+                        scheduleName: '',
+                        panelSchedule: null,
                         reschedulingId: null,
                         rescheduleAt: '',
                         threadPresence: null,
@@ -783,6 +844,7 @@
                         this.threadPresence = null;
                         this.scheduledMessages = [];
                         this.scheduleOpen = false;
+                        this.panelSchedule = null;
                         this.reschedulingId = null;
                         this.selectedId = conversation.id;
                         this.selectedConversation = conversation;
@@ -1036,7 +1098,7 @@
                         this.sending = true;
 
                         try {
-                            let payload = scheduledAt ? { text, scheduled_at: scheduledAt } : { text };
+                            let payload = scheduledAt ? { text, scheduled_at: scheduledAt, schedule_title: this.scheduleName.trim() || undefined } : { text };
 
                             if (this.attachment) {
                                 payload = new FormData();
@@ -1052,6 +1114,10 @@
 
                                 if (scheduledAt) {
                                     payload.append('scheduled_at', scheduledAt);
+
+                                    if (this.scheduleName.trim()) {
+                                        payload.append('schedule_title', this.scheduleName.trim());
+                                    }
                                 }
                             }
 
@@ -1061,6 +1127,7 @@
                             delete this.drafts[id];
                             this.clearAttachment();
                             this.scheduleOpen = false;
+                            this.scheduleName = '';
 
                             if (data.data.status === 'scheduled') {
                                 this.scheduledMessages = [...this.scheduledMessages, data.data]
@@ -1268,6 +1335,57 @@
                                 .map(item => (item.id === message.id ? data.data : item))
                                 .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
                             this.reschedulingId = null;
+                        }
+                    },
+
+                    openPanelSchedule(message) {
+                        this.panelSchedule = message
+                            ? {
+                                id: message.id,
+                                title: message.scheduled_title || '',
+                                at: this.toLocalInput(new Date(message.scheduled_at)),
+                                text: message.content || '',
+                                hasMedia: !! message.media,
+                            }
+                            : { id: null, title: '', at: this.tomorrowAt9(), text: '', hasMedia: false };
+                    },
+
+                    insertIntoPanel(event) {
+                        const reply = this.quickReplies.find(item => String(item.id) === String(event.target.value));
+
+                        event.target.value = '';
+
+                        if (reply && this.panelSchedule) {
+                            this.panelSchedule.text = this.renderQuickReply(reply.body);
+                        }
+                    },
+
+                    async savePanelSchedule() {
+                        const form = this.panelSchedule;
+                        const id = this.selectedId;
+
+                        if (! form || ! form.at) {
+                            return;
+                        }
+
+                        const text = form.text.trim();
+
+                        if (! text && ! form.hasMedia) {
+                            return;
+                        }
+
+                        const data = await this.act(() => (form.id
+                            ? this.$axios.put(this.url('schedule', form.id), { scheduled_at: form.at, schedule_title: form.title.trim(), text }).then(response => response.data)
+                            : this.$axios.post(this.url('send', id), { text, scheduled_at: form.at, schedule_title: form.title.trim() || undefined }).then(response => response.data)));
+
+                        if (data) {
+                            const saved = data.data;
+                            const others = this.scheduledMessages.filter(item => item.id !== saved.id);
+
+                            this.scheduledMessages = [...others, saved]
+                                .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+                            this.panelSchedule = null;
+                            this.$emitter.emit('add-flash', { type: 'success', message: this.labels.scheduled_done });
                         }
                     },
 

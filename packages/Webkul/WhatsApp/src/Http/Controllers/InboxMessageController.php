@@ -27,6 +27,7 @@ class InboxMessageController extends Controller
             'file'  => ['nullable', 'file', 'max:'.OutboundMedia::MAX_KB],
             'voice' => ['nullable', 'boolean'],
             'scheduled_at' => ['nullable', 'date_format:Y-m-d\TH:i'],
+            'schedule_title' => ['nullable', 'string', 'max:100'],
         ]);
 
         $scheduledAt = $this->scheduleTime($data['scheduled_at'] ?? null);
@@ -56,12 +57,15 @@ class InboxMessageController extends Controller
             $path = $upload->storeAs('whatsapp/outbound', Str::uuid().'.'.preg_replace('/[^a-z0-9]/', '', $extension), 'local');
         }
 
-        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $upload, $path, $scheduledAt) {
+        $title = trim((string) ($data['schedule_title'] ?? '')) ?: null;
+
+        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $upload, $path, $scheduledAt, $title) {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'direction'       => 'outbound',
                 'status'          => $scheduledAt !== null ? 'scheduled' : 'queued',
                 'scheduled_at'    => $scheduledAt,
+                'scheduled_title' => $scheduledAt !== null ? $title : null,
                 'source'          => 'crm',
                 'content'         => $text !== '' ? $text : null,
                 'message_type'    => $media['type'] ?? 'text',
@@ -129,13 +133,30 @@ class InboxMessageController extends Controller
     }
 
     /**
-     * Changes the time of a message that has not been sent yet.
+     * Changes a message that has not been sent yet: its time and, optionally, its title
+     * and its text (or caption, when it carries a file).
      */
     public function reschedule(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['scheduled_at' => ['required', 'date_format:Y-m-d\TH:i']]);
+        $data = $request->validate([
+            'scheduled_at'   => ['required', 'date_format:Y-m-d\TH:i'],
+            'schedule_title' => ['nullable', 'string', 'max:100'],
+            'text'           => ['nullable', 'string', 'max:4096'],
+        ]);
 
         $message = $this->scheduledMessage($id);
+
+        if ($request->has('text')) {
+            $text = trim((string) ($data['text'] ?? ''));
+
+            abort_if($text === '' && $message->media_path === null, 422, trans('whatsapp::app.inbox.schedule_needs_content'));
+
+            $message->content = $text !== '' ? $text : null;
+        }
+
+        if ($request->has('schedule_title')) {
+            $message->scheduled_title = trim((string) ($data['schedule_title'] ?? '')) ?: null;
+        }
 
         $message->scheduled_at = $this->scheduleTime($data['scheduled_at']);
         $message->save();

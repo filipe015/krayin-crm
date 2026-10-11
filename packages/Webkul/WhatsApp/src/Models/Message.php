@@ -30,6 +30,7 @@ class Message extends Model implements MessageContract
         'edited_at',
         'revoked_at',
         'scheduled_at',
+        'scheduled_title',
         'created_at',
         'updated_at',
     ];
