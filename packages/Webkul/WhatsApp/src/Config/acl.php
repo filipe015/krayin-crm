@@ -23,6 +23,17 @@ return [
         ],
         'sort'  => 1,
     ], [
+        'key'   => 'whatsapp.connections',
+        'name'  => 'whatsapp::app.acl.connections',
+        'route' => [
+            'admin.whatsapp.connections.index',
+            'admin.whatsapp.connections.list',
+            'admin.whatsapp.connections.qr',
+            'admin.whatsapp.connections.code',
+            'admin.whatsapp.connections.action',
+        ],
+        'sort'  => 3,
+    ], [
         'key'   => 'whatsapp.send',
         'name'  => 'whatsapp::app.acl.send',
         'route' => [

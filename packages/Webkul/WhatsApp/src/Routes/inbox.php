@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Webkul\WhatsApp\Http\Controllers\ConnectionController;
 use Webkul\WhatsApp\Http\Controllers\InboxController;
 use Webkul\WhatsApp\Http\Controllers\InboxLeadController;
 use Webkul\WhatsApp\Http\Controllers\InboxMessageController;
@@ -19,3 +20,9 @@ Route::post('messages/{id}/retry', [InboxMessageController::class, 'retry'])->na
 
 Route::get('leads', [InboxLeadController::class, 'search'])->name('admin.whatsapp.inbox.lead.search');
 Route::get('messages/{id}/media', MessageMediaController::class)->name('admin.whatsapp.inbox.messages.media');
+
+Route::get('connections', [ConnectionController::class, 'index'])->name('admin.whatsapp.connections.index');
+Route::get('connections/list', [ConnectionController::class, 'list'])->name('admin.whatsapp.connections.list');
+Route::get('connections/{id}/qr', [ConnectionController::class, 'qr'])->name('admin.whatsapp.connections.qr');
+Route::post('connections/{id}/code', [ConnectionController::class, 'code'])->name('admin.whatsapp.connections.code');
+Route::post('connections/{id}/{action}', [ConnectionController::class, 'action'])->name('admin.whatsapp.connections.action');

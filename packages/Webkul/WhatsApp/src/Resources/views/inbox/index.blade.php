@@ -3,6 +3,14 @@
         @lang('whatsapp::app.inbox.title')
     </x-slot>
 
+    @if (bouncer()->hasPermission('whatsapp.connections'))
+        <div class="mb-2 text-right text-sm">
+            <a href="{{ route('admin.whatsapp.connections.index') }}" class="text-brandColor hover:underline">
+                @lang('whatsapp::app.connections.menu')
+            </a>
+        </div>
+    @endif
+
     <v-whatsapp-inbox
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.inbox')) }}"

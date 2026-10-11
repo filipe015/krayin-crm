@@ -87,3 +87,44 @@ it('sends to the LID first and falls back to the phone', function (array $attrib
     'only lid'      => [['contact_lid' => '111@lid'], ['111@lid']],
     'nothing known' => [[], []],
 ]);
+
+it('lists sessions and controls them through the session endpoints', function () {
+    $http = new Factory;
+    $http->fake([
+        'waha.test/api/sessions?all=true' => Factory::response([['name' => 'default', 'status' => 'WORKING', 'me' => ['id' => '556195684042@c.us']]]),
+        '*'                               => Factory::response([], 201),
+    ]);
+
+    $client = wahaClient($http);
+
+    expect($client->sessions()[0]['status'])->toBe('WORKING');
+
+    $client->controlSession('default', 'restart');
+
+    $http->assertSent(fn (Request $request) => $request->url() === 'https://waha.test/api/sessions/default/restart'
+        && $request->method() === 'POST'
+        && $request->hasHeader('X-Api-Key', 'secret-key'));
+});
+
+it('fetches the pairing QR and the pairing code', function () {
+    $http = new Factory;
+    $http->fake([
+        'waha.test/api/default/auth/qr'           => Factory::response(['mimetype' => 'image/png', 'data' => 'aGk=']),
+        'waha.test/api/default/auth/request-code' => Factory::response(['code' => 'ABCD-1234']),
+    ]);
+
+    $client = wahaClient($http);
+
+    expect($client->qrCode('default'))->toBe(['mimetype' => 'image/png', 'data' => 'aGk='])
+        ->and($client->requestPairingCode('default', '556195684042'))->toBe('ABCD-1234');
+
+    $http->assertSent(fn (Request $request) => str_ends_with($request->url(), '/auth/request-code')
+        && $request->data() === ['phoneNumber' => '556195684042']);
+});
+
+it('refuses a QR response without image data', function () {
+    $http = new Factory;
+    $http->fake(['*' => Factory::response(['mimetype' => 'image/png'])]);
+
+    expect(fn () => wahaClient($http)->qrCode('default'))->toThrow(WahaException::class);
+});

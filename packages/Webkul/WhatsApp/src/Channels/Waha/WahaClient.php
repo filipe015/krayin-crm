@@ -50,6 +50,96 @@ final class WahaClient
     }
 
     /**
+     * Sessions known to WAHA, each with its name, status and (when paired) the account in `me`.
+     *
+     * @return list<array<string, mixed>>
+     *
+     * @throws WahaException
+     */
+    public function sessions(): array
+    {
+        return array_values((array) $this->call('GET', '/api/sessions', ['all' => 'true']));
+    }
+
+    /**
+     * @param  'start'|'stop'|'restart'|'logout'  $action
+     *
+     * @throws WahaException
+     */
+    public function controlSession(string $session, string $action): void
+    {
+        $this->call('POST', '/api/sessions/'.rawurlencode($session).'/'.$action);
+    }
+
+    /**
+     * The pairing QR as {mimetype, data} where data is base64. Only available while the
+     * session waits for a scan (SCAN_QR_CODE).
+     *
+     * @return array{mimetype: string, data: string}
+     *
+     * @throws WahaException
+     */
+    public function qrCode(string $session): array
+    {
+        $json = (array) $this->call('GET', '/api/'.rawurlencode($session).'/auth/qr');
+        $data = $json['data'] ?? null;
+
+        if (! is_string($data) || $data === '') {
+            throw new WahaException('WAHA did not return a QR code for this session.');
+        }
+
+        return ['mimetype' => (string) ($json['mimetype'] ?? 'image/png'), 'data' => $data];
+    }
+
+    /**
+     * Pairing code to type in WhatsApp (Linked devices > Link with phone number).
+     *
+     * @throws WahaException
+     */
+    public function requestPairingCode(string $session, string $phone): string
+    {
+        $json = (array) $this->call('POST', '/api/'.rawurlencode($session).'/auth/request-code', ['phoneNumber' => $phone]);
+        $code = $json['code'] ?? null;
+
+        if (! is_string($code) || $code === '') {
+            throw new WahaException('WAHA did not return a pairing code.');
+        }
+
+        return $code;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data  Query string for GET, JSON body otherwise.
+     * @return array<mixed>
+     *
+     * @throws WahaException
+     */
+    private function call(string $method, string $path, array $data = []): array
+    {
+        if (blank($this->baseUrl) || blank($this->apiKey)) {
+            throw new WahaException('WAHA_API_URL and WAHA_API_KEY must be configured.');
+        }
+
+        try {
+            $request = $this->http
+                ->baseUrl(rtrim($this->baseUrl, '/'))
+                ->withHeaders(['X-Api-Key' => $this->apiKey])
+                ->acceptJson()
+                ->timeout($this->timeout);
+
+            $response = $method === 'GET' ? $request->get($path, $data) : $request->post($path, $data);
+        } catch (ConnectionException $exception) {
+            throw new WahaException('The WAHA server did not answer in time.', null, true);
+        }
+
+        if ($response->failed()) {
+            throw new WahaException(self::describe($response), $response->status());
+        }
+
+        return (array) $response->json();
+    }
+
+    /**
      * The id of the message WAHA just sent, in the same "bare" form the webhooks use
      * (the part after the last underscore). The exact response shape depends on the
      * engine, so a few known locations are tried.
