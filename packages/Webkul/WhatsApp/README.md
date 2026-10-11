@@ -214,3 +214,22 @@ Enquanto o atendente escreve na Inbox, o WhatsApp do cliente mostra "digitando�
 - Não avisa ao digitar um atalho de resposta rápida (`/...`) nem ao restaurar um rascunho.
 - **Desligar:** `WHATSAPP_SEND_TYPING=false` no ambiente do krayin (precisa implantar).
 - Usa `POST /api/{sessão}/presence` do WAHA (`typing`, `recording`, `paused`). Sem migração nova.
+
+
+## Botão WhatsApp do lead abre a Inbox
+
+Em quem tem a permissão **Enviar mensagens** (`whatsapp.send`), os atalhos de WhatsApp do lead levam para a conversa dele na Inbox, em vez do `wa.me`:
+
+- o botão verde **WhatsApp** da página do lead;
+- o ícone ao lado de cada telefone do contato;
+- o ícone no card do Kanban.
+
+Quem não tem a permissão continua indo para o `wa.me`.
+
+`GET /admin/whatsapp/inbox/open-lead/{lead}` decide o destino:
+
+1. já existe conversa ligada ao lead: abre ela;
+2. existe conversa com o mesmo telefone ainda sem lead: liga ao lead e abre;
+3. nunca conversaram: cria a conversa no primeiro número conectado (`WORKING`), atribuída a quem clicou, e abre pronta para escrever.
+
+O telefone é o primeiro do contato, só dígitos, com `55` quando faltar. Lead sem telefone responde 422. A Inbox abre com a conversa selecionada (`?c=ID`), mesmo que ela esteja em outra aba (Fila/Minhas/Todas/Fechadas).

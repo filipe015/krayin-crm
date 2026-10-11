@@ -22,9 +22,18 @@ class InboxController extends Controller
 
     private const THREAD_SIZE = 50;
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        // "?c=ID" opens the Inbox already on that conversation (used by the lead's WhatsApp button).
+        $initial = $request->filled('c')
+            ? Conversation::query()
+                ->whereNotNull('session_id')
+                ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,status'])
+                ->find((int) $request->query('c'))
+            : null;
+
         return view('whatsapp::inbox.index', [
+            'initial'  => $initial ? $this->conversationData($initial) : null,
             'sessions' => Session::query()->orderBy('name')->get(['id', 'name']),
             'funnelFilters' => $this->funnelFilters(),
             'urls'     => [

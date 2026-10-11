@@ -7,6 +7,7 @@ use Webkul\WhatsApp\Http\Controllers\InboxLeadController;
 use Webkul\WhatsApp\Http\Controllers\InboxMessageController;
 use Webkul\WhatsApp\Http\Controllers\LeadFunnelController;
 use Webkul\WhatsApp\Http\Controllers\MessageMediaController;
+use Webkul\WhatsApp\Http\Controllers\OpenLeadConversationController;
 use Webkul\WhatsApp\Http\Controllers\QuickReplyController;
 
 Route::get('/', [InboxController::class, 'index'])->name('admin.whatsapp.inbox.index');
@@ -41,3 +42,5 @@ Route::get('conversations/{id}/funnel', [LeadFunnelController::class, 'show'])->
 Route::post('conversations/{id}/funnel/stage', [LeadFunnelController::class, 'stage'])->name('admin.whatsapp.inbox.funnel.stage');
 Route::post('conversations/{id}/funnel/tags', [LeadFunnelController::class, 'attachTag'])->name('admin.whatsapp.inbox.funnel.tags.attach');
 Route::delete('conversations/{id}/funnel/tags/{tagId}', [LeadFunnelController::class, 'detachTag'])->name('admin.whatsapp.inbox.funnel.tags.detach');
+
+Route::get('open-lead/{leadId}', OpenLeadConversationController::class)->name('admin.whatsapp.inbox.open-lead');

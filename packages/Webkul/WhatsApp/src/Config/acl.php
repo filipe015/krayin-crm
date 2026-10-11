@@ -55,6 +55,7 @@ return [
         'route' => [
             'admin.whatsapp.inbox.send',
             'admin.whatsapp.inbox.typing',
+            'admin.whatsapp.inbox.open-lead',
             'admin.whatsapp.inbox.retry',
         ],
         'sort'  => 2,

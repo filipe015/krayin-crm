@@ -24,6 +24,7 @@
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.inbox')) }}"
         :sessions="{{ Illuminate\Support\Js::from($sessions) }}"
         :funnel-filters="{{ Illuminate\Support\Js::from($funnelFilters) }}"
+        :initial="{{ Illuminate\Support\Js::from($initial) }}"
     >
         <div class="p-6 text-sm text-gray-500">
             @lang('whatsapp::app.inbox.loading')
@@ -443,6 +444,7 @@
                     labels: { type: Object, required: true },
                     sessions: { type: Array, default: () => [] },
                     funnelFilters: { type: Object, default: () => ({ stages: [], tags: [] }) },
+                    initial: { type: Object, default: null },
                 },
 
                 data() {
@@ -606,7 +608,12 @@
                 },
 
                 mounted() {
-                    this.loadConversations();
+                    if (this.initial) {
+                        // Opened from a lead: show the tab that holds the conversation and select it.
+                        this.tab = this.initial.status === 'closed' ? 'closed' : 'all';
+                    }
+
+                    this.loadConversations().then(() => this.openInitial());
                     this.loadQuickReplies();
 
                     this.baseTitle = document.title;
@@ -1112,6 +1119,20 @@
                             this.signalTyping('paused');
                             this.typingActive = false;
                         }
+                    },
+
+                    openInitial() {
+                        if (! this.initial) {
+                            return;
+                        }
+
+                        const found = this.conversations.find(conversation => conversation.id === this.initial.id);
+
+                        if (! found) {
+                            this.conversations = [this.initial, ...this.conversations];
+                        }
+
+                        this.select(found || this.initial);
                     },
 
                     async loadQuickReplies() {

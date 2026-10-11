@@ -80,6 +80,8 @@ return [
         'filter_tag'         => 'Filter by lead tag',
         'typing'             => 'typing…',
         'recording_audio'    => 'recording audio…',
+        'lead_without_phone' => 'This lead has no phone number.',
+        'no_session'         => 'No WhatsApp number is configured in Krayin.',
         'attach'             => 'Attach file',
         'record_voice'       => 'Record audio',
         'stop_recording'     => 'Stop and attach',

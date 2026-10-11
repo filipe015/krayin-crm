@@ -1105,6 +1105,15 @@
                         return;
                     }
 
+                    // With permission, go to the conversation in the Inbox; otherwise open wa.me.
+                    const inbox = @json(bouncer()->hasPermission('whatsapp.send') ? route('admin.whatsapp.inbox.open-lead', ['leadId' => '__ID__']) : null);
+
+                    if (inbox) {
+                        window.open(inbox.replace('__ID__', element.id), '_blank');
+
+                        return;
+                    }
+
                     window.open(`https://wa.me/${this.cleanPhoneNumber(phone)}`, '_blank');
                 },
             }
