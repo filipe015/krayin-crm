@@ -50,6 +50,40 @@ final class WahaClient
     }
 
     /**
+     * Sends a file as an image, document, voice note or video. WAHA takes the content
+     * inline as base64 and converts voice and video to what WhatsApp expects.
+     *
+     * @param  'image'|'file'|'voice'|'video'  $kind
+     * @return array<string, mixed>
+     *
+     * @throws WahaException
+     */
+    public function sendMedia(string $session, string $chatId, string $kind, string $mimetype, string $filename, string $base64, ?string $caption = null): array
+    {
+        $path = ['image' => '/api/sendImage', 'file' => '/api/sendFile', 'voice' => '/api/sendVoice', 'video' => '/api/sendVideo'][$kind] ?? null;
+
+        if ($path === null) {
+            throw new WahaException('Unsupported media kind.');
+        }
+
+        $body = [
+            'session' => $session,
+            'chatId'  => $chatId,
+            'file'    => ['mimetype' => $mimetype, 'filename' => $filename, 'data' => $base64],
+        ];
+
+        if ($caption !== null && $caption !== '' && $kind !== 'voice') {
+            $body['caption'] = $caption;
+        }
+
+        if (in_array($kind, ['voice', 'video'], true)) {
+            $body['convert'] = true;
+        }
+
+        return $this->call('POST', $path, $body, 25);
+    }
+
+    /**
      * Sessions known to WAHA, each with its name, status and (when paired) the account in `me`.
      *
      * @return list<array<string, mixed>>
@@ -114,7 +148,7 @@ final class WahaClient
      *
      * @throws WahaException
      */
-    private function call(string $method, string $path, array $data = []): array
+    private function call(string $method, string $path, array $data = [], ?int $timeout = null): array
     {
         if (blank($this->baseUrl) || blank($this->apiKey)) {
             throw new WahaException('WAHA_API_URL and WAHA_API_KEY must be configured.');
@@ -125,7 +159,7 @@ final class WahaClient
                 ->baseUrl(rtrim($this->baseUrl, '/'))
                 ->withHeaders(['X-Api-Key' => $this->apiKey])
                 ->acceptJson()
-                ->timeout($this->timeout);
+                ->timeout($timeout ?? $this->timeout);
 
             $response = $method === 'GET' ? $request->get($path, $data) : $request->post($path, $data);
         } catch (ConnectionException $exception) {

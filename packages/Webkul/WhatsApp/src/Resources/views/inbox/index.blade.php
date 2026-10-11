@@ -77,6 +77,14 @@
             .wa-composer textarea{flex:1;min-height:38px;max-height:140px;padding:8px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);color:var(--wa-fg);font:inherit;resize:none}
             .wa-composer textarea:disabled{opacity:.6}
             .wa-note{color:var(--wa-muted);font-size:12px}
+            .wa-attach{display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg)}
+            .wa-attach img{width:44px;height:44px;object-fit:cover;border-radius:4px}
+            .wa-attach audio{height:32px;max-width:240px}
+            .wa-attach .wa-link{margin-left:auto;align-self:center}
+            .wa-recording{display:flex;align-items:center;gap:10px}
+            .wa-dot{width:10px;height:10px;border-radius:50%;background:#dc2626;animation:wa-pulse 1s infinite}
+            @keyframes wa-pulse{50%{opacity:.3}}
+            .wa-icon-btn{padding:6px 9px;font-size:15px;line-height:1}
             .wa-link{align-self:flex-end;padding:0;border:0;background:transparent;color:#dc2626;font-size:11px;text-decoration:underline}
             .wa-btn{padding:6px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);font-size:12px}
             .wa-btn:hover{background:var(--wa-soft)}
@@ -227,19 +235,53 @@
                         <form class="wa-composer" @submit.prevent="send">
                             <span v-if="sessionOffline" class="wa-note">@{{ labels.session_offline }}</span>
 
-                            <div class="wa-compose-row">
+                            <div v-if="attachment" class="wa-attach">
+                                <img v-if="attachmentUrl && attachment.type.startsWith('image/')" :src="attachmentUrl" alt="">
+                                <audio v-else-if="attachmentUrl && attachment.type.startsWith('audio/')" :src="attachmentUrl" controls></audio>
+                                <span v-else class="wa-ellipsis">@{{ attachment.name }}</span>
+
+                                <button type="button" class="wa-link" @click="clearAttachment">@{{ labels.remove_attachment }}</button>
+                            </div>
+
+                            <div v-if="recording" class="wa-recording">
+                                <span class="wa-dot"></span>
+                                <span>@{{ labels.recording }} @{{ recordClock }}</span>
+                                <button type="button" class="wa-btn" @click="cancelRecording">@{{ labels.cancel_recording }}</button>
+                                <button type="button" class="wa-btn is-primary" @click="stopRecording">@{{ labels.stop_recording }}</button>
+                            </div>
+
+                            <div v-else class="wa-compose-row">
+                                <input
+                                    ref="file"
+                                    type="file"
+                                    hidden
+                                    accept="image/*,audio/*,video/mp4,video/3gpp,video/quicktime,video/webm,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rtf"
+                                    @change="pickFile"
+                                >
+
+                                <button type="button" class="wa-btn wa-icon-btn" :title="labels.attach" :disabled="sessionOffline || sending" @click="$refs.file.click()">&#128206;</button>
+
                                 <textarea
                                     ref="composer"
                                     v-model="draft"
                                     rows="1"
                                     maxlength="4096"
-                                    :placeholder="labels.write_message"
+                                    :placeholder="attachment ? labels.caption_placeholder : labels.write_message"
                                     :disabled="sessionOffline"
                                     @keydown.enter.exact.prevent="send"
                                     @input="autosize"
                                 ></textarea>
 
-                                <button type="submit" class="wa-btn is-primary" :disabled="! canSend">@{{ labels.send }}</button>
+                                <button
+                                    v-if="! draft.trim() && ! attachment"
+                                    type="button"
+                                    class="wa-btn wa-icon-btn"
+                                    :title="labels.record_voice"
+                                    :disabled="sessionOffline || sending"
+                                    @click="startRecording"
+                                >&#127897;</button>
+
+                                <button v-else type="submit" class="wa-btn is-primary" :disabled="! canSend">@{{ labels.send }}</button>
                             </div>
                         </form>
                     </template>
@@ -342,6 +384,13 @@
                         busy: false,
                         draft: '',
                         drafts: {},
+                        attachment: null,
+                        attachmentUrl: null,
+                        attachmentIsVoice: false,
+                        recording: false,
+                        recordSeconds: 0,
+                        recorder: null,
+                        recordTimer: null,
                         sending: false,
                         panelOpen: false,
                         linkOpen: false,
@@ -370,7 +419,13 @@
                     },
 
                     canSend() {
-                        return ! this.sending && ! this.sessionOffline && this.draft.trim().length > 0;
+                        return ! this.sending && ! this.sessionOffline && (this.draft.trim().length > 0 || this.attachment !== null);
+                    },
+
+                    recordClock() {
+                        const minutes = Math.floor(this.recordSeconds / 60);
+
+                        return minutes + ':' + String(this.recordSeconds % 60).padStart(2, '0');
                     },
 
                     threadItems() {
@@ -427,6 +482,8 @@
                 beforeUnmount() {
                     [this.listTimer, this.threadTimer].forEach(clearInterval);
                     [this.searchTimer, this.linkTimer].forEach(clearTimeout);
+                    this.cancelRecording();
+                    this.clearAttachment();
                 },
 
                 methods: {
@@ -502,6 +559,8 @@
                         }
 
                         this.draft = this.drafts[conversation.id] || '';
+                        this.cancelRecording();
+                        this.clearAttachment();
                         this.selectedId = conversation.id;
                         this.selectedConversation = conversation;
                         this.panelOpen = false;
@@ -707,19 +766,35 @@
                         const text = this.draft.trim();
                         const id = this.selectedId;
 
-                        if (! this.canSend || ! text) {
+                        if (! this.canSend || (! text && ! this.attachment)) {
                             return;
                         }
 
                         this.sending = true;
 
                         try {
-                            const { data } = await this.$axios.post(this.url('send', id), { text });
+                            let payload = { text };
+
+                            if (this.attachment) {
+                                payload = new FormData();
+                                payload.append('file', this.attachment, this.attachment.name);
+
+                                if (text) {
+                                    payload.append('text', text);
+                                }
+
+                                if (this.attachmentIsVoice) {
+                                    payload.append('voice', '1');
+                                }
+                            }
+
+                            const { data } = await this.$axios.post(this.url('send', id), payload);
 
                             this.draft = '';
                             delete this.drafts[id];
+                            this.clearAttachment();
                             this.mergeMessages([data.data]);
-                            this.patch(id, { preview: text, status: 'open' });
+                            this.patch(id, { preview: text || this.typeLabel(data.data), status: 'open' });
 
                             await this.$nextTick();
 
@@ -733,10 +808,145 @@
                         } catch (error) {
                             this.$emitter.emit('add-flash', {
                                 type: 'error',
-                                message: (error.response && error.response.data && error.response.data.message) || this.labels.action_error,
+                                message: this.errorMessage(error),
                             });
                         } finally {
                             this.sending = false;
+                        }
+                    },
+
+                    errorMessage(error) {
+                        const response = error.response;
+
+                        if (response && response.status === 413) {
+                            return this.labels.file_too_large;
+                        }
+
+                        const errors = response && response.data && response.data.errors;
+
+                        if (errors) {
+                            return Object.values(errors).flat()[0];
+                        }
+
+                        return (response && response.data && response.data.message) || this.labels.action_error;
+                    },
+
+                    flash(message) {
+                        this.$emitter.emit('add-flash', { type: 'error', message });
+                    },
+
+                    setAttachment(file, isVoice = false) {
+                        if (file.size > 16 * 1024 * 1024) {
+                            this.flash(this.labels.file_too_large);
+
+                            return;
+                        }
+
+                        this.clearAttachment();
+                        this.attachment = file;
+                        this.attachmentIsVoice = isVoice;
+
+                        if (file.type.startsWith('image/') || file.type.startsWith('audio/')) {
+                            this.attachmentUrl = URL.createObjectURL(file);
+                        }
+                    },
+
+                    clearAttachment() {
+                        if (this.attachmentUrl) {
+                            URL.revokeObjectURL(this.attachmentUrl);
+                        }
+
+                        this.attachment = null;
+                        this.attachmentUrl = null;
+                        this.attachmentIsVoice = false;
+
+                        if (this.$refs.file) {
+                            this.$refs.file.value = '';
+                        }
+                    },
+
+                    pickFile(event) {
+                        const file = event.target.files && event.target.files[0];
+
+                        if (file) {
+                            this.setAttachment(file);
+                        }
+                    },
+
+                    async startRecording() {
+                        if (this.recording) {
+                            return;
+                        }
+
+                        if (! navigator.mediaDevices || ! window.MediaRecorder) {
+                            this.flash(this.labels.mic_unsupported);
+
+                            return;
+                        }
+
+                        let stream;
+
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        } catch (error) {
+                            this.flash(this.labels.mic_denied);
+
+                            return;
+                        }
+
+                        const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(candidate => MediaRecorder.isTypeSupported(candidate));
+                        const chunks = [];
+                        const recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+
+                        recorder.ondataavailable = event => {
+                            if (event.data && event.data.size) {
+                                chunks.push(event.data);
+                            }
+                        };
+
+                        recorder.onstop = () => {
+                            stream.getTracks().forEach(track => track.stop());
+
+                            if (recorder.discard || ! chunks.length) {
+                                return;
+                            }
+
+                            const mime = (recorder.mimeType || type || 'audio/webm').split(';')[0];
+                            const extension = mime.includes('mp4') ? 'm4a' : (mime.includes('ogg') ? 'ogg' : 'webm');
+
+                            this.setAttachment(new File(chunks, 'audio-' + Date.now() + '.' + extension, { type: mime }), true);
+                        };
+
+                        this.recorder = recorder;
+                        this.recordSeconds = 0;
+                        this.recording = true;
+                        this.recordTimer = setInterval(() => { this.recordSeconds += 1; }, 1000);
+
+                        recorder.start();
+                    },
+
+                    finishRecording(discard) {
+                        clearInterval(this.recordTimer);
+
+                        if (this.recorder) {
+                            this.recorder.discard = discard;
+
+                            if (this.recorder.state !== 'inactive') {
+                                this.recorder.stop();
+                            }
+                        }
+
+                        this.recorder = null;
+                        this.recording = false;
+                    },
+
+                    stopRecording() {
+                        this.finishRecording(false);
+                    },
+
+                    cancelRecording() {
+                        if (this.recording) {
+                            this.finishRecording(true);
                         }
                     },
 

@@ -134,3 +134,20 @@ comando `php artisan queue:work --sleep=3 --tries=1 --timeout=75` no serviço wo
 | Horários errados | `APP_TIMEZONE` |
 | Erro `no LID found` ao enviar | O WAHA não achou o contato. O Krayin já tenta o telefone em seguida; se falhar, a mensagem mostra o motivo |
 | Nada acontece ao enviar | `QUEUE_CONNECTION` continua `sync`, ou o worker está desligado (`QUEUE_WORKER=false`) |
+
+
+## Envio de imagens, documentos e áudios
+
+Na Inbox, o clipe anexa um arquivo (até 16 MB) e o microfone grava uma mensagem de voz. O texto digitado vira a legenda.
+
+| Tipo | Formatos | Como vai pelo WAHA |
+|---|---|---|
+| Imagem | jpg, png, webp, gif | `sendImage` (com legenda) |
+| Documento | pdf, doc(x), xls(x), ppt(x), txt, csv, zip, rtf | `sendFile` (com legenda) |
+| Áudio | ogg, mp3, m4a, aac, wav, webm (e gravação do navegador) | `sendVoice` com `convert` (sai como mensagem de voz) |
+| Vídeo | mp4, 3gp, mov, webm | `sendVideo` com `convert` |
+
+- O arquivo fica em `storage/app/whatsapp/outbound` até o WAHA devolver o eco da mensagem; depois a mensagem passa a apontar para o arquivo do WAHA e a cópia local é apagada.
+- O limite de upload do PHP vem de `docker/uploads.ini` (20 MB).
+- **Requer WAHA com envio de mídia.** Se o seu WAHA responder que `sendImage`/`sendFile`/`sendVoice` exigem a versão Plus, a mensagem fica "Falha no envio" com o motivo.
+- Receber e ouvir áudio e ver imagens/documentos já funcionava: o Krayin busca o arquivo no WAHA e o mostra dentro da conversa.

@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Waha\SendTarget;
 use Webkul\WhatsApp\Channels\Waha\WahaClient;
@@ -26,10 +27,11 @@ class SendWhatsAppMessage implements ShouldQueue
     public int $tries = 1;
 
     /**
-     * Worst case is the lock wait (30s) plus the throttle gap and two 15s attempts, and it
-     * has to stay under the queue's retry_after (90s) or a slow send would be picked up twice.
+     * Worst case is the lock wait (30s) plus the throttle gap and two attempts (15s for text,
+     * 25s for media), and it has to stay under the queue's retry_after (90s) or a slow send
+     * would be picked up twice.
      */
-    public int $timeout = 75;
+    public int $timeout = 85;
 
     private const MIN_GAP_MS = 1200;
 
@@ -85,7 +87,9 @@ class SendWhatsAppMessage implements ShouldQueue
 
         foreach ($targets as $chatId) {
             try {
-                $response = $client->sendText($session, $chatId, (string) $message->content);
+                $response = $message->media_path !== null
+                    ? $this->sendMedia($client, $message, $session, $chatId)
+                    : $client->sendText($session, $chatId, (string) $message->content);
 
                 $this->markSent($message->id, WahaClient::messageId($response));
 
@@ -102,6 +106,33 @@ class SendWhatsAppMessage implements ShouldQueue
         }
 
         $this->markFailed($message->id, $lastError ?? 'The message could not be sent.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws WahaException
+     */
+    private function sendMedia(WahaClient $client, Message $message, string $session, string $chatId): array
+    {
+        $stored = substr((string) $message->media_path, strlen('local:'));
+        $disk = Storage::disk('local');
+
+        if (! str_starts_with((string) $message->media_path, 'local:') || ! $disk->exists($stored)) {
+            throw new WahaException('The file to send is no longer available. Attach it again.');
+        }
+
+        $kind = ['image' => 'image', 'audio' => 'voice', 'video' => 'video'][$message->message_type] ?? 'file';
+
+        return $client->sendMedia(
+            $session,
+            $chatId,
+            $kind,
+            (string) ($message->media_mime ?: 'application/octet-stream'),
+            (string) ($message->media_filename ?: basename($stored)),
+            base64_encode((string) $disk->get($stored)),
+            $message->content,
+        );
     }
 
     private function markSent(int $id, ?string $externalId): void
@@ -150,10 +181,22 @@ class SendWhatsAppMessage implements ShouldQueue
             $message->ack = $echo->ack;
         }
 
+        if ($echo->media_path !== null && str_starts_with((string) $message->media_path, 'local:')) {
+            $this->dropLocalCopy($message->media_path);
+            $message->media_path = $echo->media_path;
+        }
+
         $message->delivered_at ??= $echo->delivered_at;
         $message->read_at ??= $echo->read_at;
 
         $echo->delete();
+    }
+
+    private function dropLocalCopy(?string $mediaPath): void
+    {
+        if ($mediaPath !== null && str_starts_with($mediaPath, 'local:')) {
+            Storage::disk('local')->delete(substr($mediaPath, strlen('local:')));
+        }
     }
 
     private function markFailed(int $id, string $error): void

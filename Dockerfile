@@ -11,6 +11,9 @@ RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
     && echo "America/Sao_Paulo" > /etc/timezone \
     && echo "date.timezone = America/Sao_Paulo" > /usr/local/etc/php/conf.d/timezone.ini
 
+# Limites de upload (anexos da Inbox do WhatsApp)
+COPY docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

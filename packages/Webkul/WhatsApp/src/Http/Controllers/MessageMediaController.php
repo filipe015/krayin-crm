@@ -4,6 +4,7 @@ namespace Webkul\WhatsApp\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Webkul\WhatsApp\Models\Message;
@@ -19,6 +20,11 @@ class MessageMediaController extends Controller
     public function __invoke(int $id): StreamedResponse
     {
         $message = Message::query()->findOrFail($id);
+
+        if (str_starts_with((string) $message->media_path, 'local:')) {
+            return $this->local($message);
+        }
+
         $baseUrl = rtrim((string) config('whatsapp.waha.url'), '/');
 
         abort_unless($message->media_path && str_starts_with($message->media_path, '/api/files/'), 404);
@@ -49,5 +55,27 @@ class MessageMediaController extends Controller
             'X-Content-Type-Options'  => 'nosniff',
             'Cache-Control'           => 'private, max-age=86400',
         ]);
+    }
+
+    /**
+     * A file the CRM itself is sending (or sent and WAHA has not echoed back yet).
+     */
+    private function local(Message $message): StreamedResponse
+    {
+        $stored = substr((string) $message->media_path, strlen('local:'));
+        $disk = Storage::disk('local');
+
+        abort_unless($disk->exists($stored), 404);
+
+        $mime = $message->media_mime ?: 'application/octet-stream';
+        $inline = (bool) preg_match(self::INLINE_MIME, $mime);
+        $filename = str_replace('"', '', Str::ascii($message->media_filename ?: basename($stored)));
+
+        return $disk->response($stored, $filename, [
+            'Content-Type'            => $inline ? $mime : 'application/octet-stream',
+            'Content-Security-Policy' => 'sandbox',
+            'X-Content-Type-Options'  => 'nosniff',
+            'Cache-Control'           => 'private, max-age=3600',
+        ], $inline ? 'inline' : 'attachment');
     }
 }

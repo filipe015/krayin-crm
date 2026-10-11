@@ -12,34 +12,60 @@ use Webkul\WhatsApp\Jobs\SendWhatsAppMessage;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Support\InboxPresenter;
+use Webkul\WhatsApp\Support\OutboundMedia;
 
 class InboxMessageController extends Controller
 {
     public function store(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['text' => ['required', 'string', 'max:4096']]);
+        $data = $request->validate([
+            'text'  => ['nullable', 'string', 'max:4096', 'required_without:file'],
+            'file'  => ['nullable', 'file', 'max:'.OutboundMedia::MAX_KB],
+            'voice' => ['nullable', 'boolean'],
+        ]);
 
         $conversation = Conversation::query()->whereNotNull('session_id')->with('session')->findOrFail($id);
 
         abort_if($conversation->session?->status !== 'WORKING', 409, trans('whatsapp::app.inbox.session_offline'));
         abort_if(SendTarget::for($conversation) === [], 422, trans('whatsapp::app.inbox.no_identity'));
 
+        $upload = $request->file('file');
+        $media = null;
+
+        if ($upload !== null) {
+            $media = OutboundMedia::classify($upload->getMimeType() ?: $upload->getClientMimeType(), (bool) ($data['voice'] ?? false))
+                ?? OutboundMedia::classify($upload->getClientMimeType(), (bool) ($data['voice'] ?? false));
+
+            abort_if($media === null, 422, trans('whatsapp::app.inbox.file_type_not_allowed'));
+        }
+
+        $text = isset($data['text']) ? trim((string) $data['text']) : '';
         $user = auth()->guard('user')->user();
 
-        $message = DB::transaction(function () use ($conversation, $data, $user) {
+        $path = null;
+
+        if ($upload !== null) {
+            $extension = strtolower($upload->getClientOriginalExtension() ?: $upload->extension() ?: 'bin');
+            $path = $upload->storeAs('whatsapp/outbound', Str::uuid().'.'.preg_replace('/[^a-z0-9]/', '', $extension), 'local');
+        }
+
+        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $upload, $path) {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'direction'       => 'outbound',
                 'status'          => 'queued',
                 'source'          => 'crm',
-                'content'         => $data['text'],
-                'message_type'    => 'text',
+                'content'         => $text !== '' ? $text : null,
+                'message_type'    => $media['type'] ?? 'text',
+                'media_path'      => $path !== null ? 'local:'.$path : null,
+                'media_mime'      => $media['mime'] ?? null,
+                'media_filename'  => $upload !== null ? Str::limit($upload->getClientOriginalName(), 200, '') : null,
                 'sent_by_user_id' => $user->id,
                 'sender_name'     => $user->name,
             ]);
 
             $conversation->last_message_at = $message->created_at;
-            $conversation->last_message_preview = Str::limit($data['text'], 280, '');
+            $conversation->last_message_preview = Str::limit($text !== '' ? $text : '['.($media['type'] ?? 'text').']', 280, '');
             $conversation->assigned_user_id ??= $user->id;
             $conversation->status = 'open';
             $conversation->save();

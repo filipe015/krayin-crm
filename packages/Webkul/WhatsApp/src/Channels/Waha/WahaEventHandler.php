@@ -5,6 +5,7 @@ namespace Webkul\WhatsApp\Channels\Waha;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
@@ -187,7 +188,9 @@ class WahaEventHandler
      */
     private function adoptPendingSend(Conversation $conversation, InboundMessage $event): ?Message
     {
-        if ($event->source !== 'api' || $event->body === null) {
+        $isMedia = in_array($event->type, ['image', 'audio', 'video', 'document'], true);
+
+        if ($event->source !== 'api' || ($event->body === null && ! $isMedia)) {
             return null;
         }
 
@@ -207,7 +210,12 @@ class WahaEventHandler
                 ->where('source', 'crm')
                 ->whereNull('external_message_id')
                 ->whereIn('status', ['queued', 'sending'])
-                ->where('content', $event->body)
+                ->where('message_type', $isMedia ? $event->type : 'text')
+                ->when(
+                    $event->body !== null,
+                    fn ($query) => $query->where('content', $event->body),
+                    fn ($query) => $query->whereNull('content'),
+                )
                 ->where('created_at', '>=', now()->subMinutes(5))
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -215,6 +223,14 @@ class WahaEventHandler
 
             if ($pending === null) {
                 return null;
+            }
+
+            // Once WAHA holds the file the local copy is no longer needed (and would be
+            // lost on the next deploy anyway), so the message points at WAHA from now on.
+            if ($event->mediaPath !== null && str_starts_with((string) $pending->media_path, 'local:')) {
+                Storage::disk('local')->delete(substr((string) $pending->media_path, strlen('local:')));
+
+                $pending->media_path = $event->mediaPath;
             }
 
             $pending->external_message_id = $event->externalId;

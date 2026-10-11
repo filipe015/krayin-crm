@@ -128,3 +128,37 @@ it('refuses a QR response without image data', function () {
 
     expect(fn () => wahaClient($http)->qrCode('default'))->toThrow(WahaException::class);
 });
+
+it('sends media inline as base64 to the endpoint of its kind', function (string $kind, string $path, bool $converts, bool $captions) {
+    $http = new Factory;
+    $http->fake(['*' => Factory::response(['id' => 'true_5561@c.us_AAA'], 201)]);
+
+    wahaClient($http)->sendMedia('teste', '5561@c.us', $kind, 'image/png', 'a.png', base64_encode('x'), 'legenda');
+
+    $http->assertSent(function (Request $request) use ($path, $converts, $captions) {
+        $data = $request->data();
+
+        return $request->url() === 'https://waha.test'.$path
+            && $request->hasHeader('X-Api-Key', 'secret-key')
+            && $data['session'] === 'teste'
+            && $data['chatId'] === '5561@c.us'
+            && $data['file'] === ['mimetype' => 'image/png', 'filename' => 'a.png', 'data' => base64_encode('x')]
+            && (($data['convert'] ?? false) === $converts)
+            && (array_key_exists('caption', $data) === $captions);
+    });
+})->with([
+    'image' => ['image', '/api/sendImage', false, true],
+    'file'  => ['file', '/api/sendFile', false, true],
+    'voice' => ['voice', '/api/sendVoice', true, false],
+    'video' => ['video', '/api/sendVideo', true, true],
+]);
+
+it('rejects an unknown media kind before calling WAHA', function () {
+    $http = new Factory;
+    $http->fake();
+
+    expect(fn () => wahaClient($http)->sendMedia('teste', '5561@c.us', 'sticker', 'image/webp', 'a.webp', 'eA=='))
+        ->toThrow(WahaException::class);
+
+    $http->assertNothingSent();
+});
