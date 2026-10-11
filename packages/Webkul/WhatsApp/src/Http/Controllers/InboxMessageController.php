@@ -15,6 +15,7 @@ use Webkul\WhatsApp\Channels\Waha\WahaClient;
 use Webkul\WhatsApp\Jobs\SendWhatsAppMessage;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
+use Webkul\WhatsApp\Support\ConversationWindow;
 use Webkul\WhatsApp\Support\InboxPresenter;
 use Webkul\WhatsApp\Support\OutboundMedia;
 
@@ -45,6 +46,20 @@ class InboxMessageController extends Controller
                 ?? OutboundMedia::classify($upload->getClientMimeType(), (bool) ($data['voice'] ?? false));
 
             abort_if($media === null, 422, trans('whatsapp::app.inbox.file_type_not_allowed'));
+        }
+
+        if ($conversation->session?->channel === 'cloud') {
+            if ($media !== null && ! OutboundMedia::cloudSupports($media)) {
+                abort(422, trans($media['type'] === 'audio' ? 'whatsapp::app.inbox.cloud_audio_unsupported' : 'whatsapp::app.inbox.cloud_file_unsupported'));
+            }
+
+            // Free-form messages are only allowed inside the 24-hour window; a scheduled one is
+            // checked again when it is due.
+            abort_if(
+                $scheduledAt === null && ! ConversationWindow::isOpen($conversation->last_inbound_at),
+                422,
+                trans('whatsapp::app.inbox.window_closed'),
+            );
         }
 
         $text = isset($data['text']) ? trim((string) $data['text']) : '';
@@ -107,6 +122,7 @@ class InboxMessageController extends Controller
         $conversation = Conversation::query()->whereNotNull('session_id')->with('session:id,external_id,status')->findOrFail($id);
 
         if (! config('whatsapp.send_typing')
+            || $conversation->session?->channel !== 'waha'
             || $conversation->session?->status !== 'WORKING'
             || $conversation->chat_id === null) {
             return response()->json(['sent' => false]);

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Webkul\WhatsApp\Http\Controllers\CloudTemplateController;
 use Webkul\WhatsApp\Http\Controllers\ConnectionController;
 use Webkul\WhatsApp\Http\Controllers\InboxController;
 use Webkul\WhatsApp\Http\Controllers\InboxLeadController;
@@ -29,6 +30,9 @@ Route::get('messages/{id}/media', MessageMediaController::class)->name('admin.wh
 Route::get('connections', [ConnectionController::class, 'index'])->name('admin.whatsapp.connections.index');
 Route::get('connections/list', [ConnectionController::class, 'list'])->name('admin.whatsapp.connections.list');
 Route::get('connections/{id}/qr', [ConnectionController::class, 'qr'])->name('admin.whatsapp.connections.qr');
+Route::post('connections/cloud', [ConnectionController::class, 'connectCloud'])->name('admin.whatsapp.connections.cloud.connect');
+Route::post('connections/{id}/cloud/refresh', [ConnectionController::class, 'refreshCloud'])->name('admin.whatsapp.connections.cloud.refresh');
+Route::post('connections/{id}/cloud/disconnect', [ConnectionController::class, 'disconnectCloud'])->name('admin.whatsapp.connections.cloud.disconnect');
 Route::post('connections/{id}/code', [ConnectionController::class, 'code'])->name('admin.whatsapp.connections.code');
 Route::post('connections/{id}/{action}', [ConnectionController::class, 'action'])->name('admin.whatsapp.connections.action');
 
@@ -47,3 +51,6 @@ Route::get('open-lead/{leadId}', OpenLeadConversationController::class)->name('a
 
 Route::put('messages/{id}/schedule', [InboxMessageController::class, 'reschedule'])->name('admin.whatsapp.inbox.schedule.update');
 Route::delete('messages/{id}/schedule', [InboxMessageController::class, 'cancelSchedule'])->name('admin.whatsapp.inbox.schedule.cancel');
+
+Route::get('conversations/{id}/templates', [CloudTemplateController::class, 'index'])->name('admin.whatsapp.inbox.templates.list');
+Route::post('conversations/{id}/template', [CloudTemplateController::class, 'send'])->name('admin.whatsapp.inbox.templates.send');

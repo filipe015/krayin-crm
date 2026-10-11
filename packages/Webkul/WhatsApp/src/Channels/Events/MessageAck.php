@@ -11,6 +11,8 @@ final readonly class MessageAck
         public string $session,
         public array $externalIds,
         public int $ack,
+        public string $channel = 'waha',
+        public ?string $error = null,
     ) {}
 
     public function status(): string

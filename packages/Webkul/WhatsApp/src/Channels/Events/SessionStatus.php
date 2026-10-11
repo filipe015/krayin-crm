@@ -9,5 +9,6 @@ final readonly class SessionStatus
         public string $status,
         public ?string $phone,
         public ?string $name,
+        public string $channel = 'waha',
     ) {}
 }

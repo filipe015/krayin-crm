@@ -12,6 +12,7 @@ use Webkul\Lead\Models\Pipeline;
 use Webkul\Tag\Models\Tag;
 use Webkul\WhatsApp\Channels\Waha\WahaClient;
 use Webkul\WhatsApp\Models\Conversation;
+use Webkul\WhatsApp\Support\ConversationWindow;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Support\InboxPresenter;
@@ -28,7 +29,7 @@ class InboxController extends Controller
         $initial = $request->filled('c')
             ? Conversation::query()
                 ->whereNotNull('session_id')
-                ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,status'])
+                ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,channel,status'])
                 ->find((int) $request->query('c'))
             : null;
 
@@ -48,6 +49,8 @@ class InboxController extends Controller
                 'typing'        => config('whatsapp.send_typing') ? route('admin.whatsapp.inbox.typing', ['id' => '__ID__']) : null,
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
                 'schedule'      => route('admin.whatsapp.inbox.schedule.update', ['id' => '__ID__']),
+                'templates'     => route('admin.whatsapp.inbox.templates.list', ['id' => '__ID__']),
+                'sendTemplate'  => route('admin.whatsapp.inbox.templates.send', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
                 'quickReplies'  => route('admin.whatsapp.quick-replies.list'),
                 'funnel'        => route('admin.whatsapp.inbox.funnel.show', ['id' => '__ID__']),
@@ -83,7 +86,7 @@ class InboxController extends Controller
 
         $query = Conversation::query()
             ->whereNotNull('session_id')
-            ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,status'])
+            ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,channel,status'])
             ->withCount([
                 'messages as unread_count' => $unread,
                 'messages as scheduled_count' => fn ($messages) => $messages->where('status', 'scheduled'),
@@ -244,6 +247,13 @@ class InboxController extends Controller
             'id'         => $conversation->id,
             'session_id' => $conversation->session_id,
             'session_status' => $conversation->session?->status,
+            'channel'    => $conversation->session?->channel ?? 'waha',
+            'window'     => $conversation->session?->channel === 'cloud'
+                ? [
+                    'open'       => ConversationWindow::isOpen($conversation->last_inbound_at),
+                    'expires_at' => ConversationWindow::expiresAt($conversation)?->toIso8601String(),
+                ]
+                : null,
             'name'       => $conversation->contact_name,
             'phone'      => $conversation->contact_phone,
             'status'     => $conversation->status,
@@ -292,9 +302,9 @@ class InboxController extends Controller
      */
     private function subscribePresence(Conversation $conversation): void
     {
-        $conversation->loadMissing('session:id,external_id,status');
+        $conversation->loadMissing('session:id,channel,external_id,status');
 
-        if ($conversation->session?->status !== 'WORKING' || $conversation->chat_id === null) {
+        if ($conversation->session?->channel !== 'waha' || $conversation->session?->status !== 'WORKING' || $conversation->chat_id === null) {
             return;
         }
 

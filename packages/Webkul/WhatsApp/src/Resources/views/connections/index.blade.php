@@ -6,6 +6,7 @@
     <v-whatsapp-connections
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.connections')) }}"
+        :cloud-info="{{ Illuminate\Support\Js::from(['webhook' => $cloudWebhook, 'verify' => $cloudVerifyConfigured, 'secret' => $cloudSecretConfigured]) }}"
     >
         <div class="p-6 text-sm text-gray-500">
             @lang('whatsapp::app.connections.loading')
@@ -38,6 +39,8 @@
             .wa-conn-code{display:flex;flex-direction:column;gap:8px;max-width:320px}
             .wa-conn-code input{width:100%;padding:6px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);color:var(--wa-fg);font:inherit}
             .wa-conn-code strong{font-size:22px;letter-spacing:.12em}
+            .wa-conn-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--wa-muted)}
+            .wa-conn-bad{color:#b91c1c}
             .wa-conn-error{padding:10px 12px;border:1px solid #fecaca;border-radius:6px;background:#fef2f2;color:#991b1b;font-size:13px}
         </style>
 
@@ -92,6 +95,59 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="wa-conn-head" style="margin-top:8px">
+                    <h1>@{{ labels.cloud_title }}</h1>
+                    <button type="button" class="wa-conn-btn is-primary" @click="cloudForm = cloudForm ? null : { name: '', phone_number_id: '', waba_id: '', access_token: '' }">@{{ labels.cloud_add }}</button>
+                </div>
+
+                <p class="wa-conn-muted" style="margin:0">@{{ labels.cloud_intro }}</p>
+
+                <div class="wa-conn-card">
+                    <div class="wa-conn-name">@{{ labels.cloud_webhook }}</div>
+                    <div class="wa-conn-muted">@{{ labels.cloud_webhook_help }}</div>
+                    <code style="word-break:break-all">@{{ cloudInfo.webhook }}</code>
+                    <div class="wa-conn-muted">
+                        <span :class="cloudInfo.verify ? '' : 'wa-conn-bad'">@{{ cloudInfo.verify ? '✓' : '✗' }} WHATSAPP_CLOUD_VERIFY_TOKEN</span> &nbsp;
+                        <span :class="cloudInfo.secret ? '' : 'wa-conn-bad'">@{{ cloudInfo.secret ? '✓' : '✗' }} WHATSAPP_CLOUD_APP_SECRET</span>
+                    </div>
+                </div>
+
+                <form v-if="cloudForm" class="wa-conn-card wa-conn-code" style="max-width:none" @submit.prevent="connectCloud">
+                    <label class="wa-conn-field">@{{ labels.cloud_name }}<input type="text" v-model="cloudForm.name" maxlength="80"></label>
+                    <label class="wa-conn-field">@{{ labels.cloud_phone_number_id }}<input type="text" v-model="cloudForm.phone_number_id" inputmode="numeric" required></label>
+                    <label class="wa-conn-field">@{{ labels.cloud_waba_id }}<input type="text" v-model="cloudForm.waba_id" inputmode="numeric" required></label>
+                    <label class="wa-conn-field">@{{ labels.cloud_token }}<input type="password" v-model="cloudForm.access_token" autocomplete="off" required></label>
+
+                    <div class="wa-conn-actions">
+                        <button type="submit" class="wa-conn-btn is-primary" :disabled="busy">@{{ labels.cloud_connect }}</button>
+                        <button type="button" class="wa-conn-btn" @click="cloudForm = null">@{{ labels.cloud_cancel }}</button>
+                    </div>
+                </form>
+
+                <div v-if="! cloud.length && ! cloudForm" class="wa-conn-muted">@{{ labels.cloud_empty }}</div>
+
+                <div v-for="number in cloud" :key="'c' + number.id" class="wa-conn-card">
+                    <div class="wa-conn-head">
+                        <div>
+                            <div class="wa-conn-name">@{{ number.name }}</div>
+                            <div class="wa-conn-muted">
+                                <span v-if="number.phone">+@{{ number.phone }}</span>
+                                <span v-if="number.quality"> · @{{ labels.cloud_quality }}: @{{ number.quality }}</span>
+                                <span v-if="number.name_status"> · @{{ number.name_status }}</span>
+                            </div>
+                        </div>
+
+                        <span class="wa-conn-pill" :class="number.connected && number.status === 'WORKING' ? 'is-ok' : 'is-bad'">
+                            @{{ number.connected && number.status === 'WORKING' ? labels.statuses.WORKING : labels.cloud_disconnected }}
+                        </span>
+                    </div>
+
+                    <div class="wa-conn-actions">
+                        <button v-if="number.connected" type="button" class="wa-conn-btn" :disabled="busy" @click="refreshCloud(number)">@{{ labels.cloud_refresh }}</button>
+                        <button v-if="number.connected" type="button" class="wa-conn-btn is-danger" :disabled="busy" @click="disconnectCloud(number)">@{{ labels.cloud_disconnect }}</button>
+                    </div>
+                </div>
             </div>
         </script>
 
@@ -102,11 +158,14 @@
                 props: {
                     urls: { type: Object, required: true },
                     labels: { type: Object, required: true },
+                    cloudInfo: { type: Object, default: () => ({}) },
                 },
 
                 data() {
                     return {
                         sessions: [],
+                        cloud: [],
+                        cloudForm: null,
                         loading: true,
                         busy: false,
                         error: null,
@@ -162,6 +221,7 @@
 
                             this.error = data.error;
                             this.sessions = data.data;
+                            this.cloud = data.cloud || [];
                         } catch (error) {
                             this.error = this.labels.generic_error;
                         } finally {
@@ -221,6 +281,37 @@
                         if (window.confirm(this.labels.logout_confirm)) {
                             this.run(session, 'logout');
                         }
+                    },
+
+                    async connectCloud() {
+                        this.busy = true;
+                        this.notice = null;
+
+                        try {
+                            const { data } = await this.$axios.post(this.urls.cloudConnect, this.cloudForm);
+
+                            this.cloudForm = null;
+                            this.notice = data.subscribed ? null : this.labels.cloud_not_subscribed;
+                            await this.load({ quiet: true });
+                        } catch (error) {
+                            this.notice = (error.response && error.response.data && (error.response.data.message || Object.values(error.response.data.errors || {}).flat()[0])) || this.labels.generic_error;
+                        } finally {
+                            this.busy = false;
+                        }
+                    },
+
+                    async refreshCloud(number) {
+                        await this.send(() => this.$axios.post(this.url('cloudRefresh', number.id)));
+                        await this.load({ quiet: true });
+                    },
+
+                    async disconnectCloud(number) {
+                        if (! window.confirm(this.labels.cloud_disconnect_confirm)) {
+                            return;
+                        }
+
+                        await this.send(() => this.$axios.post(this.url('cloudDisconnect', number.id)));
+                        await this.load({ quiet: true });
                     },
 
                     async requestCode(session) {

@@ -99,6 +99,14 @@
             .wa-scheduled .wa-bubble{border:1px dashed var(--wa-accent);background:transparent}
             .wa-sched-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--wa-muted)}
             .wa-sched-meta input{width:auto;padding:3px 6px}
+            .wa-window{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--wa-muted)}
+            .wa-window.is-closed{padding:8px 10px;border:1px solid #fcd34d;border-radius:6px;background:#fffbeb;color:#92400e}
+            .wa-channel{padding:0 6px;border-radius:4px;background:#dcfce7;color:#14532d;font-size:11px;font-weight:600}
+            .wa-modal-back{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4)}
+            .wa-modal{display:flex;flex-direction:column;gap:10px;width:min(480px,92vw);max-height:90vh;overflow-y:auto;padding:16px;border-radius:10px;background:var(--wa-bg);color:var(--wa-fg);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+            .wa-modal label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--wa-muted)}
+            .wa-modal input,.wa-modal select{width:100%;padding:6px 8px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);color:var(--wa-fg);font:inherit}
+            .wa-template-preview{padding:10px;border-radius:8px;background:var(--wa-out);color:var(--wa-out-fg);white-space:pre-wrap;word-break:break-word;font-size:13px}
             .wa-sched-item{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px dashed var(--wa-border);border-radius:6px}
             .wa-sched-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;white-space:pre-wrap;word-break:break-word}
             .wa-sched-form{display:flex;flex-direction:column;gap:8px}
@@ -221,7 +229,7 @@
                             <button type="button" class="wa-back" @click="selectedId = null">&larr; @{{ labels.back }}</button>
 
                             <div class="wa-title">
-                                <strong class="wa-ellipsis" style="display:block">@{{ displayName(current) }}</strong>
+                                <strong class="wa-ellipsis" style="display:block">@{{ displayName(current) }} <span v-if="current.channel === 'cloud'" class="wa-channel">@{{ labels.channel_official }}</span></strong>
                                 <span v-if="presenceNow" class="wa-typing">@{{ presenceLabel(presenceNow) }}</span>
                                 <span v-else-if="current.phone" class="wa-muted">+@{{ current.phone }}</span>
                             </div>
@@ -311,6 +319,18 @@
                         <form class="wa-composer" @submit.prevent="send">
                             <span v-if="sessionOffline" class="wa-note">@{{ labels.session_offline }}</span>
 
+                            <div v-if="current.channel === 'cloud' && current.window" class="wa-window" :class="{ 'is-closed': ! current.window.open }">
+                                <template v-if="current.window.open">
+                                    <span>&#9201; @{{ labels.window_open_until }} @{{ scheduleLabel(current.window.expires_at) }}</span>
+                                </template>
+
+                                <template v-else>
+                                    <span>@{{ labels.window_closed }}</span>
+                                </template>
+
+                                <button type="button" class="wa-btn" :disabled="sessionOffline" @click="openTemplates">@{{ labels.send_template }}</button>
+                            </div>
+
                             <div v-if="attachment" class="wa-attach">
                                 <img v-if="attachmentUrl && attachment.type.startsWith('image/')" :src="attachmentUrl" alt="">
                                 <audio v-else-if="attachmentUrl && attachment.type.startsWith('audio/')" :src="attachmentUrl" controls></audio>
@@ -360,14 +380,14 @@
                                         rows="1"
                                         maxlength="4096"
                                         :placeholder="attachment ? labels.caption_placeholder : labels.write_message"
-                                        :disabled="sessionOffline"
+                                        :disabled="sessionOffline || windowClosed"
                                         @keydown="composerKey"
                                         @input="autosize"
                                     ></textarea>
                                 </div>
 
                                 <button
-                                    v-if="! draft.trim() && ! attachment"
+                                    v-if="! draft.trim() && ! attachment && current.channel !== 'cloud'"
                                     type="button"
                                     class="wa-btn wa-icon-btn"
                                     :title="labels.record_voice"
@@ -396,6 +416,38 @@
                         </form>
                     </template>
                 </section>
+
+                <div v-if="templateModal" class="wa-modal-back" @click.self="templateModal = null">
+                    <form class="wa-modal" @submit.prevent="sendTemplate">
+                        <strong>@{{ labels.send_template }}</strong>
+
+                        <span v-if="templateModal.loading" class="wa-muted">@{{ labels.loading }}</span>
+                        <span v-else-if="templateModal.error" class="wa-note">@{{ templateModal.error }}</span>
+                        <span v-else-if="! templateModal.items.length" class="wa-muted">@{{ labels.template_none }}</span>
+
+                        <select v-if="templateModal.items.length" v-model="templateModal.pick" @change="templateModal.values = []">
+                            <option value="">@{{ labels.template_choose }}</option>
+                            <option v-for="(item, index) in templateModal.items" :key="index" :value="String(index)" :disabled="! item.supported">
+                                @{{ item.name }} (@{{ item.language }}, @{{ item.category }})@{{ item.supported ? '' : ' — ' + labels.template_unsupported }}
+                            </option>
+                        </select>
+
+                        <template v-if="pickedTemplate">
+                            <label v-for="n in pickedTemplate.variables" :key="n">
+                                &#123;&#123;@{{ n }}&#125;&#125;
+                                <input type="text" v-model="templateModal.values[n - 1]" maxlength="1024" required>
+                            </label>
+
+                            <span class="wa-label">@{{ labels.template_preview }}</span>
+                            <div class="wa-template-preview">@{{ templatePreview }}</div>
+                        </template>
+
+                        <div class="wa-row">
+                            <button type="submit" class="wa-btn is-primary" :disabled="! pickedTemplate || busy">@{{ labels.send }}</button>
+                            <button type="button" class="wa-btn" @click="templateModal = null">@{{ labels.schedule_confirm_cancel }}</button>
+                        </div>
+                    </form>
+                </div>
 
                 <aside v-if="current" class="wa-col wa-panel" :class="{ 'is-open': panelOpen }">
                     <button type="button" class="wa-btn wa-panel-close" @click="panelOpen = false">@{{ labels.close_panel }}</button>
@@ -580,6 +632,7 @@
                         busy: false,
                         draft: '',
                         drafts: {},
+                        templateModal: null,
                         scheduledMessages: [],
                         scheduleOpen: false,
                         scheduleAt: '',
@@ -637,8 +690,30 @@
                         return !! this.current && this.current.session_status !== 'WORKING';
                     },
 
+                    windowClosed() {
+                        return !! this.current && this.current.channel === 'cloud' && !! this.current.window && ! this.current.window.open;
+                    },
+
+                    pickedTemplate() {
+                        if (! this.templateModal || this.templateModal.pick === '') {
+                            return null;
+                        }
+
+                        return this.templateModal.items[Number(this.templateModal.pick)] || null;
+                    },
+
+                    templatePreview() {
+                        const template = this.pickedTemplate;
+
+                        if (! template) {
+                            return '';
+                        }
+
+                        return template.body.replace(/\{\{(\d+)\}\}/g, (match, n) => (this.templateModal.values[Number(n) - 1] || match));
+                    },
+
                     canSend() {
-                        return ! this.sending && ! this.sessionOffline && (this.draft.trim().length > 0 || this.attachment !== null);
+                        return ! this.sending && ! this.sessionOffline && ! this.windowClosed && (this.draft.trim().length > 0 || this.attachment !== null);
                     },
 
                     presenceNow() {
@@ -1398,6 +1473,55 @@
 
                         if (done) {
                             this.scheduledMessages = this.scheduledMessages.filter(item => item.id !== message.id);
+                        }
+                    },
+
+                    async openTemplates() {
+                        this.templateModal = { loading: true, error: null, items: [], pick: '', values: [] };
+
+                        try {
+                            const { data } = await this.$axios.get(this.url('templates', this.selectedId));
+
+                            this.templateModal.items = data.data;
+                        } catch (error) {
+                            this.templateModal.error = (error.response && error.response.data && error.response.data.message) || this.labels.template_load_error;
+                        } finally {
+                            if (this.templateModal) {
+                                this.templateModal.loading = false;
+                            }
+                        }
+                    },
+
+                    async sendTemplate() {
+                        const template = this.pickedTemplate;
+                        const id = this.selectedId;
+
+                        if (! template) {
+                            return;
+                        }
+
+                        const variables = Array.from({ length: template.variables }, (_, index) => (this.templateModal.values[index] || '').trim());
+
+                        if (variables.some(value => ! value)) {
+                            this.flash(this.labels.template_variables);
+
+                            return;
+                        }
+
+                        this.busy = true;
+
+                        try {
+                            const { data } = await this.$axios.post(this.url('sendTemplate', id), { name: template.name, language: template.language, variables });
+
+                            this.templateModal = null;
+                            this.mergeMessages([data.data]);
+                            this.patch(id, { preview: data.data.content, status: 'open' });
+                            this.$nextTick(() => this.scrollToBottom());
+                            this.loadConversations({ poll: true });
+                        } catch (error) {
+                            this.flash(this.errorMessage(error));
+                        } finally {
+                            this.busy = false;
                         }
                     },
 

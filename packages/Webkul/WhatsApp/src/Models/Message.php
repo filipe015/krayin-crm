@@ -31,6 +31,7 @@ class Message extends Model implements MessageContract
         'revoked_at',
         'scheduled_at',
         'scheduled_title',
+        'template_payload',
         'created_at',
         'updated_at',
     ];
@@ -43,6 +44,7 @@ class Message extends Model implements MessageContract
         'edited_at'    => 'datetime',
         'revoked_at'   => 'datetime',
         'scheduled_at' => 'datetime',
+        'template_payload' => 'array',
     ];
 
     public function conversation(): BelongsTo

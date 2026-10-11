@@ -261,3 +261,43 @@ No painel direito da conversa, o bloco **Agendamentos** (🕒) lista as mensagen
 - O título também aparece em negrito na mensagem agendada, no fim da conversa, e pode ser dado pelo relógio do composer.
 - O painel agenda **texto**; para agendar com arquivo, use o relógio do composer. Um agendamento com arquivo pode ter horário, título e legenda editados no painel.
 - **Migração nova:** `2026_10_13_000002_add_scheduled_title_to_whatsapp_messages`. Rode `php artisan migrate --force` depois do deploy.
+
+## API oficial do WhatsApp (Meta Cloud API) — Fase 1
+
+Segundo canal, em paralelo ao WAHA. Cada número oficial é uma "sessão" com canal `cloud`
+(o ID do número da Meta é o `external_id`; o token fica criptografado no banco).
+Esta fase **não** inclui coexistência (usar o app e a API no mesmo número) — isso exige
+virar Tech Provider e fica para a Fase 2.
+
+### Variáveis de ambiente (serviço `krayin`)
+
+| Variável | Para quê |
+| --- | --- |
+| `WHATSAPP_CLOUD_APP_SECRET` | "Chave secreta do app" da Meta; valida a assinatura `X-Hub-Signature-256` dos webhooks |
+| `WHATSAPP_CLOUD_VERIFY_TOKEN` | texto qualquer (≥ 16 caracteres) que você inventa; a Meta o devolve ao verificar o webhook |
+| `WHATSAPP_CLOUD_GRAPH_VERSION` | opcional, padrão `v23.0` |
+
+Depois de publicar: `php artisan migrate --force` (cria `template_payload` em `whatsapp_messages`).
+
+### Passo a passo na Meta
+
+1. App do tipo Business com o produto **WhatsApp**; adicione o número novo em *API Setup*.
+2. Em *WhatsApp → Configuration*: Callback URL = a URL exibida na tela **Conexões** do Krayin
+   (`/admin/whatsapp/cloud/webhook`), Verify token = o valor de `WHATSAPP_CLOUD_VERIFY_TOKEN`;
+   assine o campo **messages**.
+3. Crie um usuário do sistema (Business Settings → System users) com permissões
+   `whatsapp_business_messaging` e `whatsapp_business_management` e gere um token **permanente**.
+4. Em **Conexões → WhatsApp oficial**, informe ID do número, ID da conta (WABA) e o token.
+
+### Comportamento
+
+- **Janela de 24 h:** texto livre, mídia e áudio só dentro de 24 h da última mensagem do cliente.
+  Fora dela o campo de texto é bloqueado e o botão **Enviar modelo** abre os modelos APROVADOS.
+- **Modelos:** listados da própria conta (cache de 5 min). Suportados: corpo com variáveis `{{n}}`,
+  cabeçalho de texto sem variável e botões sem variável de URL. Os demais aparecem como não suportados
+  (criação de modelos pelo CRM fica para a Fase 2).
+- **Status:** ✓ enviado, ✓✓ entregue, lido e falha (com o motivo) via webhook `statuses`.
+- **Mídia recebida** é servida por proxy (token nunca vai ao navegador). **Mídia enviada:** imagem
+  JPEG/PNG, vídeo MP4/3GP, áudio AAC/AMR/MP3/MP4/OGG-Opus e documentos; WebM/WebP/WAV são recusados.
+- Agendamentos para número oficial são reavaliados contra a janela no momento do envio.
+- A API oficial não devolve eco de mensagens enviadas pela própria API (só status) e não tem "digitando…".

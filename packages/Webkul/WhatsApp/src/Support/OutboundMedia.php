@@ -50,4 +50,21 @@ final class OutboundMedia
 
         return null;
     }
+
+    /**
+     * The Cloud API is stricter than WAHA: no webp/gif images, no webm/wav audio, and
+     * only mp4/3gp video.
+     *
+     * @param  array{type: string, kind: string, mime: string}  $media
+     */
+    public static function cloudSupports(array $media): bool
+    {
+        return match ($media['type']) {
+            'image'    => in_array($media['mime'], ['image/jpeg', 'image/png'], true),
+            'audio'    => in_array($media['mime'], ['audio/ogg', 'application/ogg', 'audio/opus', 'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/x-m4a', 'audio/m4a', 'audio/aac', 'audio/amr'], true),
+            'video'    => in_array($media['mime'], ['video/mp4', 'video/3gpp'], true),
+            'document' => $media['mime'] !== 'application/zip',
+            default    => false,
+        };
+    }
 }

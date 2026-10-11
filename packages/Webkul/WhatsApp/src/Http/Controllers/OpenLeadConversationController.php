@@ -46,15 +46,15 @@ class OpenLeadConversationController extends Controller
         if ($conversation === null) {
             abort_if($phone === null, 422, trans('whatsapp::app.inbox.lead_without_phone'));
 
-            $session = Session::query()->where('channel', 'waha')->where('status', 'WORKING')->orderBy('id')->first()
-                ?? Session::query()->where('channel', 'waha')->orderBy('id')->first();
+            $session = Session::query()->where('status', 'WORKING')->orderBy('id')->first()
+                ?? Session::query()->orderBy('id')->first();
 
             abort_if($session === null, 422, trans('whatsapp::app.inbox.no_session'));
 
             $conversation = Conversation::query()->firstOrCreate(
                 ['session_id' => $session->id, 'chat_id' => $phone.'@c.us'],
                 [
-                    'canal_origem'     => 'waha',
+                    'canal_origem'     => $session->channel,
                     'contact_phone'    => $phone,
                     'contact_name'     => $lead->person?->name,
                     'lead_id'          => $lead->id,

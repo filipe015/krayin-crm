@@ -21,5 +21,6 @@ final readonly class InboundMessage
         public ?string $mediaMime,
         public ?string $mediaFilename,
         public DateTimeImmutable $sentAt,
+        public string $channel = 'waha',
     ) {}
 }

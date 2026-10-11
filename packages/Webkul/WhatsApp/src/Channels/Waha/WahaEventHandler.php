@@ -123,8 +123,14 @@ class WahaEventHandler
         }
     }
 
-    private function session(string $name): Session
+    private function session(string $name, string $channel = 'waha'): ?Session
     {
+        // A Cloud API number must already be connected (it carries its token); only WAHA
+        // sessions are created on first sight.
+        if ($channel !== 'waha') {
+            return Session::query()->where('channel', $channel)->where('external_id', $name)->first();
+        }
+
         return Session::query()->firstOrCreate(
             ['channel' => 'waha', 'external_id' => $name],
             ['name' => $name],
@@ -133,7 +139,11 @@ class WahaEventHandler
 
     private function sessionStatus(SessionStatus $event): void
     {
-        $session = $this->session($event->session);
+        $session = $this->session($event->session, $event->channel);
+
+        if ($session === null) {
+            return;
+        }
 
         $session->status = $event->status;
         $session->status_changed_at = now();
@@ -169,13 +179,18 @@ class WahaEventHandler
 
         return $existing ?? Conversation::query()->createOrFirst(
             ['session_id' => $session->id, 'chat_id' => $event->chatId],
-            ['canal_origem' => 'waha'],
+            ['canal_origem' => $session->channel],
         );
     }
 
     private function message(InboundMessage $event): void
     {
-        $session = $this->session($event->session);
+        $session = $this->session($event->session, $event->channel);
+
+        if ($session === null) {
+            return;
+        }
+
         $sentAt = Carbon::instance($event->sentAt)->setTimezone(config('app.timezone'));
 
         $conversation = $this->conversation($session, $event);
@@ -290,7 +305,7 @@ class WahaEventHandler
             ->whereIn('external_message_id', $event->externalIds)
             ->where('direction', 'outbound')
             ->whereHas('conversation.session', fn ($query) => $query
-                ->where('channel', 'waha')
+                ->where('channel', $event->channel)
                 ->where('external_id', $event->session))
             ->get();
 
@@ -307,6 +322,10 @@ class WahaEventHandler
 
             $message->status = $status;
             $message->ack = $event->ack;
+
+            if ($status === 'failed' && $event->error !== null) {
+                $message->error = Str::limit($event->error, 300, '');
+            }
 
             if (in_array($status, ['delivered', 'read'], true)) {
                 $message->delivered_at ??= now();

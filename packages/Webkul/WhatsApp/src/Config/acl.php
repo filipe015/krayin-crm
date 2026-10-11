@@ -13,6 +13,7 @@ return [
             'admin.whatsapp.inbox.lead.search',
             'admin.whatsapp.quick-replies.list',
             'admin.whatsapp.inbox.funnel.show',
+            'admin.whatsapp.inbox.templates.list',
         ],
         'sort'  => 3,
     ], [
@@ -47,6 +48,9 @@ return [
             'admin.whatsapp.connections.qr',
             'admin.whatsapp.connections.code',
             'admin.whatsapp.connections.action',
+            'admin.whatsapp.connections.cloud.connect',
+            'admin.whatsapp.connections.cloud.refresh',
+            'admin.whatsapp.connections.cloud.disconnect',
         ],
         'sort'  => 3,
     ], [
@@ -55,6 +59,7 @@ return [
         'route' => [
             'admin.whatsapp.inbox.send',
             'admin.whatsapp.inbox.typing',
+            'admin.whatsapp.inbox.templates.send',
             'admin.whatsapp.inbox.schedule.update',
             'admin.whatsapp.inbox.schedule.cancel',
             'admin.whatsapp.inbox.open-lead',

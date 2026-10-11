@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
+use Webkul\WhatsApp\Channels\Cloud\CloudClient;
 use Webkul\WhatsApp\Models\Message;
 
 /**
@@ -23,6 +25,10 @@ class MessageMediaController extends Controller
 
         if (str_starts_with((string) $message->media_path, 'local:')) {
             return $this->local($message);
+        }
+
+        if (str_starts_with((string) $message->media_path, 'cloud:')) {
+            return $this->cloud($message);
         }
 
         $baseUrl = rtrim((string) config('whatsapp.waha.url'), '/');
@@ -77,5 +83,43 @@ class MessageMediaController extends Controller
             'X-Content-Type-Options'  => 'nosniff',
             'Cache-Control'           => 'private, max-age=3600',
         ], $inline ? 'inline' : 'attachment');
+    }
+
+    /**
+     * A file received on an official number: its id is resolved to a short-lived URL and
+     * streamed with the number's token, so the browser never sees the token.
+     */
+    private function cloud(Message $message): StreamedResponse
+    {
+        $session = $message->conversation?->session;
+
+        abort_unless($session !== null && $session->channel === 'cloud', 404);
+
+        try {
+            $client = CloudClient::forSession($session);
+            $info = $client->mediaInfo(substr((string) $message->media_path, strlen('cloud:')));
+            $upstream = $client->download($info['url']);
+        } catch (CloudApiException) {
+            abort(404);
+        }
+
+        $mime = $message->media_mime ?: ($info['mime_type'] ?: 'application/octet-stream');
+        $inline = (bool) preg_match(self::INLINE_MIME, $mime);
+        $filename = str_replace('"', '', Str::ascii($message->media_filename ?: 'whatsapp-'.$message->id));
+
+        return response()->stream(function () use ($upstream) {
+            $body = $upstream->toPsrResponse()->getBody();
+
+            while (! $body->eof()) {
+                echo $body->read(8192);
+                flush();
+            }
+        }, 200, [
+            'Content-Type'            => $inline ? $mime : 'application/octet-stream',
+            'Content-Disposition'     => ($inline ? 'inline' : 'attachment').'; filename="'.$filename.'"',
+            'Content-Security-Policy' => 'sandbox',
+            'X-Content-Type-Options'  => 'nosniff',
+            'Cache-Control'           => 'private, max-age=600',
+        ]);
     }
 }

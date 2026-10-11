@@ -12,10 +12,14 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
+use Webkul\WhatsApp\Channels\Cloud\CloudClient;
 use Webkul\WhatsApp\Channels\Waha\SendTarget;
 use Webkul\WhatsApp\Channels\Waha\WahaClient;
 use Webkul\WhatsApp\Channels\Waha\WahaException;
 use Webkul\WhatsApp\Models\Message;
+use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\ConversationWindow;
 
 class SendWhatsAppMessage implements ShouldQueue
 {
@@ -56,7 +60,11 @@ class SendWhatsAppMessage implements ShouldQueue
         $session = $conversation->session;
         $targets = SendTarget::for($conversation);
 
-        if ($session === null || $targets === []) {
+        $reachable = $session?->channel === 'cloud'
+            ? filled($conversation->contact_phone)
+            : $targets !== [];
+
+        if ($session === null || ! $reachable) {
             $this->markFailed($message->id, 'The conversation has no WhatsApp identity to send to.');
 
             return;
@@ -67,7 +75,9 @@ class SendWhatsAppMessage implements ShouldQueue
                 $this->throttle($session->id);
 
                 try {
-                    $this->deliver($message, $session->external_id, $targets);
+                    $session->channel === 'cloud'
+                        ? $this->deliverCloud($message, $session)
+                        : $this->deliver($message, $session->external_id, $targets);
                 } finally {
                     Cache::put($this->lastSendKey($session->id), microtime(true), 300);
                 }
@@ -106,6 +116,71 @@ class SendWhatsAppMessage implements ShouldQueue
         }
 
         $this->markFailed($message->id, $lastError ?? 'The message could not be sent.');
+    }
+
+    /**
+     * Official WhatsApp number: free-form messages only inside the 24-hour window,
+     * approved templates any time.
+     */
+    private function deliverCloud(Message $message, Session $session): void
+    {
+        $conversation = $message->conversation;
+        $to = preg_replace('/\D/', '', (string) $conversation->contact_phone);
+        $template = is_array($message->template_payload) ? $message->template_payload : null;
+
+        if ($template === null && ! ConversationWindow::isOpen($conversation->last_inbound_at)) {
+            $this->markFailed($message->id, trans('whatsapp::app.inbox.window_closed_failed'));
+
+            return;
+        }
+
+        try {
+            $client = CloudClient::forSession($session);
+
+            if ($template !== null) {
+                $response = $client->sendTemplate($to, (string) $template['name'], (string) $template['language'], (array) ($template['components'] ?? []));
+            } elseif ($message->media_path !== null) {
+                $response = $this->sendCloudMedia($client, $message, $to);
+            } else {
+                $response = $client->sendText($to, (string) $message->content);
+            }
+
+            $this->markSent($message->id, CloudClient::messageId($response));
+        } catch (CloudApiException $exception) {
+            // It may have been sent: leave it "sending". The status webhook confirms it, or
+            // the scheduled cleanup fails it after a few minutes without news.
+            if ($exception->outcomeUnknown) {
+                return;
+            }
+
+            $this->markFailed(
+                $message->id,
+                $exception->isWindowClosed() ? trans('whatsapp::app.inbox.window_closed_failed') : $exception->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws CloudApiException
+     */
+    private function sendCloudMedia(CloudClient $client, Message $message, string $to): array
+    {
+        $stored = substr((string) $message->media_path, strlen('local:'));
+        $disk = Storage::disk('local');
+
+        if (! str_starts_with((string) $message->media_path, 'local:') || ! $disk->exists($stored)) {
+            throw new CloudApiException('The file to send is no longer available. Attach it again.');
+        }
+
+        $mime = (string) ($message->media_mime ?: 'application/octet-stream');
+        $filename = (string) ($message->media_filename ?: basename($stored));
+        $type = in_array($message->message_type, ['image', 'audio', 'video'], true) ? $message->message_type : 'document';
+
+        $mediaId = $client->uploadMedia($mime, $filename, (string) $disk->get($stored));
+
+        return $client->sendMedia($to, $type, $mediaId, $message->content, $filename);
     }
 
     /**
