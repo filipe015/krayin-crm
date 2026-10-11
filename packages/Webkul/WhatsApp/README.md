@@ -233,3 +233,17 @@ Quem não tem a permissão continua indo para o `wa.me`.
 3. nunca conversaram: cria a conversa no primeiro número conectado (`WORKING`), atribuída a quem clicou, e abre pronta para escrever.
 
 O telefone é o primeiro do contato, só dígitos, com `55` quando faltar. Lead sem telefone responde 422. A Inbox abre com a conversa selecionada (`?c=ID`), mesmo que ela esteja em outra aba (Fila/Minhas/Todas/Fechadas).
+
+
+## Agendar mensagem
+
+No composer, o relógio 🕒 (ao lado de Enviar, quando há texto ou anexo) agenda a mensagem para uma data e hora, em vez de enviar já.
+
+- **Escolher:** campo de data e hora (fuso do CRM, `APP_TIMEZONE`) ou os atalhos "Amanhã 9h" e "Em 1 hora". Mínimo 1 minuto à frente, máximo 1 ano.
+- **Na conversa:** a mensagem fica ao final, tracejada, com "Agendada para dd/mm hh:mm", **Mudar horário** e **Cancelar agendamento**. Na lista de conversas aparece 🕒 N.
+- **Envio:** o agendador (`whatsapp:send-scheduled`, a cada minuto, via `schedule:run` do cron do container) libera as vencidas e elas seguem o fluxo normal (fila, intervalo entre mensagens, ✓ e ✓✓).
+- **Número desconectado:** a mensagem espera; passados 30 min do horário sem o número voltar, vira "Falha no envio" (com **tentar de novo**).
+- Não altera a conversa (última mensagem, status) até ser enviada. Funciona com texto, imagem, documento, áudio e vídeo.
+- **Atenção a anexos:** o arquivo fica em `storage/app/whatsapp/outbound` até o envio. Um deploy entre o agendamento e a hora apaga o arquivo e a mensagem falha com aviso; para texto não há esse risco.
+- **Migração nova:** `2026_10_13_000001_add_scheduled_at_to_whatsapp_messages`. Rode `php artisan migrate --force` depois do deploy. Sem ela a Inbox dá erro ao abrir uma conversa.
+- **Permissões:** quem pode enviar mensagens (`whatsapp.send`) agenda, muda o horário e cancela.

@@ -47,6 +47,7 @@ class InboxController extends Controller
                 'send'          => route('admin.whatsapp.inbox.send', ['id' => '__ID__']),
                 'typing'        => config('whatsapp.send_typing') ? route('admin.whatsapp.inbox.typing', ['id' => '__ID__']) : null,
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
+                'schedule'      => route('admin.whatsapp.inbox.schedule.update', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
                 'quickReplies'  => route('admin.whatsapp.quick-replies.list'),
                 'funnel'        => route('admin.whatsapp.inbox.funnel.show', ['id' => '__ID__']),
@@ -83,7 +84,10 @@ class InboxController extends Controller
         $query = Conversation::query()
             ->whereNotNull('session_id')
             ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,status'])
-            ->withCount(['messages as unread_count' => $unread]);
+            ->withCount([
+                'messages as unread_count' => $unread,
+                'messages as scheduled_count' => fn ($messages) => $messages->where('status', 'scheduled'),
+            ]);
 
         match ($filters['tab'] ?? 'queue') {
             'queue'  => $query->where('status', 'open')->whereNull('assigned_user_id'),
@@ -154,6 +158,7 @@ class InboxController extends Controller
 
         $query = Message::query()
             ->where('conversation_id', $conversation->id)
+            ->where('status', '!=', 'scheduled')
             ->orderByDesc('id')
             ->limit(self::THREAD_SIZE + 1);
 
@@ -172,6 +177,13 @@ class InboxController extends Controller
             'data'     => $rows->take(self::THREAD_SIZE)->reverse()->values()->map(fn (Message $message) => InboxPresenter::message($message)),
             'has_more' => $rows->count() > self::THREAD_SIZE,
             'presence' => Cache::get('whatsapp.presence.'.$conversation->id),
+            'scheduled' => Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('status', 'scheduled')
+                ->orderBy('scheduled_at')
+                ->get()
+                ->map(fn (Message $message) => InboxPresenter::message($message))
+                ->values(),
         ]);
     }
 
@@ -238,6 +250,7 @@ class InboxController extends Controller
             'preview'    => $conversation->last_message_preview,
             'presence'   => Cache::get('whatsapp.presence.'.$conversation->id),
             'unread'     => (int) $conversation->unread_count,
+            'scheduled'  => (int) ($conversation->scheduled_count ?? 0),
             'sort_at'    => ($conversation->last_message_at ?? $conversation->created_at)?->toIso8601String(),
             'lead'       => $conversation->lead ? [
                 'id'    => $conversation->lead->id,

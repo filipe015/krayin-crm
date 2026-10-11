@@ -55,6 +55,8 @@ return [
         'route' => [
             'admin.whatsapp.inbox.send',
             'admin.whatsapp.inbox.typing',
+            'admin.whatsapp.inbox.schedule.update',
+            'admin.whatsapp.inbox.schedule.cancel',
             'admin.whatsapp.inbox.open-lead',
             'admin.whatsapp.inbox.retry',
         ],

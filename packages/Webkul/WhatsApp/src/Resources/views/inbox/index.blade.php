@@ -96,6 +96,11 @@
             @keyframes wa-pulse{50%{opacity:.3}}
             .wa-icon-btn{padding:6px 9px;font-size:15px;line-height:1}
             .wa-tags{display:flex;flex-wrap:wrap;gap:6px}
+            .wa-scheduled .wa-bubble{border:1px dashed var(--wa-accent);background:transparent}
+            .wa-sched-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--wa-muted)}
+            .wa-sched-meta input{width:auto;padding:3px 6px}
+            .wa-sched-count{margin-left:6px;font-size:11px;color:var(--wa-accent)}
+            .wa-schedule-pop{position:absolute;right:0;bottom:calc(100% + 6px);z-index:7;display:flex;flex-direction:column;gap:8px;min-width:250px;padding:12px;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);box-shadow:0 6px 18px rgba(0,0,0,.14)}
             .wa-typing{color:#16a34a;font-size:12px;font-style:italic}
             .wa-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 8px;border:1px solid var(--wa-border);border-radius:10px;font-size:12px}
             .wa-chip button{border:0;background:transparent;padding:0 3px;line-height:1;font-size:14px}
@@ -187,7 +192,7 @@
 
                                     <span class="wa-item-line">
                                         <span v-if="conversation.presence" class="wa-ellipsis wa-typing">@{{ presenceLabel(conversation.presence) }}</span>
-                                        <span v-else class="wa-ellipsis wa-muted">@{{ conversation.preview }}</span>
+                                        <span v-else class="wa-ellipsis wa-muted">@{{ conversation.preview }}<span v-if="conversation.scheduled" class="wa-sched-count">&#128338; @{{ conversation.scheduled }}</span></span>
                                         <span v-if="conversation.unread" class="wa-badge">@{{ conversation.unread }}</span>
                                     </span>
 
@@ -268,6 +273,33 @@
                                     </div>
                                 </div>
                             </template>
+
+                            <div v-for="scheduled in scheduledMessages" :key="'s' + scheduled.id" class="wa-msg is-out wa-scheduled">
+                                <div class="wa-bubble">
+                                    <template v-if="scheduled.media">
+                                        <img v-if="scheduled.type === 'image'" :src="scheduled.media.url" loading="lazy" alt="">
+                                        <audio v-else-if="scheduled.type === 'audio'" :src="scheduled.media.url" controls preload="none"></audio>
+                                        <video v-else-if="scheduled.type === 'video'" :src="scheduled.media.url" controls preload="none"></video>
+                                        <a v-else :href="scheduled.media.url" target="_blank" rel="noopener">@{{ scheduled.media.filename || labels.attachment }}</a>
+                                    </template>
+
+                                    <p v-if="scheduled.content">@{{ scheduled.content }}</p>
+
+                                    <div class="wa-sched-meta">
+                                        <span>&#128338; @{{ labels.scheduled_for }} @{{ scheduleLabel(scheduled.scheduled_at) }}</span>
+
+                                        <template v-if="reschedulingId === scheduled.id">
+                                            <input type="datetime-local" v-model="rescheduleAt" :min="nowLocal()">
+                                            <button type="button" class="wa-btn is-primary" :disabled="! rescheduleAt || busy" @click="saveReschedule(scheduled)">@{{ labels.schedule_confirm }}</button>
+                                        </template>
+
+                                        <template v-else>
+                                            <button type="button" class="wa-link" style="align-self:auto;color:var(--wa-accent)" @click="startReschedule(scheduled)">@{{ labels.scheduled_change }}</button>
+                                            <button type="button" class="wa-link" style="align-self:auto" :disabled="busy" @click="cancelScheduled(scheduled)">@{{ labels.scheduled_cancel }}</button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <form class="wa-composer" @submit.prevent="send">
@@ -336,8 +368,23 @@
                                     :disabled="sessionOffline || sending"
                                     @click="startRecording"
                                 >&#127897;</button>
+                                <div v-if="draft.trim() || attachment" style="position:relative;display:flex">
+                                    <div v-if="scheduleOpen" class="wa-schedule-pop">
+                                        <strong>@{{ labels.schedule_title }}</strong>
+                                        <input type="datetime-local" v-model="scheduleAt" :min="nowLocal()">
 
-                                <button v-else type="submit" class="wa-btn is-primary" :disabled="! canSend">@{{ labels.send }}</button>
+                                        <div class="wa-row">
+                                            <button type="button" class="wa-btn" @click="scheduleAt = tomorrowAt9()">@{{ labels.schedule_tomorrow }}</button>
+                                            <button type="button" class="wa-btn" @click="scheduleAt = inOneHour()">@{{ labels.schedule_hour }}</button>
+                                        </div>
+
+                                        <button type="button" class="wa-btn is-primary" :disabled="! scheduleAt || sending" @click="confirmSchedule">@{{ labels.schedule_confirm }}</button>
+                                    </div>
+
+                                    <button type="button" class="wa-btn wa-icon-btn" :title="labels.schedule" :disabled="sessionOffline || sending" @click="toggleSchedule">&#128338;</button>
+                                </div>
+
+                                <button v-if="draft.trim() || attachment" type="submit" class="wa-btn is-primary" :disabled="! canSend">@{{ labels.send }}</button>
                             </div>
                         </form>
                     </template>
@@ -474,6 +521,11 @@
                         busy: false,
                         draft: '',
                         drafts: {},
+                        scheduledMessages: [],
+                        scheduleOpen: false,
+                        scheduleAt: '',
+                        reschedulingId: null,
+                        rescheduleAt: '',
                         threadPresence: null,
                         typingActive: false,
                         typingSentAt: 0,
@@ -729,6 +781,9 @@
                         this.cancelRecording();
                         this.clearAttachment();
                         this.threadPresence = null;
+                        this.scheduledMessages = [];
+                        this.scheduleOpen = false;
+                        this.reschedulingId = null;
                         this.selectedId = conversation.id;
                         this.selectedConversation = conversation;
                         this.panelOpen = false;
@@ -774,6 +829,7 @@
 
                             this.mergeMessages(data.data);
                             this.threadPresence = data.presence || null;
+                            this.scheduledMessages = data.scheduled || [];
 
                             if (initial) {
                                 this.hasMoreMessages = data.has_more;
@@ -963,7 +1019,11 @@
                         element.style.height = Math.min(element.scrollHeight, 140) + 'px';
                     },
 
-                    async send() {
+                    send() {
+                        return this.submit(null);
+                    },
+
+                    async submit(scheduledAt) {
                         const text = this.draft.trim();
                         const id = this.selectedId;
 
@@ -976,7 +1036,7 @@
                         this.sending = true;
 
                         try {
-                            let payload = { text };
+                            let payload = scheduledAt ? { text, scheduled_at: scheduledAt } : { text };
 
                             if (this.attachment) {
                                 payload = new FormData();
@@ -989,6 +1049,10 @@
                                 if (this.attachmentIsVoice) {
                                     payload.append('voice', '1');
                                 }
+
+                                if (scheduledAt) {
+                                    payload.append('scheduled_at', scheduledAt);
+                                }
                             }
 
                             const { data } = await this.$axios.post(this.url('send', id), payload);
@@ -996,8 +1060,16 @@
                             this.draft = '';
                             delete this.drafts[id];
                             this.clearAttachment();
-                            this.mergeMessages([data.data]);
-                            this.patch(id, { preview: text || this.typeLabel(data.data), status: 'open' });
+                            this.scheduleOpen = false;
+
+                            if (data.data.status === 'scheduled') {
+                                this.scheduledMessages = [...this.scheduledMessages, data.data]
+                                    .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+                                this.$emitter.emit('add-flash', { type: 'success', message: this.labels.scheduled_done });
+                            } else {
+                                this.mergeMessages([data.data]);
+                                this.patch(id, { preview: text || this.typeLabel(data.data), status: 'open' });
+                            }
 
                             await this.$nextTick();
 
@@ -1133,6 +1205,82 @@
                         }
 
                         this.select(found || this.initial);
+                    },
+
+                    pad(value) {
+                        return String(value).padStart(2, '0');
+                    },
+
+                    toLocalInput(date) {
+                        return date.getFullYear() + '-' + this.pad(date.getMonth() + 1) + '-' + this.pad(date.getDate())
+                            + 'T' + this.pad(date.getHours()) + ':' + this.pad(date.getMinutes());
+                    },
+
+                    nowLocal() {
+                        return this.toLocalInput(new Date());
+                    },
+
+                    tomorrowAt9() {
+                        const date = new Date();
+
+                        date.setDate(date.getDate() + 1);
+                        date.setHours(9, 0, 0, 0);
+
+                        return this.toLocalInput(date);
+                    },
+
+                    inOneHour() {
+                        return this.toLocalInput(new Date(Date.now() + 3600 * 1000));
+                    },
+
+                    scheduleLabel(iso) {
+                        if (! iso) {
+                            return '';
+                        }
+
+                        return new Date(iso).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    },
+
+                    toggleSchedule() {
+                        this.scheduleOpen = ! this.scheduleOpen;
+
+                        if (this.scheduleOpen && ! this.scheduleAt) {
+                            this.scheduleAt = this.tomorrowAt9();
+                        }
+                    },
+
+                    confirmSchedule() {
+                        if (this.scheduleAt) {
+                            this.submit(this.scheduleAt);
+                        }
+                    },
+
+                    startReschedule(message) {
+                        this.reschedulingId = message.id;
+                        this.rescheduleAt = this.toLocalInput(new Date(message.scheduled_at));
+                    },
+
+                    async saveReschedule(message) {
+                        const data = await this.act(() => this.$axios.put(this.url('schedule', message.id), { scheduled_at: this.rescheduleAt }).then(response => response.data));
+
+                        if (data) {
+                            this.scheduledMessages = this.scheduledMessages
+                                .map(item => (item.id === message.id ? data.data : item))
+                                .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+                            this.reschedulingId = null;
+                        }
+                    },
+
+                    async cancelScheduled(message) {
+                        if (! window.confirm(this.labels.scheduled_cancel_confirm)) {
+                            return;
+                        }
+
+                        const done = await this.act(() => this.$axios.delete(this.url('schedule', message.id)).then(response => response.data));
+
+                        if (done) {
+                            this.scheduledMessages = this.scheduledMessages.filter(item => item.id !== message.id);
+                        }
                     },
 
                     async loadQuickReplies() {

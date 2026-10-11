@@ -5,8 +5,10 @@ namespace Webkul\WhatsApp\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Waha\SendTarget;
 use Webkul\WhatsApp\Channels\Waha\WahaClient;
@@ -24,7 +26,10 @@ class InboxMessageController extends Controller
             'text'  => ['nullable', 'string', 'max:4096', 'required_without:file'],
             'file'  => ['nullable', 'file', 'max:'.OutboundMedia::MAX_KB],
             'voice' => ['nullable', 'boolean'],
+            'scheduled_at' => ['nullable', 'date_format:Y-m-d\TH:i'],
         ]);
+
+        $scheduledAt = $this->scheduleTime($data['scheduled_at'] ?? null);
 
         $conversation = Conversation::query()->whereNotNull('session_id')->with('session')->findOrFail($id);
 
@@ -51,11 +56,12 @@ class InboxMessageController extends Controller
             $path = $upload->storeAs('whatsapp/outbound', Str::uuid().'.'.preg_replace('/[^a-z0-9]/', '', $extension), 'local');
         }
 
-        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $upload, $path) {
+        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $upload, $path, $scheduledAt) {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'direction'       => 'outbound',
-                'status'          => 'queued',
+                'status'          => $scheduledAt !== null ? 'scheduled' : 'queued',
+                'scheduled_at'    => $scheduledAt,
                 'source'          => 'crm',
                 'content'         => $text !== '' ? $text : null,
                 'message_type'    => $media['type'] ?? 'text',
@@ -66,16 +72,22 @@ class InboxMessageController extends Controller
                 'sender_name'     => $user->name,
             ]);
 
-            $conversation->last_message_at = $message->created_at;
-            $conversation->last_message_preview = Str::limit($text !== '' ? $text : '['.($media['type'] ?? 'text').']', 280, '');
+            // A scheduled message changes nothing in the conversation until it is sent.
+            if ($scheduledAt === null) {
+                $conversation->last_message_at = $message->created_at;
+                $conversation->last_message_preview = Str::limit($text !== '' ? $text : '['.($media['type'] ?? 'text').']', 280, '');
+                $conversation->status = 'open';
+            }
+
             $conversation->assigned_user_id ??= $user->id;
-            $conversation->status = 'open';
             $conversation->save();
 
             return $message;
         });
 
-        SendWhatsAppMessage::dispatch($message->id);
+        if ($scheduledAt === null) {
+            SendWhatsAppMessage::dispatch($message->id);
+        }
 
         return response()->json(['data' => InboxPresenter::message($message->refresh())], 201);
     }
@@ -114,6 +126,64 @@ class InboxMessageController extends Controller
         })->afterResponse();
 
         return response()->json(['sent' => true]);
+    }
+
+    /**
+     * Changes the time of a message that has not been sent yet.
+     */
+    public function reschedule(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['scheduled_at' => ['required', 'date_format:Y-m-d\TH:i']]);
+
+        $message = $this->scheduledMessage($id);
+
+        $message->scheduled_at = $this->scheduleTime($data['scheduled_at']);
+        $message->save();
+
+        return response()->json(['data' => InboxPresenter::message($message->refresh())]);
+    }
+
+    /**
+     * Drops a scheduled message (and the file it was holding) before it is sent.
+     */
+    public function cancelSchedule(int $id): JsonResponse
+    {
+        $message = $this->scheduledMessage($id);
+
+        if (str_starts_with((string) $message->media_path, 'local:')) {
+            Storage::disk('local')->delete(substr((string) $message->media_path, strlen('local:')));
+        }
+
+        $message->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    private function scheduledMessage(int $id): Message
+    {
+        return Message::query()
+            ->where('direction', 'outbound')
+            ->where('source', 'crm')
+            ->where('status', 'scheduled')
+            ->findOrFail($id);
+    }
+
+    /**
+     * Reads "2026-10-15T09:00" in the CRM's timezone and keeps it between a minute from
+     * now and a year ahead.
+     */
+    private function scheduleTime(?string $value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $time = Carbon::createFromFormat('Y-m-d\TH:i', $value, config('app.timezone'));
+
+        abort_if($time->lt(now()->addMinute()), 422, trans('whatsapp::app.inbox.schedule_in_past'));
+        abort_if($time->gt(now()->addYear()), 422, trans('whatsapp::app.inbox.schedule_too_far'));
+
+        return $time;
     }
 
     public function retry(int $id): JsonResponse

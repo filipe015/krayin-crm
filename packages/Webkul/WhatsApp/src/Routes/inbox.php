@@ -44,3 +44,6 @@ Route::post('conversations/{id}/funnel/tags', [LeadFunnelController::class, 'att
 Route::delete('conversations/{id}/funnel/tags/{tagId}', [LeadFunnelController::class, 'detachTag'])->name('admin.whatsapp.inbox.funnel.tags.detach');
 
 Route::get('open-lead/{leadId}', OpenLeadConversationController::class)->name('admin.whatsapp.inbox.open-lead');
+
+Route::put('messages/{id}/schedule', [InboxMessageController::class, 'reschedule'])->name('admin.whatsapp.inbox.schedule.update');
+Route::delete('messages/{id}/schedule', [InboxMessageController::class, 'cancelSchedule'])->name('admin.whatsapp.inbox.schedule.cancel');
