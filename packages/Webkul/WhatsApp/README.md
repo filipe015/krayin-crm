@@ -173,3 +173,15 @@ No painel da conversa, quando ela está vinculada a um lead, o bloco **Funil** m
 - **Lista de conversas:** a etapa atual do lead aparece ao lado do nome.
 - **Permissões:** ver o funil vem com o acesso à Inbox; mudar etapa e etiquetas exige **Gerenciar conversas**. Só leads que o usuário pode ver (equipe/hierarquia) aparecem.
 - Sem migração nova.
+
+
+## Criar lead pela conversa
+
+Na conversa sem lead, o botão **Criar lead** (bloco *Lead*, ao lado de *Vincular a um lead*) abre o lead em um clique:
+
+- **Funil e etapa:** funil padrão do Krayin, primeira etapa. Depois, mude a etapa no bloco **Funil**.
+- **Origem:** `WhatsApp` (criada na primeira vez). **Tipo:** o primeiro tipo cadastrado. **Valor:** 0.
+- **Responsável:** quem está atendendo a conversa (ou quem clicou, se ninguém assumiu).
+- **Contato:** reaproveita a pessoa que já tem esse telefone (com ou sem o 9º dígito); se não houver, cria uma com o nome do WhatsApp (ou o número) e o telefone.
+- **Sem duplicar:** se já existe um lead com esse número, ele é só vinculado à conversa. Se ele for de outra equipe, o Krayin avisa e não cria outro.
+- **Permissão:** exige poder criar leads (`leads.create`) e **Gerenciar conversas**. Sem migração nova.

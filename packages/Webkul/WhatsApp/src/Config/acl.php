@@ -22,6 +22,7 @@ return [
             'admin.whatsapp.inbox.claim',
             'admin.whatsapp.inbox.status',
             'admin.whatsapp.inbox.lead.link',
+            'admin.whatsapp.inbox.lead.create',
             'admin.whatsapp.inbox.funnel.stage',
             'admin.whatsapp.inbox.funnel.tags.attach',
             'admin.whatsapp.inbox.funnel.tags.detach',

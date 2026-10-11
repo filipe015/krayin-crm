@@ -17,6 +17,7 @@ Route::post('conversations/{id}/read', [InboxController::class, 'markRead'])->na
 Route::post('conversations/{id}/claim', [InboxController::class, 'claim'])->name('admin.whatsapp.inbox.claim');
 Route::post('conversations/{id}/status', [InboxController::class, 'status'])->name('admin.whatsapp.inbox.status');
 Route::post('conversations/{id}/lead', [InboxLeadController::class, 'link'])->name('admin.whatsapp.inbox.lead.link');
+Route::post('conversations/{id}/lead/create', [InboxLeadController::class, 'create'])->name('admin.whatsapp.inbox.lead.create');
 Route::post('conversations/{id}/messages', [InboxMessageController::class, 'store'])->name('admin.whatsapp.inbox.send');
 Route::post('messages/{id}/retry', [InboxMessageController::class, 'retry'])->name('admin.whatsapp.inbox.retry');
 

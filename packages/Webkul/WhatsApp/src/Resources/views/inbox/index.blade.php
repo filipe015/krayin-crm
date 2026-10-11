@@ -366,7 +366,10 @@
 
                         <template v-else>
                             <span class="wa-muted">@{{ labels.no_lead }}</span>
-                            <button v-if="! linkOpen" type="button" class="wa-btn" @click="linkOpen = true">@{{ labels.link_lead }}</button>
+                            <div v-if="! linkOpen" class="wa-row">
+                                <button type="button" class="wa-btn is-primary" :disabled="busy" @click="createLead">@{{ labels.create_lead }}</button>
+                                <button type="button" class="wa-btn" @click="linkOpen = true">@{{ labels.link_lead }}</button>
+                            </div>
 
                             <template v-else>
                                 <input type="text" v-model="linkQuery" :placeholder="labels.search_lead">
@@ -857,6 +860,30 @@
                             this.linkOpen = false;
                             this.linkQuery = '';
                             this.linkResults = [];
+                        }
+                    },
+
+                    async createLead() {
+                        const id = this.selectedId;
+
+                        this.busy = true;
+
+                        try {
+                            const { data } = await this.$axios.post(this.url('createLead', id));
+
+                            this.patch(id, { lead: data.lead });
+                            this.loadConversations({ poll: true });
+                            this.$emitter.emit('add-flash', {
+                                type: 'success',
+                                message: data.created ? this.labels.lead_created : this.labels.lead_linked,
+                            });
+                        } catch (error) {
+                            this.$emitter.emit('add-flash', {
+                                type: 'error',
+                                message: (error.response && error.response.data && error.response.data.message) || this.labels.action_error,
+                            });
+                        } finally {
+                            this.busy = false;
                         }
                     },
 

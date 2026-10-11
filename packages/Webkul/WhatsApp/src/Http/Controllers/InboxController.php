@@ -29,6 +29,7 @@ class InboxController extends Controller
                 'claim'         => route('admin.whatsapp.inbox.claim', ['id' => '__ID__']),
                 'status'        => route('admin.whatsapp.inbox.status', ['id' => '__ID__']),
                 'link'          => route('admin.whatsapp.inbox.lead.link', ['id' => '__ID__']),
+                'createLead'    => route('admin.whatsapp.inbox.lead.create', ['id' => '__ID__']),
                 'send'          => route('admin.whatsapp.inbox.send', ['id' => '__ID__']),
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
