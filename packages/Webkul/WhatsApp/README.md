@@ -204,3 +204,13 @@ Abaixo da busca da lista, dois seletores filtram pelo lead da conversa:
 - **Requer o evento no webhook do WAHA:** na sessão, em Webhooks, marque também **`presence.update`** (além de `message.any`, `message.ack`, `message.edited`, `message.revoked` e `session.status`) e salve.
 - Ao abrir uma conversa, o Krayin pede ao WAHA para acompanhar a presença daquele chat (`POST /api/{sessão}/presence/{chat}/subscribe`, no máximo 1x a cada 10 min por chat). O contato só aparece como "digitando" se o WhatsApp dele compartilha essa informação.
 - Sem migração nova.
+
+
+## O cliente vê "digitando…"
+
+Enquanto o atendente escreve na Inbox, o WhatsApp do cliente mostra "digitando…" (e "gravando áudio…" na gravação de voz).
+
+- Avisa uma vez a cada ~5 s enquanto se digita e limpa depois de 4 s sem digitar, ao enviar, ao trocar de conversa ou sair da página.
+- Não avisa ao digitar um atalho de resposta rápida (`/...`) nem ao restaurar um rascunho.
+- **Desligar:** `WHATSAPP_SEND_TYPING=false` no ambiente do krayin (precisa implantar).
+- Usa `POST /api/{sessão}/presence` do WAHA (`typing`, `recording`, `paused`). Sem migração nova.

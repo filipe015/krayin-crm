@@ -5,9 +5,11 @@ namespace Webkul\WhatsApp\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Waha\SendTarget;
+use Webkul\WhatsApp\Channels\Waha\WahaClient;
 use Webkul\WhatsApp\Jobs\SendWhatsAppMessage;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
@@ -76,6 +78,42 @@ class InboxMessageController extends Controller
         SendWhatsAppMessage::dispatch($message->id);
 
         return response()->json(['data' => InboxPresenter::message($message->refresh())], 201);
+    }
+
+    /**
+     * The operator started or stopped writing: pass it on to the customer's WhatsApp.
+     * Best effort and after the response, so a slow WAHA never makes typing lag.
+     */
+    public function typing(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['state' => ['required', 'in:typing,recording,paused']]);
+
+        $conversation = Conversation::query()->whereNotNull('session_id')->with('session:id,external_id,status')->findOrFail($id);
+
+        if (! config('whatsapp.send_typing')
+            || $conversation->session?->status !== 'WORKING'
+            || $conversation->chat_id === null) {
+            return response()->json(['sent' => false]);
+        }
+
+        // "paused" always goes through; the active states are limited to one per 3 s.
+        if ($data['state'] !== 'paused' && ! Cache::add('whatsapp.typing-out.'.$conversation->id, 1, 3)) {
+            return response()->json(['sent' => false]);
+        }
+
+        $session = $conversation->session->external_id;
+        $chatId = $conversation->chat_id;
+        $state = $data['state'];
+
+        dispatch(function () use ($session, $chatId, $state) {
+            try {
+                WahaClient::fromConfig()->setPresence($session, $chatId, $state);
+            } catch (\Throwable) {
+                // The indicator is a nicety; never fail the operator's typing.
+            }
+        })->afterResponse();
+
+        return response()->json(['sent' => true]);
     }
 
     public function retry(int $id): JsonResponse

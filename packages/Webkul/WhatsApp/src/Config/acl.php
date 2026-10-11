@@ -54,6 +54,7 @@ return [
         'name'  => 'whatsapp::app.acl.send',
         'route' => [
             'admin.whatsapp.inbox.send',
+            'admin.whatsapp.inbox.typing',
             'admin.whatsapp.inbox.retry',
         ],
         'sort'  => 2,

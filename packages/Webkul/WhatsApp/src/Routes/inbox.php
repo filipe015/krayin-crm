@@ -19,6 +19,7 @@ Route::post('conversations/{id}/status', [InboxController::class, 'status'])->na
 Route::post('conversations/{id}/lead', [InboxLeadController::class, 'link'])->name('admin.whatsapp.inbox.lead.link');
 Route::post('conversations/{id}/lead/create', [InboxLeadController::class, 'create'])->name('admin.whatsapp.inbox.lead.create');
 Route::post('conversations/{id}/messages', [InboxMessageController::class, 'store'])->name('admin.whatsapp.inbox.send');
+Route::post('conversations/{id}/typing', [InboxMessageController::class, 'typing'])->name('admin.whatsapp.inbox.typing');
 Route::post('messages/{id}/retry', [InboxMessageController::class, 'retry'])->name('admin.whatsapp.inbox.retry');
 
 Route::get('leads', [InboxLeadController::class, 'search'])->name('admin.whatsapp.inbox.lead.search');

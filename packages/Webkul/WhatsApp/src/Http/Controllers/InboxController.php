@@ -36,6 +36,7 @@ class InboxController extends Controller
                 'link'          => route('admin.whatsapp.inbox.lead.link', ['id' => '__ID__']),
                 'createLead'    => route('admin.whatsapp.inbox.lead.create', ['id' => '__ID__']),
                 'send'          => route('admin.whatsapp.inbox.send', ['id' => '__ID__']),
+                'typing'        => config('whatsapp.send_typing') ? route('admin.whatsapp.inbox.typing', ['id' => '__ID__']) : null,
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
                 'quickReplies'  => route('admin.whatsapp.quick-replies.list'),

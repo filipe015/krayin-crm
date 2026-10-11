@@ -50,6 +50,18 @@ final class WahaClient
     }
 
     /**
+     * Shows "typing" / "recording audio" (or clears it with "paused") to the contact.
+     *
+     * @param  'typing'|'recording'|'paused'  $presence
+     *
+     * @throws WahaException
+     */
+    public function setPresence(string $session, string $chatId, string $presence): void
+    {
+        $this->call('POST', '/api/'.rawurlencode($session).'/presence', ['chatId' => $chatId, 'presence' => $presence], 5);
+    }
+
+    /**
      * Asks WAHA to start reporting the typing state of one chat (presence.update events).
      *
      * @throws WahaException

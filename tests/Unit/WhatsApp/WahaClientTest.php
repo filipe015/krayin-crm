@@ -162,3 +162,24 @@ it('rejects an unknown media kind before calling WAHA', function () {
 
     $http->assertNothingSent();
 });
+
+it('sets the typing presence of a chat', function () {
+    $http = new Factory;
+    $http->fake(['*' => Factory::response([], 201)]);
+
+    wahaClient($http)->setPresence('teste', '5561@c.us', 'typing');
+
+    $http->assertSent(fn (Request $request) => $request->url() === 'https://waha.test/api/teste/presence'
+        && $request->method() === 'POST'
+        && $request->data() === ['chatId' => '5561@c.us', 'presence' => 'typing']);
+});
+
+it('subscribes to the presence of a chat', function () {
+    $http = new Factory;
+    $http->fake(['*' => Factory::response([], 201)]);
+
+    wahaClient($http)->subscribePresence('teste', '5561@c.us');
+
+    $http->assertSent(fn (Request $request) => str_ends_with($request->url(), '/api/teste/presence/5561%40c.us/subscribe')
+        && $request->method() === 'POST');
+});

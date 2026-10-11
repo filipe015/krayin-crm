@@ -473,6 +473,10 @@
                         draft: '',
                         drafts: {},
                         threadPresence: null,
+                        typingActive: false,
+                        typingSentAt: 0,
+                        typingTimer: null,
+                        typingConversation: null,
                         listTick: 0,
                         baseTitle: '',
                         funnel: null,
@@ -576,12 +580,14 @@
                     },
 
                     selectedId() {
+                        this.stopTyping();
                         this.funnel = null;
                         this.$nextTick(() => this.loadFunnel());
                     },
 
                     draft() {
                         this.quickIndex = 0;
+
 
                         if (! this.draft.startsWith('/')) {
                             this.quickDismissed = false;
@@ -627,6 +633,7 @@
                     [this.searchTimer, this.linkTimer].forEach(clearTimeout);
                     this.cancelRecording();
                     this.clearAttachment();
+                    this.stopTyping();
 
                     if (this.baseTitle) {
                         document.title = this.baseTitle;
@@ -937,6 +944,14 @@
                     autosize(event) {
                         const element = event.target;
 
+                        // Only what the operator types counts: a restored draft or a quick
+                        // reply being inserted must not show "typing" to the customer.
+                        if (element.value.trim() && ! element.value.startsWith('/')) {
+                            this.touchTyping();
+                        } else {
+                            this.stopTyping();
+                        }
+
                         element.style.height = 'auto';
                         element.style.height = Math.min(element.scrollHeight, 140) + 'px';
                     },
@@ -948,6 +963,8 @@
                         if (! this.canSend || (! text && ! this.attachment)) {
                             return;
                         }
+
+                        this.stopTyping();
 
                         this.sending = true;
 
@@ -1058,6 +1075,43 @@
                         const url = this.url('funnelTagOff', this.selectedId).replace('__TAG__', tag.id);
 
                         this.funnelAction(() => this.$axios.delete(url));
+                    },
+
+                    signalTyping(state) {
+                        const id = this.typingConversation || this.selectedId;
+
+                        if (! this.urls.typing || ! id) {
+                            return;
+                        }
+
+                        this.$axios.post(this.url('typing', id), { state }).catch(() => {});
+                    },
+
+                    /**
+                     * Tells the customer's WhatsApp the operator is writing: once every 5 s
+                     * while typing, and "paused" after 4 s of silence, on send or on leaving.
+                     */
+                    touchTyping(state = 'typing') {
+                        const now = Date.now();
+
+                        if (! this.typingActive || now - this.typingSentAt > 5000) {
+                            this.typingConversation = this.selectedId;
+                            this.signalTyping(state);
+                            this.typingActive = true;
+                            this.typingSentAt = now;
+                        }
+
+                        clearTimeout(this.typingTimer);
+                        this.typingTimer = setTimeout(() => this.stopTyping(), 4000);
+                    },
+
+                    stopTyping() {
+                        clearTimeout(this.typingTimer);
+
+                        if (this.typingActive) {
+                            this.signalTyping('paused');
+                            this.typingActive = false;
+                        }
                     },
 
                     async loadQuickReplies() {
@@ -1247,6 +1301,7 @@
                         this.recorder = recorder;
                         this.recordSeconds = 0;
                         this.recording = true;
+                        this.touchTyping('recording');
                         this.recordTimer = setInterval(() => { this.recordSeconds += 1; }, 1000);
 
                         recorder.start();
@@ -1265,6 +1320,7 @@
 
                         this.recorder = null;
                         this.recording = false;
+                        this.stopTyping();
                     },
 
                     stopRecording() {
