@@ -195,3 +195,12 @@ Abaixo da busca da lista, dois seletores filtram pelo lead da conversa:
 - **Etiqueta:** as tags do Krayin.
 - Os dois combinam entre si e com as abas (Fila, Minhas, Todas, Fechadas), a busca, "Não lidas" e o número.
 - Sem migração nova.
+
+
+## "Digitando…" e contagem de não lidas na aba
+
+- **Aba do navegador:** o título mostra `(3) WhatsApp Inbox` com o número de conversas abertas, não lidas, que estão na fila ou são suas. Em aba de fundo a lista é atualizada a cada ~15 s.
+- **Digitando… / gravando áudio…:** aparece no cabeçalho da conversa aberta e no lugar da prévia na lista. Some sozinho em ~12 s sem novo sinal do WhatsApp.
+- **Requer o evento no webhook do WAHA:** na sessão, em Webhooks, marque também **`presence.update`** (além de `message.any`, `message.ack`, `message.edited`, `message.revoked` e `session.status`) e salve.
+- Ao abrir uma conversa, o Krayin pede ao WAHA para acompanhar a presença daquele chat (`POST /api/{sessão}/presence/{chat}/subscribe`, no máximo 1x a cada 10 min por chat). O contato só aparece como "digitando" se o WhatsApp dele compartilha essa informação.
+- Sem migração nova.

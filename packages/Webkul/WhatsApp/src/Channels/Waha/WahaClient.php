@@ -50,6 +50,16 @@ final class WahaClient
     }
 
     /**
+     * Asks WAHA to start reporting the typing state of one chat (presence.update events).
+     *
+     * @throws WahaException
+     */
+    public function subscribePresence(string $session, string $chatId): void
+    {
+        $this->call('POST', '/api/'.rawurlencode($session).'/presence/'.rawurlencode($chatId).'/subscribe', [], 5);
+    }
+
+    /**
      * Sends a file as an image, document, voice note or video. WAHA takes the content
      * inline as base64 and converts voice and video to what WhatsApp expects.
      *

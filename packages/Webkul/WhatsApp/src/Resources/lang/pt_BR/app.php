@@ -78,6 +78,8 @@ return [
         'all_tags'           => 'Todas as etiquetas',
         'filter_stage'       => 'Filtrar por etapa do lead',
         'filter_tag'         => 'Filtrar por etiqueta do lead',
+        'typing'             => 'digitando…',
+        'recording_audio'    => 'gravando áudio…',
         'attach'             => 'Anexar arquivo',
         'record_voice'       => 'Gravar áudio',
         'stop_recording'     => 'Parar e anexar',

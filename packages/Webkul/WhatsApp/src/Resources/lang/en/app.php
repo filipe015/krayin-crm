@@ -78,6 +78,8 @@ return [
         'all_tags'           => 'All tags',
         'filter_stage'       => 'Filter by lead stage',
         'filter_tag'         => 'Filter by lead tag',
+        'typing'             => 'typing…',
+        'recording_audio'    => 'recording audio…',
         'attach'             => 'Attach file',
         'record_voice'       => 'Record audio',
         'stop_recording'     => 'Stop and attach',

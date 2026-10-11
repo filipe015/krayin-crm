@@ -7,6 +7,7 @@ use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
 use Webkul\WhatsApp\Channels\Events\MessageEdited;
 use Webkul\WhatsApp\Channels\Events\MessageRevoked;
+use Webkul\WhatsApp\Channels\Events\PresenceChanged;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
 
 /**
@@ -18,7 +19,7 @@ use Webkul\WhatsApp\Channels\Events\SessionStatus;
  */
 final class WahaWebhookParser
 {
-    public static function parse(array $envelope): InboundMessage|MessageAck|MessageEdited|MessageRevoked|SessionStatus|null
+    public static function parse(array $envelope): InboundMessage|MessageAck|MessageEdited|MessageRevoked|PresenceChanged|SessionStatus|null
     {
         $session = (string) ($envelope['session'] ?? '');
         $payload = $envelope['payload'] ?? null;
@@ -32,6 +33,7 @@ final class WahaWebhookParser
             'message.ack'            => self::ack($session, $payload),
             'message.edited'         => self::edited($session, $payload),
             'message.revoked'        => self::revoked($session, $payload),
+            'presence.update'        => self::presence($session, $payload),
             'session.status'         => self::sessionStatus($session, $envelope['me'] ?? null, $payload),
             default                  => null,
         };
@@ -85,6 +87,27 @@ final class WahaWebhookParser
             mediaFilename: ($media['filename'] ?? null) ?: null,
             sentAt: self::moment($payload['timestamp'] ?? null),
         );
+    }
+
+    /**
+     * Who is typing is only interesting in a one-to-one chat; groups are ignored like
+     * everywhere else in the Inbox.
+     */
+    private static function presence(string $session, array $payload): ?PresenceChanged
+    {
+        $chat = (string) ($payload['id'] ?? '');
+
+        if ($chat === '' || preg_match('/@(g\.us|broadcast|newsletter)$/', $chat)) {
+            return null;
+        }
+
+        $state = strtolower((string) ($payload['presences'][0]['lastKnownPresence'] ?? ''));
+
+        if (! in_array($state, ['typing', 'recording', 'paused', 'online', 'offline'], true)) {
+            return null;
+        }
+
+        return new PresenceChanged($session, preg_replace('/@s\.whatsapp\.net$/', '@c.us', $chat), $state);
     }
 
     private static function ack(string $session, array $payload): ?MessageAck

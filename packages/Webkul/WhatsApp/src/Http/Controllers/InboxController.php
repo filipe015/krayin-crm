@@ -6,9 +6,11 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Webkul\Lead\Models\Pipeline;
 use Webkul\Tag\Models\Tag;
+use Webkul\WhatsApp\Channels\Waha\WahaClient;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
@@ -114,6 +116,14 @@ class InboxController extends Controller
 
         $offset = (((int) ($filters['page'] ?? 1)) - 1) * self::LIST_SIZE;
 
+        // Conversations that need this user's eyes (unassigned or theirs), for the tab title.
+        $unreadTotal = Conversation::query()
+            ->whereNotNull('session_id')
+            ->where('status', 'open')
+            ->where(fn ($owner) => $owner->whereNull('assigned_user_id')->orWhere('assigned_user_id', $userId))
+            ->whereHas('messages', $unread)
+            ->count();
+
         $rows = $query
             ->orderByRaw('coalesce(last_message_at, created_at) desc')
             ->orderByDesc('id')
@@ -124,6 +134,7 @@ class InboxController extends Controller
         return response()->json([
             'data'     => $rows->take(self::LIST_SIZE)->map(fn (Conversation $conversation) => $this->conversationData($conversation))->values(),
             'has_more' => $rows->count() > self::LIST_SIZE,
+            'unread_total' => $unreadTotal,
         ]);
     }
 
@@ -142,9 +153,15 @@ class InboxController extends Controller
 
         $rows = $query->get();
 
+        // Opening a thread is when WAHA is told to report this chat's typing state.
+        if (! $request->filled('before_id')) {
+            $this->subscribePresence($conversation);
+        }
+
         return response()->json([
             'data'     => $rows->take(self::THREAD_SIZE)->reverse()->values()->map(fn (Message $message) => InboxPresenter::message($message)),
             'has_more' => $rows->count() > self::THREAD_SIZE,
+            'presence' => Cache::get('whatsapp.presence.'.$conversation->id),
         ]);
     }
 
@@ -209,6 +226,7 @@ class InboxController extends Controller
             'phone'      => $conversation->contact_phone,
             'status'     => $conversation->status,
             'preview'    => $conversation->last_message_preview,
+            'presence'   => Cache::get('whatsapp.presence.'.$conversation->id),
             'unread'     => (int) $conversation->unread_count,
             'sort_at'    => ($conversation->last_message_at ?? $conversation->created_at)?->toIso8601String(),
             'lead'       => $conversation->lead ? [
@@ -243,5 +261,33 @@ class InboxController extends Controller
             'stages' => $stages,
             'tags'   => Tag::query()->orderBy('name')->limit(200)->get(['id', 'name', 'color']),
         ];
+    }
+
+    /**
+     * Throttled to once every ten minutes per chat, and sent after the response so a slow
+     * WAHA never delays opening a conversation. A failure only means no "typing" indicator.
+     */
+    private function subscribePresence(Conversation $conversation): void
+    {
+        $conversation->loadMissing('session:id,external_id,status');
+
+        if ($conversation->session?->status !== 'WORKING' || $conversation->chat_id === null) {
+            return;
+        }
+
+        if (! Cache::add('whatsapp.presence-sub.'.$conversation->id, 1, 600)) {
+            return;
+        }
+
+        $session = $conversation->session->external_id;
+        $chatId = $conversation->chat_id;
+
+        dispatch(function () use ($session, $chatId) {
+            try {
+                WahaClient::fromConfig()->subscribePresence($session, $chatId);
+            } catch (\Throwable) {
+                // Best effort.
+            }
+        })->afterResponse();
     }
 }

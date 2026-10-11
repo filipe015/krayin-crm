@@ -4,6 +4,7 @@ use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
 use Webkul\WhatsApp\Channels\Events\MessageEdited;
 use Webkul\WhatsApp\Channels\Events\MessageRevoked;
+use Webkul\WhatsApp\Channels\Events\PresenceChanged;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Channels\Waha\WahaWebhookParser;
 use Webkul\WhatsApp\Support\PhoneNumberMatcher;
@@ -216,3 +217,27 @@ it('reads the connected number from the session status', function () {
 it('returns null for events it does not handle', function () {
     expect(WahaWebhookParser::parse(wahaEnvelope('presence.update', ['id' => 'x'])))->toBeNull();
 });
+
+it('parses a typing indicator of a one-to-one chat', function () {
+    $event = WahaWebhookParser::parse([
+        'event'   => 'presence.update',
+        'session' => 'teste',
+        'payload' => ['id' => '556195684042@s.whatsapp.net', 'presences' => [['participant' => '556195684042@c.us', 'lastKnownPresence' => 'typing', 'lastSeen' => null]]],
+    ]);
+
+    expect($event)->toBeInstanceOf(PresenceChanged::class)
+        ->and($event->chatId)->toBe('556195684042@c.us')
+        ->and($event->state)->toBe('typing');
+});
+
+it('ignores presence of groups and unknown states', function (string $chat, string $state) {
+    expect(WahaWebhookParser::parse([
+        'event'   => 'presence.update',
+        'session' => 'teste',
+        'payload' => ['id' => $chat, 'presences' => [['lastKnownPresence' => $state]]],
+    ]))->toBeNull();
+})->with([
+    'group'   => ['12036300000@g.us', 'typing'],
+    'unknown' => ['556195684042@c.us', 'dancing'],
+    'empty'   => ['556195684042@c.us', ''],
+]);

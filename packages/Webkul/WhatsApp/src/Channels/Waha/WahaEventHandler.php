@@ -11,6 +11,7 @@ use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
 use Webkul\WhatsApp\Channels\Events\MessageEdited;
 use Webkul\WhatsApp\Channels\Events\MessageRevoked;
+use Webkul\WhatsApp\Channels\Events\PresenceChanged;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
@@ -29,15 +30,54 @@ class WahaEventHandler
 
     public function __construct(protected LeadPhoneFinder $leads) {}
 
-    public function handle(InboundMessage|MessageAck|MessageEdited|MessageRevoked|SessionStatus $event): void
+    public function handle(InboundMessage|MessageAck|MessageEdited|MessageRevoked|PresenceChanged|SessionStatus $event): void
     {
         match (true) {
             $event instanceof InboundMessage => $this->message($event),
             $event instanceof MessageAck     => $this->ack($event),
             $event instanceof MessageEdited  => $this->edited($event),
             $event instanceof MessageRevoked => $this->revoked($event),
+            $event instanceof PresenceChanged => $this->presence($event),
             $event instanceof SessionStatus  => $this->sessionStatus($event),
         };
+    }
+
+    /**
+     * "typing" and "recording" are kept for a few seconds: WAHA only says when they start
+     * and stop, and a lost "paused" must not leave the indicator on forever.
+     */
+    private function presence(PresenceChanged $event): void
+    {
+        $session = Session::query()->where('channel', 'waha')->where('external_id', $event->session)->first();
+
+        if ($session === null) {
+            return;
+        }
+
+        $phone = str_ends_with($event->chatId, '@c.us') ? strstr($event->chatId, '@', true) : null;
+
+        $conversation = Conversation::query()
+            ->where('session_id', $session->id)
+            ->where(function ($query) use ($event, $phone) {
+                $query->where('chat_id', $event->chatId)->orWhere('contact_lid', $event->chatId);
+
+                if ($phone !== null && $phone !== '') {
+                    $query->orWhereIn('contact_phone', PhoneNumberMatcher::variants($phone));
+                }
+            })
+            ->first(['id']);
+
+        if ($conversation === null) {
+            return;
+        }
+
+        $key = 'whatsapp.presence.'.$conversation->id;
+
+        if (in_array($event->state, ['typing', 'recording'], true)) {
+            Cache::put($key, $event->state, 12);
+        } else {
+            Cache::forget($key);
+        }
     }
 
     private function findMessage(string $session, string $externalId): ?Message

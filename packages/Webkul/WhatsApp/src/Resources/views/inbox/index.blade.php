@@ -95,6 +95,7 @@
             @keyframes wa-pulse{50%{opacity:.3}}
             .wa-icon-btn{padding:6px 9px;font-size:15px;line-height:1}
             .wa-tags{display:flex;flex-wrap:wrap;gap:6px}
+            .wa-typing{color:#16a34a;font-size:12px;font-style:italic}
             .wa-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 8px;border:1px solid var(--wa-border);border-radius:10px;font-size:12px}
             .wa-chip button{border:0;background:transparent;padding:0 3px;line-height:1;font-size:14px}
             .wa-stage{align-self:flex-start;padding:0 6px;border-radius:4px;background:var(--wa-soft);color:var(--wa-muted);font-size:11px}
@@ -184,7 +185,8 @@
                                     </span>
 
                                     <span class="wa-item-line">
-                                        <span class="wa-ellipsis wa-muted">@{{ conversation.preview }}</span>
+                                        <span v-if="conversation.presence" class="wa-ellipsis wa-typing">@{{ presenceLabel(conversation.presence) }}</span>
+                                        <span v-else class="wa-ellipsis wa-muted">@{{ conversation.preview }}</span>
                                         <span v-if="conversation.unread" class="wa-badge">@{{ conversation.unread }}</span>
                                     </span>
 
@@ -209,7 +211,8 @@
 
                             <div class="wa-title">
                                 <strong class="wa-ellipsis" style="display:block">@{{ displayName(current) }}</strong>
-                                <span v-if="current.phone" class="wa-muted">+@{{ current.phone }}</span>
+                                <span v-if="presenceNow" class="wa-typing">@{{ presenceLabel(presenceNow) }}</span>
+                                <span v-else-if="current.phone" class="wa-muted">+@{{ current.phone }}</span>
                             </div>
 
                             <a v-if="current.lead" :href="current.lead.url" class="wa-btn">@{{ labels.open_lead }}</a>
@@ -469,6 +472,9 @@
                         busy: false,
                         draft: '',
                         drafts: {},
+                        threadPresence: null,
+                        listTick: 0,
+                        baseTitle: '',
                         funnel: null,
                         funnelLoading: false,
                         quickReplies: [],
@@ -514,6 +520,10 @@
 
                     canSend() {
                         return ! this.sending && ! this.sessionOffline && (this.draft.trim().length > 0 || this.attachment !== null);
+                    },
+
+                    presenceNow() {
+                        return this.threadPresence || (this.current && this.current.presence) || null;
                     },
 
                     quickMatches() {
@@ -593,8 +603,14 @@
                     this.loadConversations();
                     this.loadQuickReplies();
 
+                    this.baseTitle = document.title;
+
+                    // In a background tab the list is still refreshed (every 15 s) so the
+                    // unread count in the tab title keeps up.
                     this.listTimer = setInterval(() => {
-                        if (! document.hidden) {
+                        this.listTick += 1;
+
+                        if (! document.hidden || this.listTick % 3 === 0) {
                             this.loadConversations({ poll: true });
                         }
                     }, 5000);
@@ -611,6 +627,10 @@
                     [this.searchTimer, this.linkTimer].forEach(clearTimeout);
                     this.cancelRecording();
                     this.clearAttachment();
+
+                    if (this.baseTitle) {
+                        document.title = this.baseTitle;
+                    }
                 },
 
                 methods: {
@@ -646,6 +666,10 @@
                             }
 
                             this.listError = false;
+
+                            if (typeof data.unread_total === 'number' && this.baseTitle) {
+                                document.title = (data.unread_total > 0 ? '(' + data.unread_total + ') ' : '') + this.baseTitle;
+                            }
 
                             if (more) {
                                 this.conversations = [...this.conversations, ...data.data];
@@ -690,6 +714,7 @@
                         this.draft = this.drafts[conversation.id] || '';
                         this.cancelRecording();
                         this.clearAttachment();
+                        this.threadPresence = null;
                         this.selectedId = conversation.id;
                         this.selectedConversation = conversation;
                         this.panelOpen = false;
@@ -734,6 +759,7 @@
                             }
 
                             this.mergeMessages(data.data);
+                            this.threadPresence = data.presence || null;
 
                             if (initial) {
                                 this.hasMoreMessages = data.has_more;
@@ -1303,6 +1329,10 @@
 
                     tick(message) {
                         return { queued: '…', sending: '…', sent: '✓', delivered: '✓✓', read: '✓✓', failed: '!' }[message.status] || '';
+                    },
+
+                    presenceLabel(state) {
+                        return state === 'recording' ? this.labels.recording_audio : this.labels.typing;
                     },
 
                     typeLabel(message) {
