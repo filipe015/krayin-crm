@@ -23,6 +23,7 @@
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.inbox')) }}"
         :sessions="{{ Illuminate\Support\Js::from($sessions) }}"
+        :funnel-filters="{{ Illuminate\Support\Js::from($funnelFilters) }}"
     >
         <div class="p-6 text-sm text-gray-500">
             @lang('whatsapp::app.inbox.loading')
@@ -143,6 +144,19 @@
                             <select v-if="sessions.length > 1" v-model="sessionId" style="margin-left:auto;width:auto">
                                 <option value="">@{{ labels.all_sessions }}</option>
                                 <option v-for="session in sessions" :key="session.id" :value="session.id">@{{ session.name }}</option>
+                            </select>
+                        </div>
+
+                        <div v-if="funnelFilters.stages.length || funnelFilters.tags.length" class="wa-row">
+                            <select v-model="stageFilter" :title="labels.filter_stage">
+                                <option value="">@{{ labels.all_stages }}</option>
+                                <option value="none">@{{ labels.no_lead }}</option>
+                                <option v-for="stage in funnelFilters.stages" :key="stage.id" :value="String(stage.id)">@{{ stage.name }}</option>
+                            </select>
+
+                            <select v-if="funnelFilters.tags.length" v-model="tagFilter" :title="labels.filter_tag">
+                                <option value="">@{{ labels.all_tags }}</option>
+                                <option v-for="tag in funnelFilters.tags" :key="tag.id" :value="String(tag.id)">@{{ tag.name }}</option>
                             </select>
                         </div>
                     </div>
@@ -425,6 +439,7 @@
                     urls: { type: Object, required: true },
                     labels: { type: Object, required: true },
                     sessions: { type: Array, default: () => [] },
+                    funnelFilters: { type: Object, default: () => ({ stages: [], tags: [] }) },
                 },
 
                 data() {
@@ -434,6 +449,8 @@
                         search: '',
                         unreadOnly: false,
                         sessionId: '',
+                        stageFilter: '',
+                        tagFilter: '',
 
                         conversations: [],
                         hasMore: false,
@@ -540,6 +557,8 @@
                     tab() { this.loadConversations(); },
                     unreadOnly() { this.loadConversations(); },
                     sessionId() { this.loadConversations(); },
+                    stageFilter() { this.loadConversations(); },
+                    tagFilter() { this.loadConversations(); },
 
                     'current.lead.id': {
                         handler() { this.funnel = null; this.loadFunnel(); },
@@ -605,6 +624,8 @@
                             search: this.search.trim() || undefined,
                             unread: this.unreadOnly ? 1 : undefined,
                             session_id: this.sessionId || undefined,
+                            stage_id: this.stageFilter || undefined,
+                            tag_id: this.tagFilter || undefined,
                             page,
                         };
                     },

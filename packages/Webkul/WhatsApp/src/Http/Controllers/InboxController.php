@@ -7,6 +7,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Webkul\Lead\Models\Pipeline;
+use Webkul\Tag\Models\Tag;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
@@ -22,6 +24,7 @@ class InboxController extends Controller
     {
         return view('whatsapp::inbox.index', [
             'sessions' => Session::query()->orderBy('name')->get(['id', 'name']),
+            'funnelFilters' => $this->funnelFilters(),
             'urls'     => [
                 'conversations' => route('admin.whatsapp.inbox.conversations'),
                 'messages'      => route('admin.whatsapp.inbox.messages', ['id' => '__ID__']),
@@ -49,6 +52,8 @@ class InboxController extends Controller
             'search'     => ['nullable', 'string', 'max:100'],
             'unread'     => ['nullable', 'boolean'],
             'session_id' => ['nullable', 'integer'],
+            'stage_id'   => ['nullable', 'string', 'regex:/^(none|\d+)$/'],
+            'tag_id'     => ['nullable', 'integer'],
             'page'       => ['nullable', 'integer', 'min:1'],
         ]);
 
@@ -94,6 +99,17 @@ class InboxController extends Controller
 
         if (! empty($filters['session_id'])) {
             $query->where('session_id', $filters['session_id']);
+        }
+
+        // "none" = conversations still without a lead; a number = leads at that pipeline stage.
+        if (($filters['stage_id'] ?? null) === 'none') {
+            $query->whereNull('lead_id');
+        } elseif (! empty($filters['stage_id'])) {
+            $query->whereHas('lead', fn ($lead) => $lead->where('lead_pipeline_stage_id', (int) $filters['stage_id']));
+        }
+
+        if (! empty($filters['tag_id'])) {
+            $query->whereHas('lead.tags', fn ($tags) => $tags->where('tags.id', (int) $filters['tag_id']));
         }
 
         $offset = (((int) ($filters['page'] ?? 1)) - 1) * self::LIST_SIZE;
@@ -204,6 +220,28 @@ class InboxController extends Controller
             'assigned' => $conversation->assignedUser
                 ? ['id' => $conversation->assignedUser->id, 'name' => $conversation->assignedUser->name]
                 : null,
+        ];
+    }
+
+    /**
+     * Stages and tags the list can be filtered by. The pipeline name is only added to a
+     * stage when there is more than one pipeline, to tell apart stages named the same.
+     *
+     * @return array{stages: list<array{id: int, name: string}>, tags: list<array{id: int, name: string, color: ?string}>}
+     */
+    private function funnelFilters(): array
+    {
+        $pipelines = Pipeline::query()->with(['stages' => fn ($query) => $query->orderBy('sort_order')])->orderBy('id')->get();
+        $several = $pipelines->count() > 1;
+
+        $stages = $pipelines->flatMap(fn ($pipeline) => $pipeline->stages->map(fn ($stage) => [
+            'id'   => $stage->id,
+            'name' => $several ? $pipeline->name.' · '.$stage->name : $stage->name,
+        ]))->values();
+
+        return [
+            'stages' => $stages,
+            'tags'   => Tag::query()->orderBy('name')->limit(200)->get(['id', 'name', 'color']),
         ];
     }
 }

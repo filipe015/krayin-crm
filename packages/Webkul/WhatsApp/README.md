@@ -185,3 +185,13 @@ Na conversa sem lead, o botão **Criar lead** (bloco *Lead*, ao lado de *Vincula
 - **Contato:** reaproveita a pessoa que já tem esse telefone (com ou sem o 9º dígito); se não houver, cria uma com o nome do WhatsApp (ou o número) e o telefone.
 - **Sem duplicar:** se já existe um lead com esse número, ele é só vinculado à conversa. Se ele for de outra equipe, o Krayin avisa e não cria outro.
 - **Permissão:** exige poder criar leads (`leads.create`) e **Gerenciar conversas**. Sem migração nova.
+
+
+## Filtrar conversas por etapa e etiqueta
+
+Abaixo da busca da lista, dois seletores filtram pelo lead da conversa:
+
+- **Etapa:** uma etapa do funil, ou **Sem lead** para as conversas que ainda não viraram lead. Com mais de um funil, a etapa aparece como `Funil · Etapa`.
+- **Etiqueta:** as tags do Krayin.
+- Os dois combinam entre si e com as abas (Fila, Minhas, Todas, Fechadas), a busca, "Não lidas" e o número.
+- Sem migração nova.
