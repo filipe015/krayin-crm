@@ -151,3 +151,14 @@ Na Inbox, o clipe anexa um arquivo (até 16 MB) e o microfone grava uma mensagem
 - O limite de upload do PHP vem de `docker/uploads.ini` (20 MB).
 - **Requer WAHA com envio de mídia.** Se o seu WAHA responder que `sendImage`/`sendFile`/`sendVoice` exigem a versão Plus, a mensagem fica "Falha no envio" com o motivo.
 - Receber e ouvir áudio e ver imagens/documentos já funcionava: o Krayin busca o arquivo no WAHA e o mostra dentro da conversa.
+
+
+## Respostas rápidas
+
+Mensagens prontas para o atendimento. Quem tem a permissão **Gerenciar respostas rápidas** cria, edita e exclui em **WhatsApp > Respostas rápidas** (link no topo da Inbox).
+
+- **Usar:** na conversa, digite `/` (ou clique em ⚡) e escolha com o mouse, as setas + Enter/Tab. `Esc` fecha a lista. O texto entra no campo para você revisar antes de enviar.
+- **Atalho:** letras minúsculas, números, `-` ou `_` (até 30), único.
+- **Variáveis:** `{{nome}}` (primeiro nome do contato), `{{nome_completo}}`, `{{telefone}}` e `{{atendente}}` (seu nome). Variável desconhecida fica como está; se o contato não tem nome, a variável some e a pontuação é ajustada.
+- **Migração nova:** `2026_10_12_000001_create_whatsapp_quick_replies_table`. Rode `php artisan migrate --force` depois do deploy.
+- **Permissões:** usar as respostas vem com o acesso à Inbox (`whatsapp`); o cadastro exige `whatsapp.quick-replies` em Configurações → Usuários → Perfis.

@@ -3,11 +3,19 @@
         @lang('whatsapp::app.inbox.title')
     </x-slot>
 
-    @if (bouncer()->hasPermission('whatsapp.connections'))
-        <div class="mb-2 text-right text-sm">
-            <a href="{{ route('admin.whatsapp.connections.index') }}" class="text-brandColor hover:underline">
-                @lang('whatsapp::app.connections.menu')
-            </a>
+    @if (bouncer()->hasPermission('whatsapp.connections') || bouncer()->hasPermission('whatsapp.quick-replies'))
+        <div class="mb-2 flex justify-end gap-4 text-sm">
+            @if (bouncer()->hasPermission('whatsapp.quick-replies'))
+                <a href="{{ route('admin.whatsapp.quick-replies.index') }}" class="text-brandColor hover:underline">
+                    @lang('whatsapp::app.quick_replies.menu')
+                </a>
+            @endif
+
+            @if (bouncer()->hasPermission('whatsapp.connections'))
+                <a href="{{ route('admin.whatsapp.connections.index') }}" class="text-brandColor hover:underline">
+                    @lang('whatsapp::app.connections.menu')
+                </a>
+            @endif
         </div>
     @endif
 
@@ -85,6 +93,13 @@
             .wa-dot{width:10px;height:10px;border-radius:50%;background:#dc2626;animation:wa-pulse 1s infinite}
             @keyframes wa-pulse{50%{opacity:.3}}
             .wa-icon-btn{padding:6px 9px;font-size:15px;line-height:1}
+            .wa-compose-wrap{position:relative;flex:1;display:flex}
+            .wa-compose-wrap textarea{width:100%}
+            .wa-qr-pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:6;max-height:260px;overflow-y:auto;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);box-shadow:0 6px 18px rgba(0,0,0,.14)}
+            .wa-qr-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--wa-border);background:transparent;text-align:left}
+            .wa-qr-item:last-child{border-bottom:0}
+            .wa-qr-item.is-active,.wa-qr-item:hover{background:var(--wa-soft)}
+            .wa-qr-item small{color:var(--wa-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
             .wa-link{align-self:flex-end;padding:0;border:0;background:transparent;color:#dc2626;font-size:11px;text-decoration:underline}
             .wa-btn{padding:6px 10px;border:1px solid var(--wa-border);border-radius:6px;background:var(--wa-bg);font-size:12px}
             .wa-btn:hover{background:var(--wa-soft)}
@@ -261,16 +276,34 @@
 
                                 <button type="button" class="wa-btn wa-icon-btn" :title="labels.attach" :disabled="sessionOffline || sending" @click="$refs.file.click()">&#128206;</button>
 
-                                <textarea
-                                    ref="composer"
-                                    v-model="draft"
-                                    rows="1"
-                                    maxlength="4096"
-                                    :placeholder="attachment ? labels.caption_placeholder : labels.write_message"
-                                    :disabled="sessionOffline"
-                                    @keydown.enter.exact.prevent="send"
-                                    @input="autosize"
-                                ></textarea>
+                                <button type="button" class="wa-btn wa-icon-btn" :title="labels.quick_reply" :disabled="sessionOffline" @click="openQuickReplies">&#9889;</button>
+
+                                <div class="wa-compose-wrap">
+                                    <div v-if="quickMatches.length" class="wa-qr-pop">
+                                        <button
+                                            v-for="(reply, index) in quickMatches"
+                                            :key="reply.id"
+                                            type="button"
+                                            class="wa-qr-item"
+                                            :class="{ 'is-active': index === quickIndex }"
+                                            @mousedown.prevent="insertQuickReply(reply)"
+                                        >
+                                            <span><strong>/@{{ reply.shortcut }}</strong> &middot; @{{ reply.title }}</span>
+                                            <small>@{{ reply.body }}</small>
+                                        </button>
+                                    </div>
+
+                                    <textarea
+                                        ref="composer"
+                                        v-model="draft"
+                                        rows="1"
+                                        maxlength="4096"
+                                        :placeholder="attachment ? labels.caption_placeholder : labels.write_message"
+                                        :disabled="sessionOffline"
+                                        @keydown="composerKey"
+                                        @input="autosize"
+                                    ></textarea>
+                                </div>
 
                                 <button
                                     v-if="! draft.trim() && ! attachment"
@@ -384,6 +417,9 @@
                         busy: false,
                         draft: '',
                         drafts: {},
+                        quickReplies: [],
+                        quickIndex: 0,
+                        quickDismissed: false,
                         attachment: null,
                         attachmentUrl: null,
                         attachmentIsVoice: false,
@@ -414,12 +450,28 @@
                         return {{ (int) auth()->guard('user')->id() }};
                     },
 
+                    currentUserName() {
+                        return {{ Illuminate\Support\Js::from((string) auth()->guard('user')->user()?->name) }};
+                    },
+
                     sessionOffline() {
                         return !! this.current && this.current.session_status !== 'WORKING';
                     },
 
                     canSend() {
                         return ! this.sending && ! this.sessionOffline && (this.draft.trim().length > 0 || this.attachment !== null);
+                    },
+
+                    quickMatches() {
+                        if (this.quickDismissed || ! this.draft.startsWith('/') || /\s/.test(this.draft) || ! this.quickReplies.length) {
+                            return [];
+                        }
+
+                        const query = this.draft.slice(1).toLowerCase();
+
+                        return this.quickReplies
+                            .filter(reply => ! query || reply.shortcut.startsWith(query) || reply.title.toLowerCase().includes(query))
+                            .slice(0, 8);
                     },
 
                     recordClock() {
@@ -452,6 +504,14 @@
                     unreadOnly() { this.loadConversations(); },
                     sessionId() { this.loadConversations(); },
 
+                    draft() {
+                        this.quickIndex = 0;
+
+                        if (! this.draft.startsWith('/')) {
+                            this.quickDismissed = false;
+                        }
+                    },
+
                     search() {
                         clearTimeout(this.searchTimer);
                         this.searchTimer = setTimeout(() => this.loadConversations(), 250);
@@ -465,6 +525,7 @@
 
                 mounted() {
                     this.loadConversations();
+                    this.loadQuickReplies();
 
                     this.listTimer = setInterval(() => {
                         if (! document.hidden) {
@@ -812,6 +873,88 @@
                             });
                         } finally {
                             this.sending = false;
+                        }
+                    },
+
+                    async loadQuickReplies() {
+                        try {
+                            const { data } = await this.$axios.get(this.urls.quickReplies);
+
+                            this.quickReplies = data.data;
+                        } catch (error) {
+                            // The shortcut just stays unavailable; sending still works.
+                        }
+                    },
+
+                    openQuickReplies() {
+                        this.quickDismissed = false;
+                        this.draft = '/';
+
+                        this.$nextTick(() => this.$refs.composer && this.$refs.composer.focus());
+                    },
+
+                    renderQuickReply(body) {
+                        const conversation = this.current || {};
+                        const full = (conversation.name || '').trim();
+                        const values = {
+                            nome: full.split(/\s+/)[0] || '',
+                            nome_completo: full,
+                            telefone: conversation.phone ? '+' + conversation.phone : '',
+                            atendente: this.currentUserName,
+                        };
+
+                        return body
+                            .replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => (key in values ? values[key] : match))
+                            .replace(/[ \t]+([,.!?;:])/g, '$1')
+                            .replace(/[ \t]{2,}/g, ' ');
+                    },
+
+                    insertQuickReply(reply) {
+                        this.draft = this.renderQuickReply(reply.body);
+                        this.quickDismissed = true;
+
+                        this.$nextTick(() => {
+                            const element = this.$refs.composer;
+
+                            if (element) {
+                                element.focus();
+                                element.style.height = 'auto';
+                                element.style.height = Math.min(element.scrollHeight, 140) + 'px';
+                            }
+                        });
+                    },
+
+                    composerKey(event) {
+                        const matches = this.quickMatches;
+
+                        if (matches.length) {
+                            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                                event.preventDefault();
+                                const step = event.key === 'ArrowDown' ? 1 : -1;
+
+                                this.quickIndex = (this.quickIndex + step + matches.length) % matches.length;
+
+                                return;
+                            }
+
+                            if (event.key === 'Enter' || event.key === 'Tab') {
+                                event.preventDefault();
+                                this.insertQuickReply(matches[Math.min(this.quickIndex, matches.length - 1)]);
+
+                                return;
+                            }
+
+                            if (event.key === 'Escape') {
+                                event.preventDefault();
+                                this.quickDismissed = true;
+
+                                return;
+                            }
+                        }
+
+                        if (event.key === 'Enter' && ! event.shiftKey && ! event.ctrlKey && ! event.altKey && ! event.metaKey) {
+                            event.preventDefault();
+                            this.send();
                         }
                     },
 

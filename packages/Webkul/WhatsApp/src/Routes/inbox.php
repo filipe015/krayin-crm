@@ -6,6 +6,7 @@ use Webkul\WhatsApp\Http\Controllers\InboxController;
 use Webkul\WhatsApp\Http\Controllers\InboxLeadController;
 use Webkul\WhatsApp\Http\Controllers\InboxMessageController;
 use Webkul\WhatsApp\Http\Controllers\MessageMediaController;
+use Webkul\WhatsApp\Http\Controllers\QuickReplyController;
 
 Route::get('/', [InboxController::class, 'index'])->name('admin.whatsapp.inbox.index');
 
@@ -26,3 +27,9 @@ Route::get('connections/list', [ConnectionController::class, 'list'])->name('adm
 Route::get('connections/{id}/qr', [ConnectionController::class, 'qr'])->name('admin.whatsapp.connections.qr');
 Route::post('connections/{id}/code', [ConnectionController::class, 'code'])->name('admin.whatsapp.connections.code');
 Route::post('connections/{id}/{action}', [ConnectionController::class, 'action'])->name('admin.whatsapp.connections.action');
+
+Route::get('quick-replies', [QuickReplyController::class, 'index'])->name('admin.whatsapp.quick-replies.index');
+Route::get('quick-replies/list', [QuickReplyController::class, 'list'])->name('admin.whatsapp.quick-replies.list');
+Route::post('quick-replies', [QuickReplyController::class, 'store'])->name('admin.whatsapp.quick-replies.store');
+Route::put('quick-replies/{id}', [QuickReplyController::class, 'update'])->name('admin.whatsapp.quick-replies.update');
+Route::delete('quick-replies/{id}', [QuickReplyController::class, 'destroy'])->name('admin.whatsapp.quick-replies.delete');

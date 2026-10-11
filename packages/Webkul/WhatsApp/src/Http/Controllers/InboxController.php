@@ -32,6 +32,7 @@ class InboxController extends Controller
                 'send'          => route('admin.whatsapp.inbox.send', ['id' => '__ID__']),
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
+                'quickReplies'  => route('admin.whatsapp.quick-replies.list'),
             ],
         ]);
     }
