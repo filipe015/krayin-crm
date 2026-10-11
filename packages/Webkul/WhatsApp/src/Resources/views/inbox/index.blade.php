@@ -93,6 +93,10 @@
             .wa-dot{width:10px;height:10px;border-radius:50%;background:#dc2626;animation:wa-pulse 1s infinite}
             @keyframes wa-pulse{50%{opacity:.3}}
             .wa-icon-btn{padding:6px 9px;font-size:15px;line-height:1}
+            .wa-tags{display:flex;flex-wrap:wrap;gap:6px}
+            .wa-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 4px 1px 8px;border:1px solid var(--wa-border);border-radius:10px;font-size:12px}
+            .wa-chip button{border:0;background:transparent;padding:0 3px;line-height:1;font-size:14px}
+            .wa-stage{align-self:flex-start;padding:0 6px;border-radius:4px;background:var(--wa-soft);color:var(--wa-muted);font-size:11px}
             .wa-compose-wrap{position:relative;flex:1;display:flex}
             .wa-compose-wrap textarea{width:100%}
             .wa-qr-pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:6;max-height:260px;overflow-y:auto;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);box-shadow:0 6px 18px rgba(0,0,0,.14)}
@@ -171,6 +175,7 @@
                                     </span>
 
                                     <span v-if="! conversation.lead" class="wa-tag">@{{ labels.no_lead }}</span>
+                                    <span v-else-if="conversation.lead.stage" class="wa-stage">@{{ conversation.lead.stage }}</span>
                                 </span>
                             </button>
 
@@ -378,6 +383,33 @@
                             </template>
                         </template>
                     </div>
+
+                    <div v-if="current.lead" class="wa-block">
+                        <span class="wa-label">@{{ labels.funnel }}</span>
+
+                        <span v-if="funnelLoading && ! funnel" class="wa-muted">@{{ labels.loading }}</span>
+
+                        <template v-if="funnel">
+                            <span v-if="funnel.pipeline" class="wa-muted">@{{ funnel.pipeline }}</span>
+
+                            <select :value="funnel.stage_id" :disabled="busy" @change="changeStage($event.target.value)">
+                                <option v-for="stage in funnel.stages" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
+                            </select>
+
+                            <div class="wa-tags">
+                                <span v-for="tag in funnel.tags" :key="tag.id" class="wa-chip" :style="tag.color ? { borderColor: tag.color } : {}">
+                                    @{{ tag.name }}
+                                    <button type="button" :title="labels.remove_tag" :disabled="busy" @click="removeTag(tag)">&times;</button>
+                                </span>
+                                <span v-if="! funnel.tags.length" class="wa-muted">@{{ labels.no_tags }}</span>
+                            </div>
+
+                            <select v-if="funnel.available_tags.length" :disabled="busy" @change="addTag($event)">
+                                <option value="">@{{ labels.add_tag }}</option>
+                                <option v-for="tag in funnel.available_tags" :key="tag.id" :value="tag.id">@{{ tag.name }}</option>
+                            </select>
+                        </template>
+                    </div>
                 </aside>
             </div>
         </script>
@@ -417,6 +449,8 @@
                         busy: false,
                         draft: '',
                         drafts: {},
+                        funnel: null,
+                        funnelLoading: false,
                         quickReplies: [],
                         quickIndex: 0,
                         quickDismissed: false,
@@ -503,6 +537,16 @@
                     tab() { this.loadConversations(); },
                     unreadOnly() { this.loadConversations(); },
                     sessionId() { this.loadConversations(); },
+
+                    'current.lead.id': {
+                        handler() { this.funnel = null; this.loadFunnel(); },
+                        immediate: false,
+                    },
+
+                    selectedId() {
+                        this.funnel = null;
+                        this.$nextTick(() => this.loadFunnel());
+                    },
 
                     draft() {
                         this.quickIndex = 0;
@@ -874,6 +918,72 @@
                         } finally {
                             this.sending = false;
                         }
+                    },
+
+                    async loadFunnel() {
+                        const conversation = this.current;
+
+                        if (! conversation || ! conversation.lead) {
+                            this.funnel = null;
+
+                            return;
+                        }
+
+                        const id = conversation.id;
+
+                        this.funnelLoading = true;
+
+                        try {
+                            const { data } = await this.$axios.get(this.url('funnel', id));
+
+                            if (this.selectedId === id) {
+                                this.funnel = data.data;
+                            }
+                        } catch (error) {
+                            this.funnel = null;
+                        } finally {
+                            this.funnelLoading = false;
+                        }
+                    },
+
+                    async funnelAction(request) {
+                        const data = await this.act(() => request().then(response => response.data));
+
+                        if (data) {
+                            this.funnel = data.data;
+                            this.loadConversations({ poll: true });
+                        }
+                    },
+
+                    changeStage(stageId) {
+                        const stage = this.funnel.stages.find(item => String(item.id) === String(stageId));
+                        let lostReason;
+
+                        if (stage && stage.code === 'lost') {
+                            lostReason = window.prompt(this.labels.lost_reason) || undefined;
+                        } else if (stage && stage.code === 'won' && ! window.confirm(this.labels.won_confirm)) {
+                            this.loadFunnel();
+
+                            return;
+                        }
+
+                        this.funnelAction(() => this.$axios.post(this.url('funnelStage', this.selectedId), { stage_id: stageId, lost_reason: lostReason }));
+                    },
+
+                    addTag(event) {
+                        const tagId = event.target.value;
+
+                        event.target.value = '';
+
+                        if (tagId) {
+                            this.funnelAction(() => this.$axios.post(this.url('funnelTags', this.selectedId), { tag_id: tagId }));
+                        }
+                    },
+
+                    removeTag(tag) {
+                        const url = this.url('funnelTagOff', this.selectedId).replace('__TAG__', tag.id);
+
+                        this.funnelAction(() => this.$axios.delete(url));
                     },
 
                     async loadQuickReplies() {

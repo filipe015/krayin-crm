@@ -5,6 +5,7 @@ use Webkul\WhatsApp\Http\Controllers\ConnectionController;
 use Webkul\WhatsApp\Http\Controllers\InboxController;
 use Webkul\WhatsApp\Http\Controllers\InboxLeadController;
 use Webkul\WhatsApp\Http\Controllers\InboxMessageController;
+use Webkul\WhatsApp\Http\Controllers\LeadFunnelController;
 use Webkul\WhatsApp\Http\Controllers\MessageMediaController;
 use Webkul\WhatsApp\Http\Controllers\QuickReplyController;
 
@@ -33,3 +34,8 @@ Route::get('quick-replies/list', [QuickReplyController::class, 'list'])->name('a
 Route::post('quick-replies', [QuickReplyController::class, 'store'])->name('admin.whatsapp.quick-replies.store');
 Route::put('quick-replies/{id}', [QuickReplyController::class, 'update'])->name('admin.whatsapp.quick-replies.update');
 Route::delete('quick-replies/{id}', [QuickReplyController::class, 'destroy'])->name('admin.whatsapp.quick-replies.delete');
+
+Route::get('conversations/{id}/funnel', [LeadFunnelController::class, 'show'])->name('admin.whatsapp.inbox.funnel.show');
+Route::post('conversations/{id}/funnel/stage', [LeadFunnelController::class, 'stage'])->name('admin.whatsapp.inbox.funnel.stage');
+Route::post('conversations/{id}/funnel/tags', [LeadFunnelController::class, 'attachTag'])->name('admin.whatsapp.inbox.funnel.tags.attach');
+Route::delete('conversations/{id}/funnel/tags/{tagId}', [LeadFunnelController::class, 'detachTag'])->name('admin.whatsapp.inbox.funnel.tags.detach');

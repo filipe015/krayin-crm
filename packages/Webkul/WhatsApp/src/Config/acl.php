@@ -12,6 +12,7 @@ return [
             'admin.whatsapp.inbox.read',
             'admin.whatsapp.inbox.lead.search',
             'admin.whatsapp.quick-replies.list',
+            'admin.whatsapp.inbox.funnel.show',
         ],
         'sort'  => 3,
     ], [
@@ -21,6 +22,9 @@ return [
             'admin.whatsapp.inbox.claim',
             'admin.whatsapp.inbox.status',
             'admin.whatsapp.inbox.lead.link',
+            'admin.whatsapp.inbox.funnel.stage',
+            'admin.whatsapp.inbox.funnel.tags.attach',
+            'admin.whatsapp.inbox.funnel.tags.detach',
         ],
         'sort'  => 1,
     ], [

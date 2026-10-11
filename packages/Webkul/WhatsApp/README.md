@@ -162,3 +162,14 @@ Mensagens prontas para o atendimento. Quem tem a permissão **Gerenciar resposta
 - **Variáveis:** `{{nome}}` (primeiro nome do contato), `{{nome_completo}}`, `{{telefone}}` e `{{atendente}}` (seu nome). Variável desconhecida fica como está; se o contato não tem nome, a variável some e a pontuação é ajustada.
 - **Migração nova:** `2026_10_12_000001_create_whatsapp_quick_replies_table`. Rode `php artisan migrate --force` depois do deploy.
 - **Permissões:** usar as respostas vem com o acesso à Inbox (`whatsapp`); o cadastro exige `whatsapp.quick-replies` em Configurações → Usuários → Perfis.
+
+
+## Funil do lead na conversa
+
+No painel da conversa, quando ela está vinculada a um lead, o bloco **Funil** mostra o funil do lead:
+
+- **Etapa:** a lista traz as etapas do funil do próprio lead. Trocar muda a etapa do lead no Krayin, do mesmo jeito que arrastar no Kanban (mesmos eventos, `closed_at` e `stage_entered_at`). Em **Ganho** pede confirmação; em **Perdido** pede o motivo (opcional).
+- **Etiquetas:** adiciona e remove as etiquetas (tags) que já existem no Krayin. Criar etiquetas novas continua sendo em Configurações.
+- **Lista de conversas:** a etapa atual do lead aparece ao lado do nome.
+- **Permissões:** ver o funil vem com o acesso à Inbox; mudar etapa e etiquetas exige **Gerenciar conversas**. Só leads que o usuário pode ver (equipe/hierarquia) aparecem.
+- Sem migração nova.

@@ -33,6 +33,10 @@ class InboxController extends Controller
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),
                 'leadSearch'    => route('admin.whatsapp.inbox.lead.search'),
                 'quickReplies'  => route('admin.whatsapp.quick-replies.list'),
+                'funnel'        => route('admin.whatsapp.inbox.funnel.show', ['id' => '__ID__']),
+                'funnelStage'   => route('admin.whatsapp.inbox.funnel.stage', ['id' => '__ID__']),
+                'funnelTags'    => route('admin.whatsapp.inbox.funnel.tags.attach', ['id' => '__ID__']),
+                'funnelTagOff'  => route('admin.whatsapp.inbox.funnel.tags.detach', ['id' => '__ID__', 'tagId' => '__TAG__']),
             ],
         ]);
     }
@@ -60,7 +64,7 @@ class InboxController extends Controller
 
         $query = Conversation::query()
             ->whereNotNull('session_id')
-            ->with(['lead:id,title', 'assignedUser:id,name', 'session:id,status'])
+            ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,status'])
             ->withCount(['messages as unread_count' => $unread]);
 
         match ($filters['tab'] ?? 'queue') {
@@ -194,6 +198,7 @@ class InboxController extends Controller
                 'id'    => $conversation->lead->id,
                 'title' => $conversation->lead->title,
                 'url'   => route('admin.leads.view', $conversation->lead->id),
+                'stage' => $conversation->lead->stage?->name,
             ] : null,
             'assigned' => $conversation->assignedUser
                 ? ['id' => $conversation->assignedUser->id, 'name' => $conversation->assignedUser->name]
