@@ -51,6 +51,9 @@ return [
             'admin.whatsapp.connections.cloud.connect',
             'admin.whatsapp.connections.cloud.refresh',
             'admin.whatsapp.connections.cloud.disconnect',
+            'admin.whatsapp.button-rules.list',
+            'admin.whatsapp.button-rules.store',
+            'admin.whatsapp.button-rules.delete',
         ],
         'sort'  => 3,
     ], [

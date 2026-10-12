@@ -18,6 +18,7 @@ use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Support\ConversationWindow;
 use Webkul\WhatsApp\Support\InboxPresenter;
 use Webkul\WhatsApp\Support\OutboundMedia;
+use Webkul\WhatsApp\Support\ScheduleTime;
 use Webkul\WhatsApp\Support\VoiceTranscoder;
 
 class InboxMessageController extends Controller
@@ -185,7 +186,8 @@ class InboxMessageController extends Controller
 
         $message = $this->scheduledMessage($id);
 
-        if ($request->has('text')) {
+        // A template keeps the text it was filled with; only its time and title can change.
+        if ($request->has('text') && $message->message_type !== 'template') {
             $text = trim((string) ($data['text'] ?? ''));
 
             abort_if($text === '' && $message->media_path === null, 422, trans('whatsapp::app.inbox.schedule_needs_content'));
@@ -228,22 +230,9 @@ class InboxMessageController extends Controller
             ->findOrFail($id);
     }
 
-    /**
-     * Reads "2026-10-15T09:00" in the CRM's timezone and keeps it between a minute from
-     * now and a year ahead.
-     */
     private function scheduleTime(?string $value): ?Carbon
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        $time = Carbon::createFromFormat('Y-m-d\TH:i', $value, config('app.timezone'));
-
-        abort_if($time->lt(now()->addMinute()), 422, trans('whatsapp::app.inbox.schedule_in_past'));
-        abort_if($time->gt(now()->addYear()), 422, trans('whatsapp::app.inbox.schedule_too_far'));
-
-        return $time;
+        return ScheduleTime::parse($value);
     }
 
     public function retry(int $id): JsonResponse

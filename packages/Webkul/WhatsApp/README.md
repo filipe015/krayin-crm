@@ -310,3 +310,14 @@ OGG/Opus mono e envia como mensagem de voz. O `ffmpeg` vem na imagem Docker; se 
 caminho, defina `WHATSAPP_FFMPEG_BINARY`. Sem `ffmpeg`, o microfone fica escondido nas conversas
 oficiais e o envio de gravações é recusado com aviso. Arquivos de áudio já aceitos (MP3, M4A, AAC,
 OGG, AMR) anexados manualmente seguem como arquivo de áudio, sem conversão.
+
+### Lembretes de consulta com modelo (API oficial)
+
+- **Agendar um modelo:** em *Enviar modelo*, marque "Agendar o envio deste modelo", escolha data/hora
+  (e um título opcional). Aparece em "Agendamentos" no painel lateral; ali só dá para mudar data e título
+  (o texto fica como foi preenchido). O envio acontece mesmo com a janela de 24h fechada.
+- **Respostas de botões → funil:** em *Conexões → Respostas de botões*, cadastre o texto do botão
+  (ex.: "Confirmar") e a etapa e/ou etiqueta a aplicar. Quando o cliente toca no botão, o lead da
+  conversa é movido/etiquetado. Só vale para toque em botão (não para texto digitado igual) e a etapa
+  precisa ser do funil do lead. A conversa precisa estar vinculada a um lead.
+- Depois do deploy: `php artisan migrate --force` (cria `whatsapp_button_rules`).

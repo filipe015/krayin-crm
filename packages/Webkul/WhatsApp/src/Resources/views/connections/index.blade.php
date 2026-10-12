@@ -148,6 +148,46 @@
                         <button v-if="number.connected" type="button" class="wa-conn-btn is-danger" :disabled="busy" @click="disconnectCloud(number)">@{{ labels.cloud_disconnect }}</button>
                     </div>
                 </div>
+
+                <div class="wa-conn-head" style="margin-top:12px">
+                    <h1>@{{ labels.rules_title }}</h1>
+                </div>
+
+                <p class="wa-conn-muted" style="margin:0">@{{ labels.rules_intro }}</p>
+
+                <div class="wa-conn-card">
+                    <div v-if="! rules.length" class="wa-conn-muted">@{{ labels.rules_empty }}</div>
+
+                    <div v-for="rule in rules" :key="'r' + rule.id" class="wa-conn-head">
+                        <div>
+                            <div class="wa-conn-name">&ldquo;@{{ rule.match_text }}&rdquo;</div>
+                            <div class="wa-conn-muted">
+                                <span v-if="rule.stage_id">&rarr; @{{ labels.rule_stage }}: @{{ stageName(rule.stage_id) }}</span>
+                                <span v-if="rule.tag_id"> &middot; @{{ labels.rule_tag }}: @{{ tagName(rule.tag_id) }}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="wa-conn-btn is-danger" :disabled="busy" @click="deleteRule(rule)">@{{ labels.rule_delete }}</button>
+                    </div>
+                </div>
+
+                <form class="wa-conn-card wa-conn-code" style="max-width:none" @submit.prevent="addRule">
+                    <label class="wa-conn-field">@{{ labels.rule_text }}<input type="text" v-model="ruleForm.match_text" maxlength="100" :placeholder="labels.rule_text_ph" required></label>
+                    <label class="wa-conn-field">@{{ labels.rule_stage }}
+                        <select v-model="ruleForm.stage_id">
+                            <option value="">@{{ labels.rule_none }}</option>
+                            <option v-for="stage in ruleOptions.stages" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
+                        </select>
+                    </label>
+                    <label class="wa-conn-field">@{{ labels.rule_tag }}
+                        <select v-model="ruleForm.tag_id">
+                            <option value="">@{{ labels.rule_none }}</option>
+                            <option v-for="tag in ruleOptions.tags" :key="tag.id" :value="tag.id">@{{ tag.name }}</option>
+                        </select>
+                    </label>
+                    <div class="wa-conn-actions">
+                        <button type="submit" class="wa-conn-btn is-primary" :disabled="busy || ! ruleForm.match_text.trim() || (! ruleForm.stage_id && ! ruleForm.tag_id)">@{{ labels.rule_add }}</button>
+                    </div>
+                </form>
             </div>
         </script>
 
@@ -166,6 +206,9 @@
                         sessions: [],
                         cloud: [],
                         cloudForm: null,
+                        rules: [],
+                        ruleOptions: { stages: [], tags: [] },
+                        ruleForm: { match_text: '', stage_id: '', tag_id: '' },
                         loading: true,
                         busy: false,
                         error: null,
@@ -180,6 +223,7 @@
 
                 mounted() {
                     this.load();
+                    this.loadRules();
 
                     this.timer = setInterval(() => {
                         if (document.hidden) {
@@ -297,6 +341,50 @@
                             this.notice = (error.response && error.response.data && (error.response.data.message || Object.values(error.response.data.errors || {}).flat()[0])) || this.labels.generic_error;
                         } finally {
                             this.busy = false;
+                        }
+                    },
+
+                    async loadRules() {
+                        try {
+                            const { data } = await this.$axios.get(this.urls.rules);
+
+                            this.rules = data.data;
+                            this.ruleOptions = { stages: data.stages, tags: data.tags };
+                        } catch (error) {
+                            // The list is optional; the section just stays empty.
+                        }
+                    },
+
+                    stageName(id) {
+                        return (this.ruleOptions.stages.find(item => item.id === id) || {}).name || '#' + id;
+                    },
+
+                    tagName(id) {
+                        return (this.ruleOptions.tags.find(item => item.id === id) || {}).name || '#' + id;
+                    },
+
+                    async addRule() {
+                        const done = await this.send(() => this.$axios.post(this.urls.ruleStore, {
+                            match_text: this.ruleForm.match_text.trim(),
+                            stage_id: this.ruleForm.stage_id || null,
+                            tag_id: this.ruleForm.tag_id || null,
+                        }));
+
+                        if (done) {
+                            this.ruleForm = { match_text: '', stage_id: '', tag_id: '' };
+                            await this.loadRules();
+                        }
+                    },
+
+                    async deleteRule(rule) {
+                        if (! window.confirm(this.labels.rule_delete_confirm)) {
+                            return;
+                        }
+
+                        const done = await this.send(() => this.$axios.delete(this.url('ruleDelete', rule.id)));
+
+                        if (done) {
+                            await this.loadRules();
                         }
                     },
 

@@ -15,6 +15,7 @@ use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Support\InboxPresenter;
+use Webkul\WhatsApp\Support\ScheduleTime;
 
 /**
  * Approved message templates of an official WhatsApp number: the only way to write to a
@@ -42,7 +43,12 @@ class CloudTemplateController extends Controller
             'language'    => ['required', 'string', 'max:20'],
             'variables'   => ['nullable', 'array', 'max:20'],
             'variables.*' => ['nullable', 'string', 'max:1024'],
+            'scheduled_at'   => ['nullable', 'date_format:Y-m-d\TH:i'],
+            'schedule_title' => ['nullable', 'string', 'max:100'],
         ]);
+
+        $scheduledAt = ScheduleTime::parse($data['scheduled_at'] ?? null);
+        $title = trim((string) ($data['schedule_title'] ?? '')) ?: null;
 
         $conversation = $this->conversation($id);
 
@@ -70,11 +76,13 @@ class CloudTemplateController extends Controller
         $rendered = self::render($template['body'], $values);
         $user = auth()->guard('user')->user();
 
-        $message = DB::transaction(function () use ($conversation, $template, $components, $rendered, $user) {
+        $message = DB::transaction(function () use ($conversation, $template, $components, $rendered, $user, $scheduledAt, $title) {
             $message = Message::query()->create([
                 'conversation_id'  => $conversation->id,
                 'direction'        => 'outbound',
-                'status'           => 'queued',
+                'status'           => $scheduledAt !== null ? 'scheduled' : 'queued',
+                'scheduled_at'     => $scheduledAt,
+                'scheduled_title'  => $scheduledAt !== null ? $title : null,
                 'source'           => 'crm',
                 'content'          => $rendered,
                 'message_type'     => 'template',
@@ -83,16 +91,22 @@ class CloudTemplateController extends Controller
                 'sender_name'      => $user->name,
             ]);
 
-            $conversation->last_message_at = $message->created_at;
-            $conversation->last_message_preview = Str::limit($rendered, 280, '');
+            // A scheduled template changes nothing in the conversation until it is sent.
+            if ($scheduledAt === null) {
+                $conversation->last_message_at = $message->created_at;
+                $conversation->last_message_preview = Str::limit($rendered, 280, '');
+                $conversation->status = 'open';
+            }
+
             $conversation->assigned_user_id ??= $user->id;
-            $conversation->status = 'open';
             $conversation->save();
 
             return $message;
         });
 
-        SendWhatsAppMessage::dispatch($message->id);
+        if ($scheduledAt === null) {
+            SendWhatsAppMessage::dispatch($message->id);
+        }
 
         return response()->json(['data' => InboxPresenter::message($message->refresh())], 201);
     }

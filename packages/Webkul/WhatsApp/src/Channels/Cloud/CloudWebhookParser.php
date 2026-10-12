@@ -102,6 +102,8 @@ final class CloudWebhookParser
             mediaFilename: $filename,
             sentAt: self::moment($message['timestamp'] ?? null),
             channel: 'cloud',
+            buttonReply: $type === 'button'
+                || ($type === 'interactive' && in_array($message['interactive']['type'] ?? null, ['button_reply', 'list_reply'], true)),
         );
     }
 

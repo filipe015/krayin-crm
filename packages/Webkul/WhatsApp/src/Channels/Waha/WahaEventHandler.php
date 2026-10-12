@@ -16,6 +16,7 @@ use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\ButtonReplyRules;
 use Webkul\WhatsApp\Support\LeadPhoneFinder;
 use Webkul\WhatsApp\Support\PhoneNumberMatcher;
 
@@ -234,6 +235,16 @@ class WahaEventHandler
         }
 
         $conversation->save();
+
+        // A tapped template button can move the lead through the funnel; a failure here must
+        // never lose the message.
+        if ($message->wasRecentlyCreated && $event->buttonReply && ! $event->fromMe && $event->body !== null) {
+            try {
+                ButtonReplyRules::apply($conversation, $event->body);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
     }
 
     /**

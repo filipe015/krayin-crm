@@ -307,3 +307,18 @@ it('fails clearly when ffmpeg errors out or produces nothing', function () {
 it('reports ffmpeg as unavailable when the configured binary does not exist', function () {
     expect(VoiceTranscoder::available('/nonexistent/ffmpeg'))->toBeFalse();
 });
+
+it('flags button and list answers, but not typed text', function () {
+    $events = CloudWebhookParser::parse(cloudEnvelope([
+        'metadata' => ['phone_number_id' => '1100'],
+        'messages' => [
+            ['from' => '5561', 'id' => 'a', 'timestamp' => '1', 'type' => 'button', 'button' => ['text' => 'Confirmar', 'payload' => 'x']],
+            ['from' => '5561', 'id' => 'b', 'timestamp' => '1', 'type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => '1', 'title' => 'Remarcar']]],
+            ['from' => '5561', 'id' => 'c', 'timestamp' => '1', 'type' => 'text', 'text' => ['body' => 'Confirmar']],
+        ],
+    ]));
+
+    expect($events[0]->buttonReply)->toBeTrue()
+        ->and($events[1]->buttonReply)->toBeTrue()
+        ->and($events[2]->buttonReply)->toBeFalse();
+});

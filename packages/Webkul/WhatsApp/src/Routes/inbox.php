@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Webkul\WhatsApp\Http\Controllers\ButtonRuleController;
 use Webkul\WhatsApp\Http\Controllers\CloudTemplateController;
 use Webkul\WhatsApp\Http\Controllers\ConnectionController;
 use Webkul\WhatsApp\Http\Controllers\InboxController;
@@ -54,3 +55,7 @@ Route::delete('messages/{id}/schedule', [InboxMessageController::class, 'cancelS
 
 Route::get('conversations/{id}/templates', [CloudTemplateController::class, 'index'])->name('admin.whatsapp.inbox.templates.list');
 Route::post('conversations/{id}/template', [CloudTemplateController::class, 'send'])->name('admin.whatsapp.inbox.templates.send');
+
+Route::get('button-rules', [ButtonRuleController::class, 'list'])->name('admin.whatsapp.button-rules.list');
+Route::post('button-rules', [ButtonRuleController::class, 'store'])->name('admin.whatsapp.button-rules.store');
+Route::delete('button-rules/{id}', [ButtonRuleController::class, 'destroy'])->name('admin.whatsapp.button-rules.delete');

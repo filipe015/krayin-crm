@@ -441,10 +441,30 @@
 
                             <span class="wa-label">@{{ labels.template_preview }}</span>
                             <div class="wa-template-preview">@{{ templatePreview }}</div>
+
+                            <label style="flex-direction:row;align-items:center;gap:6px">
+                                <input type="checkbox" v-model="templateModal.schedule" @change="templateModal.at = templateModal.at || tomorrowAt9()">
+                                @{{ labels.template_schedule }}
+                            </label>
+
+                            <template v-if="templateModal.schedule">
+                                <label>
+                                    @{{ labels.schedule_name }}
+                                    <input type="text" v-model="templateModal.title" maxlength="100" :placeholder="labels.schedule_name_ph">
+                                </label>
+                                <label>
+                                    @{{ labels.schedule_when }}
+                                    <input type="datetime-local" v-model="templateModal.at" :min="nowLocal()" required>
+                                </label>
+                                <div class="wa-row">
+                                    <button type="button" class="wa-btn" @click="templateModal.at = tomorrowAt9()">@{{ labels.schedule_tomorrow }}</button>
+                                    <button type="button" class="wa-btn" @click="templateModal.at = inOneHour()">@{{ labels.schedule_hour }}</button>
+                                </div>
+                            </template>
                         </template>
 
                         <div class="wa-row">
-                            <button type="submit" class="wa-btn is-primary" :disabled="! pickedTemplate || busy">@{{ labels.send }}</button>
+                            <button type="submit" class="wa-btn is-primary" :disabled="! pickedTemplate || busy || (templateModal.schedule && ! templateModal.at)">@{{ templateModal.schedule ? labels.schedule_confirm : labels.send }}</button>
                             <button type="button" class="wa-btn" @click="templateModal = null">@{{ labels.schedule_confirm_cancel }}</button>
                         </div>
                     </form>
@@ -572,12 +592,14 @@
                                 <button type="button" class="wa-btn" @click="panelSchedule.at = inOneHour()">@{{ labels.schedule_hour }}</button>
                             </div>
 
-                            <label>
+                            <div v-if="panelSchedule.isTemplate" class="wa-template-preview">@{{ panelSchedule.text }}</div>
+
+                            <label v-else>
                                 @{{ labels.schedule_text }}
                                 <textarea v-model="panelSchedule.text" rows="4" maxlength="4096" :required="! panelSchedule.hasMedia"></textarea>
                             </label>
 
-                            <select v-if="quickReplies.length && ! panelSchedule.hasMedia" @change="insertIntoPanel($event)">
+                            <select v-if="quickReplies.length && ! panelSchedule.hasMedia && ! panelSchedule.isTemplate" @change="insertIntoPanel($event)">
                                 <option value="">@{{ labels.schedule_insert }}</option>
                                 <option v-for="reply in quickReplies" :key="reply.id" :value="reply.id">/@{{ reply.shortcut }} · @{{ reply.title }}</option>
                             </select>
@@ -1423,8 +1445,9 @@
                                 at: this.toLocalInput(new Date(message.scheduled_at)),
                                 text: message.content || '',
                                 hasMedia: !! message.media,
+                                isTemplate: message.type === 'template',
                             }
-                            : { id: null, title: '', at: this.tomorrowAt9(), text: '', hasMedia: false };
+                            : { id: null, title: '', at: this.tomorrowAt9(), text: '', hasMedia: false, isTemplate: false };
                     },
 
                     insertIntoPanel(event) {
@@ -1447,12 +1470,14 @@
 
                         const text = form.text.trim();
 
-                        if (! text && ! form.hasMedia) {
+                        if (! text && ! form.hasMedia && ! form.isTemplate) {
                             return;
                         }
 
                         const data = await this.act(() => (form.id
-                            ? this.$axios.put(this.url('schedule', form.id), { scheduled_at: form.at, schedule_title: form.title.trim(), text }).then(response => response.data)
+                            ? this.$axios.put(this.url('schedule', form.id), form.isTemplate
+                                ? { scheduled_at: form.at, schedule_title: form.title.trim() }
+                                : { scheduled_at: form.at, schedule_title: form.title.trim(), text }).then(response => response.data)
                             : this.$axios.post(this.url('send', id), { text, scheduled_at: form.at, schedule_title: form.title.trim() || undefined }).then(response => response.data)));
 
                         if (data) {
@@ -1479,7 +1504,7 @@
                     },
 
                     async openTemplates() {
-                        this.templateModal = { loading: true, error: null, items: [], pick: '', values: [] };
+                        this.templateModal = { loading: true, error: null, items: [], pick: '', values: [], schedule: false, at: '', title: '' };
 
                         try {
                             const { data } = await this.$axios.get(this.url('templates', this.selectedId));
@@ -1513,13 +1538,27 @@
                         this.busy = true;
 
                         try {
-                            const { data } = await this.$axios.post(this.url('sendTemplate', id), { name: template.name, language: template.language, variables });
+                            const payload = { name: template.name, language: template.language, variables };
+
+                            if (this.templateModal.schedule && this.templateModal.at) {
+                                payload.scheduled_at = this.templateModal.at;
+                                payload.schedule_title = this.templateModal.title.trim() || undefined;
+                            }
+
+                            const { data } = await this.$axios.post(this.url('sendTemplate', id), payload);
 
                             this.templateModal = null;
-                            this.mergeMessages([data.data]);
-                            this.patch(id, { preview: data.data.content, status: 'open' });
-                            this.$nextTick(() => this.scrollToBottom());
-                            this.loadConversations({ poll: true });
+
+                            if (data.data.status === 'scheduled') {
+                                this.scheduledMessages = [...this.scheduledMessages, data.data]
+                                    .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+                                this.$emitter.emit('add-flash', { type: 'success', message: this.labels.scheduled_done });
+                            } else {
+                                this.mergeMessages([data.data]);
+                                this.patch(id, { preview: data.data.content, status: 'open' });
+                                this.$nextTick(() => this.scrollToBottom());
+                                this.loadConversations({ poll: true });
+                            }
                         } catch (error) {
                             this.flash(this.errorMessage(error));
                         } finally {
