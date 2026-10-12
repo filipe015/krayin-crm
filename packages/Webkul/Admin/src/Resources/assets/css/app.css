@@ -673,3 +673,16 @@
 .tox.tox-silver-sink.tox-tinymce-aux {
     z-index: 99999;
 }
+
+/**
+ * Space between the top bar and the page content. The sticky page headers (`.scroll-reactive-sticky`,
+ * which Blade files still declare with `top-[60px]`) cancel exactly this space, so they sit in their
+ * natural place when the page opens and dock flush with the top of the scrolling area when it scrolls.
+ */
+#main-content {
+    --page-top-gap: 1rem;
+}
+
+#main-content .scroll-reactive-sticky {
+    top: calc(var(--page-top-gap) * -1);
+}

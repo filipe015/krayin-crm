@@ -127,7 +127,7 @@
 
             <div class="flex h-[calc(100vh-62px)] max-w-full flex-1 flex-col bg-gray-100 transition-all duration-300 dark:bg-gray-950 overflow-hidden">
                 <!-- Page Content Blade Component -->
-                <div id="main-content" class="flex-1 min-h-0 overflow-y-auto px-4 pt-[60px] pb-4 transition-[padding] duration-200 motion-reduce:transition-none ltr:lg:pl-[215px] rtl:lg:pr-[215px] ltr:lg:group-[.sidebar-collapsed]/container:pl-[85px] rtl:lg:group-[.sidebar-collapsed]/container:pr-[85px]">
+                <div id="main-content" class="flex-1 min-h-0 overflow-y-auto px-4 pt-[var(--page-top-gap)] pb-4 transition-[padding] duration-200 motion-reduce:transition-none ltr:lg:pl-[215px] rtl:lg:pr-[215px] ltr:lg:group-[.sidebar-collapsed]/container:pl-[85px] rtl:lg:group-[.sidebar-collapsed]/container:pr-[85px]">
                     {{ $slot }}
                 </div>
             </div>
