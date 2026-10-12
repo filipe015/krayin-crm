@@ -15,7 +15,7 @@ return [
         'trim',
         explode(',', (string) env(
             'CRM_DISABLED_FEATURES',
-            'quotes,mail,help,settings.inventory,settings.automation.events,settings.automation.campaigns,settings.automation.email_templates'
+            'quotes,mail,help,settings.inventory,settings.automation.events,settings.automation.campaigns,settings.automation.email_templates,settings.lead.types,settings.other_settings.web_forms,settings.user.groups,settings.automation.workflows'
         ))
     ))),
 
@@ -31,5 +31,9 @@ return [
         'settings.automation.events'           => ['admin.settings.marketing.events.*'],
         'settings.automation.campaigns'        => ['admin.settings.marketing.campaigns.*'],
         'settings.automation.email_templates'  => ['admin.settings.email_templates.*'],
+        'settings.lead.types'                  => ['admin.settings.types.*'],
+        'settings.other_settings.web_forms'    => ['admin.settings.web_forms.*'],
+        'settings.user.groups'                 => ['admin.settings.groups.*'],
+        'settings.automation.workflows'        => ['admin.settings.workflows.*'],
     ],
 ];

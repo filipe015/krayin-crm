@@ -377,9 +377,11 @@
                                             @lang('admin::app.settings.users.index.create.global')
                                         </option>
 
-                                        <option value="group">
-                                            @lang('admin::app.settings.users.index.create.group')
-                                        </option>
+                                        @if (bouncer()->hasPermission('settings.user.groups'))
+                                            <option value="group">
+                                                @lang('admin::app.settings.users.index.create.group')
+                                            </option>
+                                        @endif
 
                                         <option value="individual">
                                             @lang('admin::app.settings.users.index.create.individual')

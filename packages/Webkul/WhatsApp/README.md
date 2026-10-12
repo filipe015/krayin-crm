@@ -369,7 +369,7 @@ Ao atualizar o Krayin oficial, reaplique esses 3 arquivos.
 ### Funcionalidades desligadas por instalação (`config/crm.php`)
 
 Para clientes de prestação de serviços, o Krayin sai com estes recursos desligados: **Cotações, E-mail,
-Ajuda e recursos, Almoxarifados (estoque), Eventos e Campanhas de marketing e Modelos de e-mail**.
+Ajuda e recursos, Almoxarifados (estoque), Eventos e Campanhas de marketing, Modelos de e-mail, Tipos de lead, Formulários Web, Grupos e Fluxos de Trabalho**. Em Configurações ficam: Usuários, Funções, Funis, Origens, Campos Personalizados (antes "Atributos"), Webhooks, Importar e Exportar, Tags e Configuração.
 Os itens somem do menu, da busca rápida, do botão "+", do Início e das colunas de Serviços, valem
 para o administrador também e as páginas respondem 404. "Produtos" aparece como **Serviços** em
 português. Para mudar numa instalação, defina `CRM_DISABLED_FEATURES` (chaves do ACL separadas por vírgula; vazio =
