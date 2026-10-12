@@ -12,7 +12,7 @@
                         class="flex gap-2 p-1.5 items-center cursor-pointer hover:rounded-lg {{ $menuItem->isActive() == 'active' ? 'bg-brandColor rounded-lg' : ' hover:bg-gray-100 hover:dark:bg-gray-950' }} peer"
                         href="{{ ! in_array($menuItem->getKey(), ['settings', 'configuration']) && $menuItem->haveChildren() ? 'javascript:void(0)' : $menuItem->getUrl() }}"
                         @mouseleave="!isMenuActive ? hoveringMenu = '' : {}"
-                        @mouseover="hoveringMenu='{{$menuItem->getKey()}}'"
+                        @mouseover="hoveringMenu='{{$menuItem->getKey()}}'; flyoutTop = $event.currentTarget.getBoundingClientRect().top"
                         @click="isMenuActive = !isMenuActive"
                     >
                         <span class="{{ $menuItem->getIcon() }} text-2xl {{ $menuItem->isActive() ? 'text-white' : ''}}"></span>
@@ -26,41 +26,39 @@
                         </div>
                     </a>
 
+                    @php
+                        $hasSubmenu = ! in_array($menuItem->getKey(), ['settings', 'configuration']) && $menuItem->haveChildren();
+                    @endphp
+
                     <!-- Name of the item, shown on hover/focus while the menu is closed -->
+                    @unless ($hasSubmenu)
                     <span
                         role="tooltip"
                         class="pointer-events-none absolute top-1/2 z-[10003] hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg ltr:left-full ltr:ml-1 rtl:right-full rtl:mr-1 group-[.sidebar-collapsed]/container:group-hover/item:block dark:bg-gray-100 dark:text-gray-900"
                     >
                         {{ core()->getConfigData('general.settings.menu.'.$menuItem->getKey()) ?: $menuItem->getName() }}
                     </span>
+                    @endunless
 
-                    <!-- Submenu -->
-                    @if (
-                        ! in_array($menuItem->getKey(), ['settings', 'configuration'])
-                        && $menuItem->haveChildren()
-                    )
+                    <!-- Submenu: a floating card next to the item, opened by hover or keyboard focus -->
+                    @if ($hasSubmenu)
                         <div
-                            class="absolute top-0 hidden flex-col bg-gray-100 ltr:left-[200px] rtl:right-[199px] ltr:group-[.sidebar-collapsed]/container:left-[70px] rtl:group-[.sidebar-collapsed]/container:right-[69px]"
-                            :class="[isMenuActive && (hoveringMenu == '{{$menuItem->getKey()}}') ? '!flex' : 'hidden']"
+                            class="fixed z-[10003] hidden min-w-[210px] flex-col gap-0.5 rounded-xl border border-gray-200 bg-white p-2 shadow-xl group-hover/item:flex group-focus-within/item:flex dark:border-gray-700 dark:bg-gray-900 before:absolute before:inset-y-0 before:w-2 before:content-[''] ltr:before:-left-2 rtl:before:-right-2 ltr:left-[208px] rtl:right-[208px] ltr:group-[.sidebar-collapsed]/container:left-[78px] rtl:group-[.sidebar-collapsed]/container:right-[78px]"
+                            :class="{ '!flex': isMenuActive && hoveringMenu == '{{ $menuItem->getKey() }}' }"
+                            :style="{ top: Math.max(flyoutTop - 8, 68) + 'px' }"
                         >
-                            <div class="sidebar-rounded fixed z-[1000] h-full min-w-[140px] max-w-max bg-white pt-4 after:-right-[30px] dark:border-gray-800 dark:bg-gray-900 max-lg:hidden ltr:border-r rtl:border-x">
-                                <div class="journal-scroll h-[calc(100vh-100px)] overflow-hidden">
-                                    <nav class="grid w-full gap-2">
-                                        @foreach ($menuItem->getChildren() as $subMenuItem)
-                                            <div class="px-4 group/item {{ $menuItem->isActive() ? 'active' : 'inactive' }}">
-                                                <a
-                                                    href="{{ $subMenuItem->getUrl() }}"
-                                                    class="flex gap-2.5 p-2 items-center cursor-pointer hover:rounded-lg {{ $subMenuItem->isActive() == 'active' ? 'bg-brandColor rounded-lg' : ' hover:bg-gray-100 hover:dark:bg-gray-950' }} peer"
-                                                >
-                                                    <p class="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap {{ $subMenuItem->isActive() ? 'text-white' : ''}}">
-                                                        {{ core()->getConfigData('general.settings.menu.'.$subMenuItem->getKey()) ?? $subMenuItem->getName() }}
-                                                    </p>
-                                                </a>
-                                            </div>
-                                        @endforeach
-                                    </nav>
-                                </div>
-                            </div>
+                            <p class="px-3 pb-1 pt-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                {{ core()->getConfigData('general.settings.menu.'.$menuItem->getKey()) ?: $menuItem->getName() }}
+                            </p>
+
+                            @foreach ($menuItem->getChildren() as $subMenuItem)
+                                <a
+                                    href="{{ $subMenuItem->getUrl() }}"
+                                    class="flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors {{ $subMenuItem->isActive() ? 'bg-brandColor text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800' }}"
+                                >
+                                    {{ core()->getConfigData('general.settings.menu.'.$subMenuItem->getKey()) ?: $subMenuItem->getName() }}
+                                </a>
+                            @endforeach
                         </div>
                     @endif
                 </div>

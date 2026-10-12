@@ -16,6 +16,8 @@ window.app = createApp({
         return {
             isMenuActive: false,
 
+            flyoutTop: 0,
+
             sidebarOpen: true,
 
             hoveringMenu: '',
