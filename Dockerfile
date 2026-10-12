@@ -4,7 +4,7 @@ FROM php:8.3-apache
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev \
     libxml2-dev libzip-dev libicu-dev nodejs npm tzdata cron ffmpeg \
-    && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath
+    && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath opcache
 
 # Fuso horário do sistema e do PHP
 RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
@@ -13,6 +13,9 @@ RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
 
 # Limites de upload (anexos da Inbox do WhatsApp)
 COPY docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
+# OPcache: guarda o PHP compilado em memória
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

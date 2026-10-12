@@ -83,26 +83,29 @@ class ProductDataGrid extends DataGrid
             },
         ]);
 
-        $this->addColumn([
-            'index' => 'total_in_stock',
-            'label' => trans('admin::app.products.index.datagrid.in-stock'),
-            'type' => 'string',
-            'sortable' => true,
-        ]);
+        // Stock columns only make sense when the installation tracks inventory (config/crm.php).
+        if (bouncer()->hasPermission('settings.inventory')) {
+            $this->addColumn([
+                'index' => 'total_in_stock',
+                'label' => trans('admin::app.products.index.datagrid.in-stock'),
+                'type' => 'string',
+                'sortable' => true,
+            ]);
 
-        $this->addColumn([
-            'index' => 'total_allocated',
-            'label' => trans('admin::app.products.index.datagrid.allocated'),
-            'type' => 'string',
-            'sortable' => true,
-        ]);
+            $this->addColumn([
+                'index' => 'total_allocated',
+                'label' => trans('admin::app.products.index.datagrid.allocated'),
+                'type' => 'string',
+                'sortable' => true,
+            ]);
 
-        $this->addColumn([
-            'index' => 'total_on_hand',
-            'label' => trans('admin::app.products.index.datagrid.on-hand'),
-            'type' => 'string',
-            'sortable' => true,
-        ]);
+            $this->addColumn([
+                'index' => 'total_on_hand',
+                'label' => trans('admin::app.products.index.datagrid.on-hand'),
+                'type' => 'string',
+                'sortable' => true,
+            ]);
+        }
 
         $this->addColumn([
             'index' => 'tag_name',

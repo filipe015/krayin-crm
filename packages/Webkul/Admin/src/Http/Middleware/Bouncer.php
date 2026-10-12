@@ -21,6 +21,17 @@ class Bouncer
         }
 
         /**
+         * Pages of features this installation turned off do not exist, for anyone.
+         */
+        $permission = acl()->getRoles()[Route::currentRouteName()] ?? null;
+
+        abort_if(
+            \Webkul\Admin\Bouncer::isDisabled($permission)
+            || \Webkul\Admin\Bouncer::isRouteDisabled(Route::currentRouteName()),
+            404
+        );
+
+        /**
          * If user status is changed by admin. Then session should be
          * logged out.
          */

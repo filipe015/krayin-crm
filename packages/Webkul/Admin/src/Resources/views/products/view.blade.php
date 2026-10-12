@@ -95,13 +95,15 @@
                     ['name' => 'file', 'label' => trans('admin::app.products.view.files')],
                     ['name' => 'system', 'label' => trans('admin::app.products.view.change-logs')],
                 ]"
-                :extra-types="[
-                    ['name' => 'inventory', 'label' => trans('admin::app.products.view.inventories')],
-                ]"
+                :extra-types="bouncer()->hasPermission('settings.inventory')
+                    ? [['name' => 'inventory', 'label' => trans('admin::app.products.view.inventories')]]
+                    : []"
             >
-                <x-slot:inventory>
-                    @include('admin::products.view.inventory')
-                </x-slot>
+                @if (bouncer()->hasPermission('settings.inventory'))
+                    <x-slot:inventory>
+                        @include('admin::products.view.inventory')
+                    </x-slot>
+                @endif
             </x-admin::activities>
 
             {!! view_render_event('admin.products.view.right.activities.after', ['product' => $product]) !!}

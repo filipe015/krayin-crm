@@ -384,6 +384,7 @@
                             ],
                         },
 
+                        @if (bouncer()->hasPermission('quotes'))
                         quotes: {
                             key: 'quotes',
                             title: "@lang('admin::app.components.layouts.header.mega-search.tabs.quotes')",
@@ -408,6 +409,7 @@
                                 },
                             ],
                         },
+                        @endif
 
                         products: {
                             key: 'products',

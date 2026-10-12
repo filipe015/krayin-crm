@@ -365,3 +365,19 @@ mouse). Quando aberto, o conteúdo ganha recuo e nada fica escondido; a escolha 
 Dockerfile NÃO compila o tema). Depois de mexer em JS/CSS/classes do admin:
 `cd packages/Webkul/Admin && npm install && npm run build` e commitar `public/admin/build`.
 Ao atualizar o Krayin oficial, reaplique esses 3 arquivos.
+
+### Funcionalidades desligadas por instalação (`config/crm.php`)
+
+Para clientes de prestação de serviços, o Krayin sai com estes recursos desligados: **Cotações, E-mail,
+Ajuda e recursos, Almoxarifados (estoque), Eventos e Campanhas de marketing e Modelos de e-mail**.
+Os itens somem do menu, da busca rápida, do botão "+", do Início e das colunas de Serviços, valem
+para o administrador também e as páginas respondem 404. "Produtos" aparece como **Serviços** em
+português. Para mudar numa instalação, defina `CRM_DISABLED_FEATURES` (chaves do ACL separadas por vírgula; vazio =
+tudo ligado). Mapa de rotas por funcionalidade em `config/crm.php` → `feature_routes`.
+
+### Velocidade
+
+A imagem liga o OPcache (`docker/opcache.ini`). Para medir em produção, antes e depois do deploy:
+`for i in 1 2 3 4 5; do curl -s -o /dev/null -w "%{time_total}\n" https://SEU-ENDERECO/admin/login; done`
+(ignore a primeira). `route:cache` não funciona neste projeto; `config:cache`/`view:cache` ficaram de fora
+até haver medição que justifique.

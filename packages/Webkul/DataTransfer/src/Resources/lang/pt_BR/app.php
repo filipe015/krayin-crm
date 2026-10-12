@@ -15,11 +15,11 @@ return [
         ],
 
         'products' => [
-            'title' => 'Produtos',
+            'title' => 'Serviços',
 
             'validation' => [
                 'errors' => [
-                    'sku-not-found' => 'Produto com este código não foi encontrado',
+                    'sku-not-found' => 'Serviço com este código não foi encontrado',
                 ],
             ],
         ],
