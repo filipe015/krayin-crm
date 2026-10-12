@@ -11,6 +11,7 @@ use Webkul\WhatsApp\Http\Controllers\LeadFunnelController;
 use Webkul\WhatsApp\Http\Controllers\MessageMediaController;
 use Webkul\WhatsApp\Http\Controllers\OpenLeadConversationController;
 use Webkul\WhatsApp\Http\Controllers\QuickReplyController;
+use Webkul\WhatsApp\Http\Controllers\ReminderSettingController;
 
 Route::get('/', [InboxController::class, 'index'])->name('admin.whatsapp.inbox.index');
 
@@ -59,3 +60,7 @@ Route::post('conversations/{id}/template', [CloudTemplateController::class, 'sen
 Route::get('button-rules', [ButtonRuleController::class, 'list'])->name('admin.whatsapp.button-rules.list');
 Route::post('button-rules', [ButtonRuleController::class, 'store'])->name('admin.whatsapp.button-rules.store');
 Route::delete('button-rules/{id}', [ButtonRuleController::class, 'destroy'])->name('admin.whatsapp.button-rules.delete');
+
+Route::get('reminders', [ReminderSettingController::class, 'show'])->name('admin.whatsapp.reminders.show');
+Route::get('reminders/templates', [ReminderSettingController::class, 'templates'])->name('admin.whatsapp.reminders.templates');
+Route::put('reminders', [ReminderSettingController::class, 'update'])->name('admin.whatsapp.reminders.update');

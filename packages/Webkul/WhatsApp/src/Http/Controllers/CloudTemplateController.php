@@ -129,6 +129,16 @@ class CloudTemplateController extends Controller
      */
     private function usable(Session $session): array
     {
+        return self::approved($session);
+    }
+
+    /**
+     * @return list<array{name: string, language: string, category: string, body: string, header: ?string, footer: ?string, variables: int, supported: bool}>
+     *
+     * @throws CloudApiException
+     */
+    public static function approved(Session $session): array
+    {
         $raw = Cache::remember('whatsapp.cloud.templates.'.$session->id, self::CACHE_SECONDS, fn () => CloudClient::forSession($session)->templates());
 
         return collect($raw)

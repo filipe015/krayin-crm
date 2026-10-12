@@ -321,3 +321,19 @@ OGG, AMR) anexados manualmente seguem como arquivo de áudio, sem conversão.
   conversa é movido/etiquetado. Só vale para toque em botão (não para texto digitado igual) e a etapa
   precisa ser do funil do lead. A conversa precisa estar vinculada a um lead.
 - Depois do deploy: `php artisan migrate --force` (cria `whatsapp_button_rules`).
+
+### Lembretes automáticos de consulta
+
+Em *Conexões → Lembretes de consulta* escolha: a etapa que dispara (ex.: "Consulta agendada"), as
+etapas em que os lembretes continuam valendo (ex.: "Consulta confirmada"), o tipo de atividade que marca
+a consulta (padrão: Reunião), o modelo aprovado, o valor de cada variável e os horários (24h, 2h…).
+
+- A cada minuto, `whatsapp:sync-reminders` agenda, move e cancela lembretes (mensagens agendadas do
+  tipo modelo, aparecem em *Agendamentos* e podem ser canceladas à mão; um lembrete cancelado à mão
+  não é recriado).
+- Só considera atividades futuras, não concluídas, de leads na etapa. Lembrete cujo horário já passou
+  é pulado (nunca enviado atrasado). Se a atividade muda de horário, os lembretes pendentes acompanham;
+  se for concluída/excluída ou o lead sair das etapas que mantêm lembretes, os pendentes são cancelados.
+- Usa a conversa do lead no número oficial; se não houver, vincula uma conversa existente com o telefone
+  do lead ou cria uma (um modelo pode abrir conversa). Lead sem telefone é ignorado.
+- Depois do deploy: `php artisan migrate --force` (cria `whatsapp_reminder_settings` e `whatsapp_reminders`).

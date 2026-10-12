@@ -54,6 +54,9 @@ return [
             'admin.whatsapp.button-rules.list',
             'admin.whatsapp.button-rules.store',
             'admin.whatsapp.button-rules.delete',
+            'admin.whatsapp.reminders.show',
+            'admin.whatsapp.reminders.templates',
+            'admin.whatsapp.reminders.update',
         ],
         'sort'  => 3,
     ], [

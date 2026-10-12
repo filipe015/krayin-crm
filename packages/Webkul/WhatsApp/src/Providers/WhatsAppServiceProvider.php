@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Webkul\WhatsApp\Console\FailStuckMessages;
 use Webkul\WhatsApp\Console\SendScheduledMessages;
+use Webkul\WhatsApp\Console\SyncAppointmentReminders;
 
 class WhatsAppServiceProvider extends ServiceProvider
 {
@@ -36,12 +37,13 @@ class WhatsAppServiceProvider extends ServiceProvider
             ->group(__DIR__.'/../Routes/inbox.php');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([FailStuckMessages::class, SendScheduledMessages::class]);
+            $this->commands([FailStuckMessages::class, SendScheduledMessages::class, SyncAppointmentReminders::class]);
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('whatsapp:fail-stuck-messages')->everyMinute()->withoutOverlapping();
             $schedule->command('whatsapp:send-scheduled')->everyMinute()->withoutOverlapping();
+            $schedule->command('whatsapp:sync-reminders')->everyMinute()->withoutOverlapping();
         });
     }
 }

@@ -188,6 +188,68 @@
                         <button type="submit" class="wa-conn-btn is-primary" :disabled="busy || ! ruleForm.match_text.trim() || (! ruleForm.stage_id && ! ruleForm.tag_id)">@{{ labels.rule_add }}</button>
                     </div>
                 </form>
+
+                <div class="wa-conn-head" style="margin-top:12px">
+                    <h1>@{{ labels.reminders_title }}</h1>
+                </div>
+
+                <p class="wa-conn-muted" style="margin:0">@{{ labels.reminders_intro }}</p>
+
+                <form v-if="reminder" class="wa-conn-card wa-conn-code" style="max-width:none" @submit.prevent="saveReminder">
+                    <label class="wa-conn-field" style="flex-direction:row;align-items:center;gap:8px">
+                        <input type="checkbox" v-model="reminder.enabled" style="width:auto"> @{{ labels.reminder_enabled }}
+                    </label>
+
+                    <label class="wa-conn-field">@{{ labels.reminder_stage }}
+                        <select v-model="reminder.stage_id">
+                            <option :value="null">—</option>
+                            <option v-for="stage in reminderOptions.stages" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
+                        </select>
+                    </label>
+
+                    <div class="wa-conn-field">
+                        @{{ labels.reminder_keep }}
+                        <span class="wa-conn-muted">@{{ labels.reminder_keep_help }}</span>
+                        <label v-for="stage in reminderOptions.stages" :key="'k' + stage.id" style="display:flex;gap:6px;align-items:center" v-show="stage.id !== reminder.stage_id">
+                            <input type="checkbox" :value="stage.id" v-model="reminder.keep_stage_ids" style="width:auto"> @{{ stage.name }}
+                        </label>
+                    </div>
+
+                    <label class="wa-conn-field">@{{ labels.reminder_type }}
+                        <select v-model="reminder.activity_type">
+                            <option v-for="type in reminderOptions.activity_types" :key="type" :value="type">@{{ labels.reminder_types[type] || type }}</option>
+                        </select>
+                    </label>
+
+                    <label class="wa-conn-field">@{{ labels.reminder_template }}
+                        <select :value="reminderTemplateKey" @change="pickReminderTemplate($event.target.value)">
+                            <option value="">@{{ labels.reminder_template_pick }}</option>
+                            <option v-for="item in reminderTemplates" :key="item.name + '|' + item.language" :value="item.name + '|' + item.language">
+                                @{{ item.name }} (@{{ item.language }}, @{{ item.category }})
+                            </option>
+                        </select>
+                    </label>
+
+                    <div v-if="reminderTemplate" class="wa-conn-muted" style="white-space:pre-wrap">@{{ reminderTemplate.body }}</div>
+
+                    <label v-for="n in (reminderTemplate ? reminderTemplate.variables : 0)" :key="'v' + n" class="wa-conn-field">
+                        @{{ labels.reminder_variable.replace(':n', n) }}
+                        <select v-model="reminder.variables[n - 1]" required>
+                            <option v-for="source in reminderOptions.sources" :key="source" :value="source">@{{ labels.reminder_sources[source] || source }}</option>
+                        </select>
+                    </label>
+
+                    <div class="wa-conn-field">
+                        @{{ labels.reminder_offsets }}
+                        <label v-for="minutes in reminderOptions.offset_options" :key="'o' + minutes" style="display:flex;gap:6px;align-items:center">
+                            <input type="checkbox" :value="minutes" v-model="reminder.offsets" style="width:auto"> @{{ labels.reminder_offset_labels[minutes] || minutes }}
+                        </label>
+                    </div>
+
+                    <div class="wa-conn-actions">
+                        <button type="submit" class="wa-conn-btn is-primary" :disabled="busy">@{{ labels.reminder_save }}</button>
+                    </div>
+                </form>
             </div>
         </script>
 
@@ -207,6 +269,9 @@
                         cloud: [],
                         cloudForm: null,
                         rules: [],
+                        reminder: null,
+                        reminderOptions: { stages: [], sources: [], offset_options: [], activity_types: [] },
+                        reminderTemplates: [],
                         ruleOptions: { stages: [], tags: [] },
                         ruleForm: { match_text: '', stage_id: '', tag_id: '' },
                         loading: true,
@@ -224,6 +289,7 @@
                 mounted() {
                     this.load();
                     this.loadRules();
+                    this.loadReminder();
 
                     this.timer = setInterval(() => {
                         if (document.hidden) {
@@ -236,6 +302,16 @@
 
                 beforeUnmount() {
                     clearInterval(this.timer);
+                },
+
+                computed: {
+                    reminderTemplateKey() {
+                        return this.reminder && this.reminder.template_name ? this.reminder.template_name + '|' + this.reminder.template_language : '';
+                    },
+
+                    reminderTemplate() {
+                        return this.reminderTemplates.find(item => item.name === this.reminder?.template_name && item.language === this.reminder?.template_language) || null;
+                    },
                 },
 
                 methods: {
@@ -341,6 +417,48 @@
                             this.notice = (error.response && error.response.data && (error.response.data.message || Object.values(error.response.data.errors || {}).flat()[0])) || this.labels.generic_error;
                         } finally {
                             this.busy = false;
+                        }
+                    },
+
+                    async loadReminder() {
+                        try {
+                            const { data } = await this.$axios.get(this.urls.reminders);
+
+                            this.reminderOptions = {
+                                stages: data.stages,
+                                sources: data.sources,
+                                offset_options: data.offset_options,
+                                activity_types: data.activity_types,
+                            };
+                            this.reminder = data.data;
+
+                            if (data.has_number) {
+                                const templates = await this.$axios.get(this.urls.reminderTemplates);
+
+                                this.reminderTemplates = templates.data.data;
+                            }
+                        } catch (error) {
+                            // Needs an official number; the section stays hidden otherwise.
+                        }
+                    },
+
+                    pickReminderTemplate(key) {
+                        const [name, language] = key.split('|');
+                        const template = this.reminderTemplates.find(item => item.name === name && item.language === language);
+
+                        this.reminder.template_name = template ? template.name : null;
+                        this.reminder.template_language = template ? template.language : null;
+
+                        const defaults = ['contact_first_name', 'owner_name', 'appointment_datetime', 'appointment_date', 'appointment_time'];
+
+                        this.reminder.variables = Array.from({ length: template ? template.variables : 0 }, (_, index) => this.reminder.variables[index] || defaults[index] || 'lead_title');
+                    },
+
+                    async saveReminder() {
+                        const done = await this.send(() => this.$axios.put(this.urls.reminders, this.reminder));
+
+                        if (done) {
+                            this.notice = this.labels.reminder_saved;
                         }
                     },
 

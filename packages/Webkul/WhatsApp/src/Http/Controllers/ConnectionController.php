@@ -35,6 +35,8 @@ class ConnectionController extends Controller
                 'rules'           => route('admin.whatsapp.button-rules.list'),
                 'ruleStore'       => route('admin.whatsapp.button-rules.store'),
                 'ruleDelete'      => route('admin.whatsapp.button-rules.delete', ['id' => '__ID__']),
+                'reminders'         => route('admin.whatsapp.reminders.show'),
+                'reminderTemplates' => route('admin.whatsapp.reminders.templates'),
             ],
             'cloudWebhook' => route('admin.whatsapp.cloud.webhook'),
             'cloudVerifyConfigured' => filled(config('whatsapp.cloud.verify_token')),
