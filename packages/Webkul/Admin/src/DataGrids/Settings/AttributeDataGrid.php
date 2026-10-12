@@ -24,7 +24,8 @@ class AttributeDataGrid extends DataGrid
                 'attributes.quick_add',
                 'attributes.is_user_defined as attribute_type'
             )
-            ->where('entity_type', '<>', 'locations');
+            ->where('entity_type', '<>', 'locations')
+            ->whereNotIn('entity_type', \Webkul\Admin\Bouncer::disabledEntityTypes());
 
         $this->addFilter('id', 'attributes.id');
         $this->addFilter('type', 'attributes.type');
@@ -85,6 +86,8 @@ class AttributeDataGrid extends DataGrid
             'filterable_type' => 'dropdown',
             'filterable_options' => app(AttributeRepository::class)
                 ->select('entity_type as label', 'entity_type as value')
+                ->where('entity_type', '<>', 'locations')
+                ->whereNotIn('entity_type', \Webkul\Admin\Bouncer::disabledEntityTypes())
                 ->distinct()
                 ->get()
                 ->map(function ($item) {
@@ -93,7 +96,7 @@ class AttributeDataGrid extends DataGrid
                     return $item;
                 })
                 ->toArray(),
-            'closure' => fn ($row) => ucfirst($row->entity_type),
+            'closure' => fn ($row) => self::translated('entity-types', $row->entity_type),
         ]);
 
         $this->addColumn([
@@ -103,6 +106,7 @@ class AttributeDataGrid extends DataGrid
             'sortable' => true,
             'filterable' => true,
             'filterable_type' => 'dropdown',
+            'closure' => fn ($row) => self::translated('types', $row->type),
             'filterable_options' => app(AttributeRepository::class)
                 ->select('type as label', 'type as value')
                 ->distinct()
@@ -129,6 +133,18 @@ class AttributeDataGrid extends DataGrid
     /**
      * Prepare actions.
      */
+    /**
+     * Label of an entity type or field type in the interface language; the raw code when it has
+     * no translation.
+     */
+    private static function translated(string $group, ?string $code): string
+    {
+        $key = 'admin::app.settings.attributes.index.datagrid.'.$group.'.'.$code;
+        $label = trans($key);
+
+        return $label !== $key ? $label : ucfirst((string) $code);
+    }
+
     public function prepareActions(): void
     {
         if (bouncer()->hasPermission('settings.automation.attributes.edit')) {

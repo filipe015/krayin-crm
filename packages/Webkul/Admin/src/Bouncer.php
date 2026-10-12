@@ -64,6 +64,24 @@ class Bouncer
     }
 
     /**
+     * Custom-field entity types that belong to features turned off here (config/crm.php).
+     *
+     * @return list<string>
+     */
+    public static function disabledEntityTypes(): array
+    {
+        $disabled = [];
+
+        foreach ((array) config('crm.entity_features', []) as $entity => $feature) {
+            if (self::isDisabled($feature)) {
+                $disabled[] = $entity;
+            }
+        }
+
+        return $disabled;
+    }
+
+    /**
      * Whether a route belongs to a feature that is turned off here.
      */
     public static function isRouteDisabled(?string $routeName): bool

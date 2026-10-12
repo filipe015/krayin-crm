@@ -392,7 +392,7 @@
                                     :placeholder="trans('admin::app.settings.attributes.create.entity-type')"
                                 >
 
-                                    @foreach (config('attribute_entity_types') as $key => $entityType)
+                                    @foreach (collect(config('attribute_entity_types'))->except(\Webkul\Admin\Bouncer::disabledEntityTypes()) as $key => $entityType)
                                         <option value="{{ $key }}">{{ trans($entityType['name']) }}</option>
                                     @endforeach
                                 </x-admin::form.control-group.control>

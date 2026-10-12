@@ -36,4 +36,13 @@ return [
         'settings.user.groups'                 => ['admin.settings.groups.*'],
         'settings.automation.workflows'        => ['admin.settings.workflows.*'],
     ],
+
+    /**
+     * Custom-field entities that exist only with a feature. When the feature is off, the fields of
+     * that entity are not listed and cannot be created.
+     */
+    'entity_features' => [
+        'quotes'     => 'quotes',
+        'warehouses' => 'settings.inventory',
+    ],
 ];
