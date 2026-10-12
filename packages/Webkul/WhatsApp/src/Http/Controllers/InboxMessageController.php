@@ -18,6 +18,7 @@ use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Support\ConversationWindow;
 use Webkul\WhatsApp\Support\InboxPresenter;
 use Webkul\WhatsApp\Support\OutboundMedia;
+use Webkul\WhatsApp\Support\VoiceTranscoder;
 
 class InboxMessageController extends Controller
 {
@@ -48,9 +49,16 @@ class InboxMessageController extends Controller
             abort_if($media === null, 422, trans('whatsapp::app.inbox.file_type_not_allowed'));
         }
 
+        // A recording (or an audio the Cloud API refuses) is converted to a voice note.
+        $convertVoice = false;
+
         if ($conversation->session?->channel === 'cloud') {
-            if ($media !== null && ! OutboundMedia::cloudSupports($media)) {
-                abort(422, trans($media['type'] === 'audio' ? 'whatsapp::app.inbox.cloud_audio_unsupported' : 'whatsapp::app.inbox.cloud_file_unsupported'));
+            if ($media !== null && $media['type'] === 'audio' && ((bool) ($data['voice'] ?? false) || ! OutboundMedia::cloudSupports($media))) {
+                abort_unless(VoiceTranscoder::available(), 422, trans('whatsapp::app.inbox.cloud_audio_unsupported'));
+
+                $convertVoice = true;
+            } elseif ($media !== null && ! OutboundMedia::cloudSupports($media)) {
+                abort(422, trans('whatsapp::app.inbox.cloud_file_unsupported'));
             }
 
             // Free-form messages are only allowed inside the 24-hour window; a scheduled one is
@@ -66,15 +74,30 @@ class InboxMessageController extends Controller
         $user = auth()->guard('user')->user();
 
         $path = null;
+        $filename = $upload !== null ? Str::limit($upload->getClientOriginalName(), 200, '') : null;
 
-        if ($upload !== null) {
+        if ($upload !== null && $convertVoice) {
+            try {
+                $voice = VoiceTranscoder::toOggOpus((string) $upload->getRealPath());
+            } catch (\RuntimeException $exception) {
+                report($exception);
+
+                abort(422, trans('whatsapp::app.inbox.voice_convert_failed'));
+            }
+
+            $path = 'whatsapp/outbound/'.Str::uuid().'.ogg';
+            Storage::disk('local')->put($path, $voice);
+
+            $media = ['type' => 'audio', 'kind' => 'voice', 'mime' => 'audio/ogg'];
+            $filename = (pathinfo((string) $filename, PATHINFO_FILENAME) ?: 'audio').'.ogg';
+        } elseif ($upload !== null) {
             $extension = strtolower($upload->getClientOriginalExtension() ?: $upload->extension() ?: 'bin');
             $path = $upload->storeAs('whatsapp/outbound', Str::uuid().'.'.preg_replace('/[^a-z0-9]/', '', $extension), 'local');
         }
 
         $title = trim((string) ($data['schedule_title'] ?? '')) ?: null;
 
-        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $upload, $path, $scheduledAt, $title) {
+        $message = DB::transaction(function () use ($conversation, $text, $user, $media, $filename, $path, $scheduledAt, $title) {
             $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'direction'       => 'outbound',
@@ -86,7 +109,7 @@ class InboxMessageController extends Controller
                 'message_type'    => $media['type'] ?? 'text',
                 'media_path'      => $path !== null ? 'local:'.$path : null,
                 'media_mime'      => $media['mime'] ?? null,
-                'media_filename'  => $upload !== null ? Str::limit($upload->getClientOriginalName(), 200, '') : null,
+                'media_filename'  => $filename,
                 'sent_by_user_id' => $user->id,
                 'sender_name'     => $user->name,
             ]);

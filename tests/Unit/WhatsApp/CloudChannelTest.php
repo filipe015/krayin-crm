@@ -13,6 +13,7 @@ use Webkul\WhatsApp\Channels\Events\MessageAck;
 use Webkul\WhatsApp\Http\Controllers\CloudTemplateController;
 use Webkul\WhatsApp\Support\ConversationWindow;
 use Webkul\WhatsApp\Support\OutboundMedia;
+use Webkul\WhatsApp\Support\VoiceTranscoder;
 
 function cloudClient(Factory $http): CloudClient
 {
@@ -268,3 +269,41 @@ it('is stricter than WAHA about the files the official channel takes', function 
     'pdf'       => ['application/pdf', true],
     'zip'       => ['application/zip', false],
 ]);
+
+// ---------------------------------------------------------------------------- voice notes
+
+function fakeFfmpeg(string $body): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'fake-ffmpeg-');
+    file_put_contents($path, "#!/bin/sh\n".$body."\n");
+    chmod($path, 0755);
+
+    return $path;
+}
+
+it('converts a recording through ffmpeg and returns the converted file', function () {
+    // The fake writes to the last argument, which is where the real command puts its output.
+    $ffmpeg = fakeFfmpeg('for last; do :; done; printf OggS-converted > "$last"');
+    $source = tempnam(sys_get_temp_dir(), 'rec-');
+    file_put_contents($source, 'webm-bytes');
+
+    expect(VoiceTranscoder::available($ffmpeg))->toBeTrue()
+        ->and(VoiceTranscoder::toOggOpus($source, $ffmpeg))->toBe('OggS-converted');
+
+    unlink($ffmpeg);
+    unlink($source);
+});
+
+it('fails clearly when ffmpeg errors out or produces nothing', function () {
+    $ffmpeg = fakeFfmpeg('echo "boom" >&2; exit 1');
+    $source = tempnam(sys_get_temp_dir(), 'rec-');
+
+    expect(fn () => VoiceTranscoder::toOggOpus($source, $ffmpeg))->toThrow(RuntimeException::class, 'boom');
+
+    unlink($ffmpeg);
+    unlink($source);
+});
+
+it('reports ffmpeg as unavailable when the configured binary does not exist', function () {
+    expect(VoiceTranscoder::available('/nonexistent/ffmpeg'))->toBeFalse();
+});

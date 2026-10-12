@@ -3,7 +3,7 @@ FROM php:8.3-apache
 # Extensões necessárias + tzdata para fuso horário
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev \
-    libxml2-dev libzip-dev libicu-dev nodejs npm tzdata cron \
+    libxml2-dev libzip-dev libicu-dev nodejs npm tzdata cron ffmpeg \
     && docker-php-ext-install pdo_mysql mbstring zip gd calendar intl bcmath
 
 # Fuso horário do sistema e do PHP

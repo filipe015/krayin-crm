@@ -37,6 +37,7 @@ class InboxController extends Controller
             'initial'  => $initial ? $this->conversationData($initial) : null,
             'sessions' => Session::query()->orderBy('name')->get(['id', 'name']),
             'funnelFilters' => $this->funnelFilters(),
+            'cloudVoice' => \Webkul\WhatsApp\Support\VoiceTranscoder::available(),
             'urls'     => [
                 'conversations' => route('admin.whatsapp.inbox.conversations'),
                 'messages'      => route('admin.whatsapp.inbox.messages', ['id' => '__ID__']),

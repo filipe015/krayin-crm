@@ -119,6 +119,7 @@ return [
         'template_load_error' => 'Could not load the templates from Meta.',
         'template_none'      => 'No approved template found for this number.',
         'channel_official'   => 'Official API',
+        'voice_convert_failed' => 'The audio could not be converted for sending. Try recording again.',
         'cloud_audio_unsupported' => 'The official channel does not accept this audio format. Use MP3, M4A, AAC or OGG.',
         'cloud_file_unsupported' => 'The official channel does not accept this file type.',
         'attach'             => 'Attach file',

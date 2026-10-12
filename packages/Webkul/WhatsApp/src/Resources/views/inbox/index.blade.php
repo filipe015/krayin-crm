@@ -25,6 +25,7 @@
         :sessions="{{ Illuminate\Support\Js::from($sessions) }}"
         :funnel-filters="{{ Illuminate\Support\Js::from($funnelFilters) }}"
         :initial="{{ Illuminate\Support\Js::from($initial) }}"
+        :cloud-voice="{{ $cloudVoice ? 'true' : 'false' }}"
     >
         <div class="p-6 text-sm text-gray-500">
             @lang('whatsapp::app.inbox.loading')
@@ -387,7 +388,7 @@
                                 </div>
 
                                 <button
-                                    v-if="! draft.trim() && ! attachment && current.channel !== 'cloud'"
+                                    v-if="! draft.trim() && ! attachment && (current.channel !== 'cloud' || cloudVoice)"
                                     type="button"
                                     class="wa-btn wa-icon-btn"
                                     :title="labels.record_voice"
@@ -603,6 +604,7 @@
                     sessions: { type: Array, default: () => [] },
                     funnelFilters: { type: Object, default: () => ({ stages: [], tags: [] }) },
                     initial: { type: Object, default: null },
+                    cloudVoice: { type: Boolean, default: false },
                 },
 
                 data() {

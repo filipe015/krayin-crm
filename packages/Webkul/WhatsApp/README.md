@@ -301,3 +301,12 @@ Depois de publicar: `php artisan migrate --force` (cria `template_payload` em `w
   JPEG/PNG, vídeo MP4/3GP, áudio AAC/AMR/MP3/MP4/OGG-Opus e documentos; WebM/WebP/WAV são recusados.
 - Agendamentos para número oficial são reavaliados contra a janela no momento do envio.
 - A API oficial não devolve eco de mensagens enviadas pela própria API (só status) e não tem "digitando…".
+
+### Áudio gravado no navegador (API oficial)
+
+A Meta não aceita WebM, que é o que o Chrome grava. Por isso, ao enviar uma gravação (ou um
+áudio em formato recusado) por um número oficial, o servidor converte com `ffmpeg` para
+OGG/Opus mono e envia como mensagem de voz. O `ffmpeg` vem na imagem Docker; se estiver em outro
+caminho, defina `WHATSAPP_FFMPEG_BINARY`. Sem `ffmpeg`, o microfone fica escondido nas conversas
+oficiais e o envio de gravações é recusado com aviso. Arquivos de áudio já aceitos (MP3, M4A, AAC,
+OGG, AMR) anexados manualmente seguem como arquivo de áudio, sem conversão.

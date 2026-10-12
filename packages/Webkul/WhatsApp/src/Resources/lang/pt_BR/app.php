@@ -119,6 +119,7 @@ return [
         'template_load_error' => 'Não foi possível carregar os modelos da Meta.',
         'template_none'      => 'Nenhum modelo aprovado encontrado neste número.',
         'channel_official'   => 'API oficial',
+        'voice_convert_failed' => 'Não foi possível converter o áudio para enviar. Tente gravar de novo.',
         'cloud_audio_unsupported' => 'O canal oficial não aceita este formato de áudio. Use MP3, M4A, AAC ou OGG.',
         'cloud_file_unsupported' => 'O canal oficial não aceita este tipo de arquivo.',
         'attach'             => 'Anexar arquivo',

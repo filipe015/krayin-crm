@@ -13,6 +13,10 @@ return [
         'graph_version' => env('WHATSAPP_CLOUD_GRAPH_VERSION', 'v23.0'),
     ],
 
+    // Optional path to ffmpeg; empty means "look it up on the PATH". Used to send voice notes
+    // recorded in the browser through the Cloud API.
+    'ffmpeg' => env('WHATSAPP_FFMPEG_BINARY'),
+
     'waha' => [
         'url'         => env('WAHA_API_URL'),
         'api_key'     => env('WAHA_API_KEY'),
