@@ -73,4 +73,22 @@ return [
         ],
         'sort'  => 2,
     ],
+    [
+        'key'   => 'agenda',
+        'name'  => 'whatsapp::app.acl.agenda',
+        'route' => [
+            'admin.agenda.index',
+            'admin.agenda.events',
+            'admin.agenda.leads',
+        ],
+        'sort'  => 5,
+    ], [
+        'key'   => 'agenda.create',
+        'name'  => 'whatsapp::app.acl.agenda_create',
+        'route' => [
+            'admin.agenda.store',
+            'admin.agenda.done',
+        ],
+        'sort'  => 1,
+    ],
 ];

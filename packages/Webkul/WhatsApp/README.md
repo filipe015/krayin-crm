@@ -381,3 +381,17 @@ A imagem liga o OPcache (`docker/opcache.ini`). Para medir em produção, antes 
 `for i in 1 2 3 4 5; do curl -s -o /dev/null -w "%{time_total}\n" https://SEU-ENDERECO/admin/login; done`
 (ignore a primeira). `route:cache` não funciona neste projeto; `config:cache`/`view:cache` ficaram de fora
 até haver medição que justifique.
+
+### Agenda
+
+Item **Agenda** no menu (`/admin/agenda`): as consultas (atividades do tipo **Reunião**) da semana ou do dia,
+com paciente, serviço, profissional e a etapa do funil do lead (cada etapa tem uma cor). Filtro por
+profissional, "mostrar concluídas" e a lista de **hoje** ao lado. Clicar num horário vazio abre "Nova consulta"
+(busca o lead, profissional, duração); o conflito de horário do **mesmo profissional** avisa e permite
+"agendar mesmo assim". Clicar numa consulta mostra o detalhe, com atalhos para a oportunidade, a conversa do
+WhatsApp, a edição da atividade e "marcar como concluída".
+
+- Permissões (Funções): `agenda` (ver) e `agenda.create` (marcar e concluir).
+- Criar pela Agenda grava a atividade e a liga ao lead exatamente como o resto do Krayin, então os
+  **lembretes automáticos** já a enxergam.
+- Não precisa recompilar o tema (tela própria do módulo).

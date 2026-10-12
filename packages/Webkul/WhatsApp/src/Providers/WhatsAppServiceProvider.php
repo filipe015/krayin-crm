@@ -33,6 +33,10 @@ class WhatsAppServiceProvider extends ServiceProvider
             ->group(__DIR__.'/../Routes/admin.php');
 
         Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/agenda')
+            ->group(__DIR__.'/../Routes/agenda.php');
+
+        Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/whatsapp/inbox')
             ->group(__DIR__.'/../Routes/inbox.php');
 

@@ -8,4 +8,11 @@ return [
         'sort'       => 3,
         'icon-class' => 'icon-message',
     ],
+    [
+        'key'        => 'agenda',
+        'name'       => 'whatsapp::app.menu.agenda',
+        'route'      => 'admin.agenda.index',
+        'sort'       => 4,
+        'icon-class' => 'icon-calendar',
+    ],
 ];
