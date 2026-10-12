@@ -5,10 +5,14 @@
 
     <v-agenda
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
-        :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.agenda')) }}"
+        :labels="{{ Illuminate\Support\Js::from($labels) }}"
         :users="{{ Illuminate\Support\Js::from($users) }}"
         :current-user-id="{{ (int) $currentUserId }}"
         :durations="{{ Illuminate\Support\Js::from($durations) }}"
+        :day-start="{{ $dayStart }}"
+        :day-end="{{ $dayEnd }}"
+        :default-duration="{{ $defaultDuration }}"
+        :auto-assign="{{ $autoAssign ? 'true' : 'false' }}"
         :can-create="{{ $canCreate ? 'true' : 'false' }}"
         :can-open-inbox="{{ $canOpenInbox ? 'true' : 'false' }}"
         locale="{{ strtolower(str_replace('_', '-', app()->getLocale())) }}"
@@ -123,8 +127,8 @@
                             :selected-date="selectedDate"
                             :disable-views="['years', 'year', 'month']"
                             :events="calendarEvents"
-                            :time-from="7 * 60"
-                            :time-to="21 * 60"
+                            :time-from="dayStart * 60"
+                            :time-to="dayEnd * 60"
                             :time-step="30"
                             :time-cell-height="52"
                             :time-format="'H:mm'"
@@ -238,9 +242,27 @@
                         <label class="ag-field">
                             @{{ labels.professional }}
                             <select v-model="form.user_id">
+                                <option v-if="autoAssign" value="auto">@{{ labels.auto }}</option>
                                 <option v-for="user in users" :key="user.id" :value="user.id">@{{ user.name }}</option>
                             </select>
                         </label>
+
+                        <div class="ag-field">
+                            @{{ labels.mode }}
+
+                            <div class="ag-row">
+                                <button type="button" class="ag-chip" :class="{ 'is-on': form.online }" @click="form.online = true">@{{ labels.online }}</button>
+                                <button type="button" class="ag-chip" :class="{ 'is-on': ! form.online }" @click="form.online = false">@{{ labels.in_person }}</button>
+                            </div>
+
+                            <input
+                                type="text"
+                                v-model="form.location"
+                                maxlength="255"
+                                :placeholder="form.online ? labels.link_ph : labels.address_ph"
+                                :aria-label="form.online ? labels.link_label : labels.address_label"
+                            >
+                        </div>
 
                         <label class="ag-field">
                             @{{ labels.notes }}
@@ -273,6 +295,11 @@
                             <dt>@{{ labels.start }}</dt><dd>@{{ dayLabel(detail.start) }} · @{{ hhmm(detail.start) }}–@{{ hhmm(detail.end) }}</dd>
                             <dt>@{{ labels.professional }}</dt><dd>@{{ detail.user_name || '—' }}</dd>
                             <dt>@{{ labels.stage }}</dt><dd>@{{ detail.stage || labels.no_stage }}</dd>
+                            <dt v-if="detail.location">@{{ labels.location }}</dt>
+                            <dd v-if="detail.location">
+                                <a v-if="/^https?:\/\//i.test(detail.location)" :href="detail.location" target="_blank" rel="noopener" style="color:var(--ag-accent);word-break:break-all">@{{ detail.location }}</a>
+                                <span v-else>@{{ detail.location }}</span>
+                            </dd>
                             <dt v-if="detail.comment">@{{ labels.notes }}</dt><dd v-if="detail.comment">@{{ detail.comment }}</dd>
                             <dt v-if="detail.is_done || detail.overdue">&nbsp;</dt>
                             <dd v-if="detail.is_done"><strong>@{{ labels.done }}</strong></dd>
@@ -301,6 +328,10 @@
                     users: { type: Array, default: () => [] },
                     currentUserId: { type: Number, default: 0 },
                     durations: { type: Array, default: () => [30, 60] },
+                    dayStart: { type: Number, default: 7 },
+                    dayEnd: { type: Number, default: 21 },
+                    defaultDuration: { type: Number, default: 30 },
+                    autoAssign: { type: Boolean, default: false },
                     canCreate: { type: Boolean, default: false },
                     canOpenInbox: { type: Boolean, default: false },
                     locale: { type: String, default: 'pt-br' },
@@ -506,8 +537,12 @@
                             title: '',
                             comment: '',
                             start: this.localInput(start),
-                            duration: this.durations.includes(30) ? 30 : this.durations[0],
-                            user_id: this.users.some(user => user.id === this.currentUserId) ? this.currentUserId : (this.users[0] ? this.users[0].id : null),
+                            duration: this.durations.includes(this.defaultDuration) ? this.defaultDuration : this.durations[0],
+                            online: true,
+                            location: '',
+                            user_id: this.autoAssign
+                                ? 'auto'
+                                : (this.users.some(user => user.id === this.currentUserId) ? this.currentUserId : (this.users[0] ? this.users[0].id : null)),
                         };
                     },
 
@@ -555,6 +590,7 @@
                                 lead_id: this.form.lead.id,
                                 title: this.form.title,
                                 comment: this.form.comment,
+                                location: this.form.location,
                                 start: this.form.start,
                                 duration: this.form.duration,
                                 user_id: this.form.user_id,

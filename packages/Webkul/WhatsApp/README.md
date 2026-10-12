@@ -395,3 +395,14 @@ WhatsApp, a edição da atividade e "marcar como concluída".
 - Criar pela Agenda grava a atividade e a liga ao lead exatamente como o resto do Krayin, então os
   **lembretes automáticos** já a enxergam.
 - Não precisa recompilar o tema (tela própria do módulo).
+
+**Vocabulário e distribuição (por instalação):** em **Configurações → Outras Configurações → Agenda**
+(`/admin/settings/agenda`) cada cliente define como chama o compromisso ("Consulta", "Call de demonstração",
+"Reunião"…, singular, plural e gênero), quem atende ("Profissional", "Vendedor"…), a duração padrão, o horário
+do dia da agenda e **quem fica responsável**: escolher na hora, **rodízio** entre pessoas escolhidas, ou **quem tem
+menos compromissos no dia** (quem já tem algo no mesmo horário é pulado). Há modelos prontos (saúde, demonstração,
+reunião, neutro). O padrão de uma instalação nova é neutro ("Agendamento" / "Responsável").
+
+Ao marcar, o formato é **Online** (link) ou **Presencial** (endereço); vai para o campo `location` da atividade, aparece
+no detalhe e pode entrar nos lembretes pela variável **"Link ou local do agendamento"**. "Compareceu?"/no-show é só
+uma etapa do funil.

@@ -13,6 +13,9 @@ use Illuminate\Validation\Rule;
 use Webkul\Activity\Repositories\ActivityRepository;
 use Webkul\Lead\Models\Lead;
 use Webkul\User\Models\User;
+use Webkul\WhatsApp\Models\AgendaSetting;
+use Webkul\WhatsApp\Support\AgendaAssignment;
+use Webkul\WhatsApp\Support\AgendaVocabulary;
 
 /**
  * The agenda: the appointments (activities of type "meeting") of the leads, week by week, with
@@ -20,11 +23,18 @@ use Webkul\User\Models\User;
  */
 class AgendaController extends Controller
 {
-    private const DURATIONS = [15, 20, 30, 40, 45, 50, 60, 75, 90, 120];
+    public const DURATIONS = [15, 20, 30, 40, 45, 50, 60, 75, 90, 120];
 
     public function index(): View
     {
+        $setting = AgendaSetting::current();
+
         return view('whatsapp::agenda.index', [
+            'labels' => AgendaVocabulary::labels($setting),
+            'dayStart' => (int) $setting->day_start,
+            'dayEnd' => (int) $setting->day_end,
+            'defaultDuration' => (int) $setting->default_duration,
+            'autoAssign' => $setting->distribution_mode !== 'manual',
             'users' => User::query()->where('status', 1)->orderBy('name')->get(['id', 'name']),
             'currentUserId' => auth()->guard('user')->id(),
             'canCreate' => bouncer()->hasPermission('agenda.create'),
@@ -76,7 +86,7 @@ class AgendaController extends Controller
             }))
             ->orderBy('activities.schedule_from')
             ->get([
-                'activities.id', 'activities.title', 'activities.comment', 'activities.schedule_from', 'activities.schedule_to',
+                'activities.id', 'activities.title', 'activities.comment', 'activities.location', 'activities.schedule_from', 'activities.schedule_to',
                 'activities.is_done', 'activities.user_id', 'users.name as user_name',
                 'leads.id as lead_id', 'leads.title as lead_title', 'persons.name as person_name',
                 'stages.id as stage_id', 'stages.name as stage_name',
@@ -86,6 +96,7 @@ class AgendaController extends Controller
             'id'        => $row->id,
             'title'     => $row->title,
             'comment'   => $row->comment,
+            'location'  => $row->location,
             'start'     => Carbon::parse($row->schedule_from)->format('Y-m-d H:i'),
             'end'       => Carbon::parse($row->schedule_to ?: $row->schedule_from)->format('Y-m-d H:i'),
             'is_done'   => (bool) $row->is_done,
@@ -133,11 +144,23 @@ class AgendaController extends Controller
             'lead_id'         => ['required', 'integer', 'exists:leads,id'],
             'title'           => ['nullable', 'string', 'max:120'],
             'comment'         => ['nullable', 'string', 'max:1000'],
+            'location'        => ['nullable', 'string', 'max:255'],
             'start'           => ['required', 'date_format:Y-m-d\TH:i'],
             'duration'        => ['required', 'integer', Rule::in(self::DURATIONS)],
-            'user_id'         => ['required', 'integer', Rule::exists('users', 'id')->where('status', 1)],
+            'user_id'         => ['required'],
             'ignore_conflict' => ['nullable', 'boolean'],
         ]);
+
+        $setting = AgendaSetting::current();
+        $automatic = $data['user_id'] === 'auto' && $setting->distribution_mode !== 'manual';
+
+        if (! $automatic) {
+            abort_unless(
+                is_numeric($data['user_id']) && User::query()->whereKey((int) $data['user_id'])->where('status', 1)->exists(),
+                422,
+                trans('whatsapp::app.agenda_settings.invalid_user'),
+            );
+        }
 
         $authorized = bouncer()->getAuthorizedUserIds();
 
@@ -149,18 +172,24 @@ class AgendaController extends Controller
         $start = Carbon::createFromFormat('Y-m-d\TH:i', $data['start'], config('app.timezone'));
         $end = $start->copy()->addMinutes((int) $data['duration']);
 
-        // The same professional cannot be in two appointments at once (unless the operator insists).
+        $userId = $automatic
+            ? $this->pickResponsible($setting, $start, $end)
+            : (int) $data['user_id'];
+
+        abort_if($userId === null, 422, trans('whatsapp::app.agenda_settings.no_pool'));
+
+        // The same person cannot be in two appointments at once (unless the operator insists).
         $conflicts = DB::table('activities')
             ->where('type', 'meeting')
             ->where('is_done', 0)
-            ->where('user_id', $data['user_id'])
+            ->where('user_id', $userId)
             ->where('schedule_from', '<', $end)
             ->where('schedule_to', '>', $start)
             ->get(['id', 'title', 'schedule_from', 'schedule_to']);
 
         if ($conflicts->isNotEmpty() && ! ($data['ignore_conflict'] ?? false)) {
             return response()->json([
-                'message'   => trans('whatsapp::app.agenda.conflict'),
+                'message'   => AgendaVocabulary::labels($setting)['conflict'],
                 'conflicts' => $conflicts->map(fn ($row) => [
                     'id'    => $row->id,
                     'title' => $row->title,
@@ -174,13 +203,18 @@ class AgendaController extends Controller
 
         $activity = app(ActivityRepository::class)->create([
             'type'          => 'meeting',
-            'title'         => trim((string) ($data['title'] ?? '')) ?: trans('whatsapp::app.agenda.default_title'),
+            'title'         => trim((string) ($data['title'] ?? '')) ?: AgendaVocabulary::labels($setting)['default_title'],
             'comment'       => $data['comment'] ?? null,
+            'location'      => trim((string) ($data['location'] ?? '')) ?: null,
             'schedule_from' => $start,
             'schedule_to'   => $end,
             'is_done'       => 0,
-            'user_id'       => $data['user_id'],
+            'user_id'       => $userId,
         ]);
+
+        if ($automatic && $setting->exists) {
+            $setting->forceFill(['last_assigned_user_id' => $userId])->save();
+        }
 
         // The core listener links the activity to the lead named by `lead_id` in this request.
         Event::dispatch('activity.create.after', $activity);
@@ -208,5 +242,52 @@ class AgendaController extends Controller
         Event::dispatch('activity.update.after', $activity);
 
         return response()->json(['done' => true]);
+    }
+
+    /**
+     * Who takes an appointment nobody chose a person for, following the installation's rule
+     * and skipping people who already have something at that time.
+     */
+    private function pickResponsible(AgendaSetting $setting, Carbon $start, Carbon $end): ?int
+    {
+        $pool = array_map('intval', (array) ($setting->distribution_user_ids ?? []));
+
+        $pool = User::query()
+            ->where('status', 1)
+            ->when($pool !== [], fn ($query) => $query->whereIn('id', $pool))
+            ->pluck('id')
+            ->all();
+
+        if ($pool === []) {
+            return null;
+        }
+
+        $unavailable = DB::table('activities')
+            ->where('type', 'meeting')
+            ->where('is_done', 0)
+            ->whereIn('user_id', $pool)
+            ->where('schedule_from', '<', $end)
+            ->where('schedule_to', '>', $start)
+            ->pluck('user_id')
+            ->all();
+
+        $busy = DB::table('activities')
+            ->where('type', 'meeting')
+            ->where('is_done', 0)
+            ->whereIn('user_id', $pool)
+            ->whereBetween('schedule_from', [$start->copy()->startOfDay(), $start->copy()->endOfDay()])
+            ->selectRaw('user_id, count(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+
+        return AgendaAssignment::pick(
+            $setting->distribution_mode,
+            $pool,
+            $setting->last_assigned_user_id ? (int) $setting->last_assigned_user_id : null,
+            $busy,
+            $unavailable,
+        );
     }
 }

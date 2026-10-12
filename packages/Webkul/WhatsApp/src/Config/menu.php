@@ -15,4 +15,12 @@ return [
         'sort'       => 4,
         'icon-class' => 'icon-calendar',
     ],
+    [
+        'key'        => 'settings.other_settings.agenda',
+        'name'       => 'whatsapp::app.menu.agenda_settings',
+        'info'       => 'whatsapp::app.menu.agenda_settings_info',
+        'route'      => 'admin.agenda.settings.index',
+        'sort'       => 5,
+        'icon-class' => 'icon-calendar',
+    ],
 ];

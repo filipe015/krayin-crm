@@ -27,7 +27,7 @@ final class AppointmentReminders
 {
     public const SOURCES = [
         'contact_first_name', 'contact_name', 'owner_name',
-        'appointment_date', 'appointment_time', 'appointment_datetime', 'lead_title',
+        'appointment_date', 'appointment_time', 'appointment_datetime', 'appointment_location', 'lead_title',
     ];
 
     public const OFFSETS = [60, 120, 240, 720, 1440, 2880, 4320];
@@ -259,6 +259,7 @@ final class AppointmentReminders
             'appointment_date'     => $when?->format('d/m') ?? '',
             'appointment_time'     => $when !== null ? self::time($when) : '',
             'appointment_datetime' => $when !== null ? self::WEEKDAYS[$when->dayOfWeek].', '.$when->format('d/m').' às '.self::time($when) : '',
+            'appointment_location' => (string) ($activity->location ?? ''),
             'lead_title'           => (string) $lead->title,
             default                => '',
         };

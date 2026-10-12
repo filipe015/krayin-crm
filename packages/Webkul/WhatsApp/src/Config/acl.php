@@ -91,4 +91,15 @@ return [
         ],
         'sort'  => 1,
     ],
+    [
+        'key'   => 'settings.other_settings.agenda',
+        'name'  => 'whatsapp::app.acl.agenda_settings',
+        'route' => 'admin.agenda.settings.index',
+        'sort'  => 6,
+    ], [
+        'key'   => 'settings.other_settings.agenda.edit',
+        'name'  => 'whatsapp::app.acl.agenda_settings_edit',
+        'route' => 'admin.agenda.settings.update',
+        'sort'  => 1,
+    ],
 ];
