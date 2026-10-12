@@ -345,3 +345,11 @@ Defina `WHATSAPP_CONTROL_KEY` (24+ caracteres, aleatória, única por instalaç�
 última execução do agendador, números conectados (status/qualidade) e contadores do mês (mensagens
 recebidas, enviadas, modelos, falhas em 24h, agendadas, usuários e leads). Nenhum dado de cliente final.
 Sem a variável, a rota responde 404. Opcional: `APP_VERSION` aparece como `app_version`.
+
+### Instalar o Krayin para um novo cliente
+
+Um projeto/serviço novo no Easypanel, banco MySQL próprio, `APP_KEY` fixo e volume em
+`/var/www/html/storage/app`. Depois do deploy, **no console do app**:
+`cd /var/www/html && php artisan krayin-crm:install` (nunca pela tela do navegador, que roda
+`migrate:fresh`). O aviso "APP_KEY is already present" é esperado. O `docker-entrypoint.sh` cria um
+`.env` vazio quando não existe, para o Krayin reconhecer a instalação a cada deploy.
