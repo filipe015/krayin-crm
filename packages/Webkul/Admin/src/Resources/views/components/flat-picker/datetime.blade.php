@@ -56,11 +56,13 @@
                         disable: this.disable ?? [],
                         minDate: this.minDate ?? '',
                         maxDate: this.maxDate ?? '',
-                        altFormat: "Y-m-d H:i:S",
+                        // The user sees dd/mm/aaaa hh:mm; the form and the API keep receiving Y-m-d H:i:S.
+                        altInput: true,
+                        altFormat: "d/m/Y H:i",
                         dateFormat: "Y-m-d H:i:S",
                         enableTime: true,
                         time_24hr: true,
-                        weekNumbers: true,
+                        weekNumbers: false,
 
                         onChange: function(selectedDates, dateStr, instance) {
                             self.$emit("onChange", dateStr);

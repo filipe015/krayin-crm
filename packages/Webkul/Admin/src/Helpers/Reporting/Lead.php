@@ -475,15 +475,15 @@ class Lead extends AbstractReporting
     {
         switch ($period) {
             case 'day':
-                return $date->format('M d');
+                return $date->translatedFormat('d M');
             case 'week':
-                return 'Week '.$date->format('W, Y');
+                return (str_starts_with(app()->getLocale(), 'pt') ? 'Semana ' : 'Week ').$date->format('W, Y');
             case 'month':
-                return $date->format('M Y');
+                return $date->translatedFormat('M Y');
             case 'year':
                 return $date->format('Y');
             default:
-                return $date->format('M d');
+                return $date->translatedFormat('d M');
         }
     }
 }

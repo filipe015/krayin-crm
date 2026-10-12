@@ -406,7 +406,7 @@
                 <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                     <div class="flex flex-wrap items-end gap-3">
                         <label class="flex min-w-[180px] flex-1 flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Type
+                            @lang('admin::app.activity-calendar.type')
 
                             <select
                                 class="min-h-[88px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brandColor focus:ring-1 focus:ring-brandColor dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
@@ -421,7 +421,7 @@
                         </label>
 
                         <label class="flex min-w-[220px] flex-1 flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Responsible
+                            @lang('admin::app.activity-calendar.responsible')
 
                             <select
                                 class="min-h-[88px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brandColor focus:ring-1 focus:ring-brandColor dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
@@ -436,16 +436,16 @@
                         </label>
 
                         <label class="flex min-w-[160px] flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Status
+                            @lang('admin::app.activity-calendar.status')
 
                             <select
                                 class="h-11 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-800 outline-none focus:border-brandColor focus:ring-1 focus:ring-brandColor dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                                 v-model="filters.is_done"
                                 @change="applyFilters"
                             >
-                                <option value="">All</option>
-                                <option value="0">Pending</option>
-                                <option value="1">Completed</option>
+                                <option value="">@lang('admin::app.activity-calendar.all')</option>
+                                <option value="0">@lang('admin::app.activity-calendar.pending')</option>
+                                <option value="1">@lang('admin::app.activity-calendar.completed')</option>
                             </select>
                         </label>
 
@@ -454,22 +454,22 @@
                             class="h-11 cursor-pointer rounded-md border border-brandColor px-4 text-sm font-semibold text-brandColor transition-colors hover:bg-brandColor hover:text-white focus:outline-none focus:ring-2 focus:ring-brandColor focus:ring-offset-2 dark:focus:ring-offset-gray-900"
                             @click="goToToday"
                         >
-                            Today
+                            @lang('admin::app.activity-calendar.today')
                         </button>
 
                         <div
                             class="flex h-11 min-w-[120px] items-center justify-center rounded-md bg-gray-100 px-4 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200"
                             aria-live="polite"
                         >
-                            @{{ visibleCount }} item@{{ visibleCount === 1 ? '' : 's' }}
+                            @{{ visibleCount }} @{{ visibleCount === 1 ? '@lang('admin::app.activity-calendar.item')' : '@lang('admin::app.activity-calendar.items')' }}
                         </div>
                     </div>
 
                     <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Hold Ctrl (Windows) or Command (macOS) to select multiple options.
+                        @lang('admin::app.activity-calendar.multi-select-hint')
                     </p>
 
-                    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Activity type color legend">
+                    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="@lang('admin::app.activity-calendar.legend')">
                         <span
                             class="inline-flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300"
                             v-for="type in activityTypes"
@@ -481,7 +481,7 @@
 
                         <span class="inline-flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-300">
                             <span class="flex h-4 w-4 items-center justify-center rounded-full border border-red-600 text-[10px]">!</span>
-                            Overdue
+                            @lang('admin::app.activity-calendar.overdue')
                         </span>
                     </div>
                 </div>
@@ -508,12 +508,12 @@
                     @ready="getActivities"
                     @view-change="getActivities"
                     @event-click="goToActivity"
-                    locale="{{ app()->getLocale() }}"
+                    locale="{{ strtolower(str_replace('_', '-', app()->getLocale())) }}"
                 >
                     <template #event="{ event }">
                         <div
                             class="event-resize-handle event-resize-handle--top"
-                            title="Drag to change start time"
+                            title="@lang('admin::app.activity-calendar.drag-start')"
                             @mousedown.stop.prevent="beginResize($event, event, 'start')"
                         >
                             <span class="event-resize-handle__grip"></span>
@@ -540,8 +540,8 @@
                             <span
                                 class="vuecal__event-overdue-indicator"
                                 v-if="event._isOverdue"
-                                title="Overdue and pending"
-                                aria-label="Overdue and pending"
+                                title="@lang('admin::app.activity-calendar.overdue-pending')"
+                                aria-label="@lang('admin::app.activity-calendar.overdue-pending')"
                             >!</span>
 
                             <div class="vuecal__event-title font-medium">
@@ -555,7 +555,7 @@
 
                         <div
                             class="event-resize-handle event-resize-handle--bottom"
-                            title="Drag to change end time"
+                            title="@lang('admin::app.activity-calendar.drag-end')"
                             @mousedown.stop.prevent="beginResize($event, event, 'end')"
                         >
                             <span class="event-resize-handle__grip"></span>
@@ -633,12 +633,12 @@
                             is_done: '',
                         },
                         activityTypes: [
-                            { value: 'task', label: 'Task', color: '#4f46e5' },
-                            { value: 'call', label: 'Call', color: '#0369a1' },
-                            { value: 'meeting', label: 'Meeting', color: '#7e22ce' },
-                            { value: 'note', label: 'Note', color: '#b45309' },
-                            { value: 'file', label: 'File', color: '#475569' },
-                            { value: 'lunch', label: 'Lunch', color: '#047857' },
+                            { value: 'task', label: "@lang('admin::app.activity-calendar.types.task')", color: '#4f46e5' },
+                            { value: 'call', label: "@lang('admin::app.activity-calendar.types.call')", color: '#0369a1' },
+                            { value: 'meeting', label: "@lang('admin::app.activity-calendar.types.meeting')", color: '#7e22ce' },
+                            { value: 'note', label: "@lang('admin::app.activity-calendar.types.note')", color: '#b45309' },
+                            { value: 'file', label: "@lang('admin::app.activity-calendar.types.file')", color: '#475569' },
+                            { value: 'lunch', label: "@lang('admin::app.activity-calendar.types.lunch')", color: '#047857' },
                         ],
                         theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
                         lastViewRange: null,
