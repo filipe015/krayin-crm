@@ -353,3 +353,15 @@ Um projeto/serviço novo no Easypanel, banco MySQL próprio, `APP_KEY` fixo e vo
 `cd /var/www/html && php artisan krayin-crm:install` (nunca pela tela do navegador, que roda
 `migrate:fresh`). O aviso "APP_KEY is already present" é esperado. O `docker-entrypoint.sh` cria um
 `.env` vazio quando não existe, para o Krayin reconhecer a instalação a cada deploy.
+
+### Menu lateral do admin (Krayin): fixo e recolhível
+
+O menu abre fixo por padrão e tem um botão na base para recolher (só ícones, com o nome ao passar o
+mouse). Quando aberto, o conteúdo ganha recuo e nada fica escondido; a escolha fica salva no navegador
+(`localStorage` → `krayin.sidebar`). Arquivos: `packages/Webkul/Admin/src/Resources/views/components/layouts/index.blade.php`,
+`.../layouts/sidebar/desktop/index.blade.php` e `.../assets/js/app.js`.
+
+**Importante:** o tema do admin é compilado e o resultado é versionado em `public/admin/build` (o
+Dockerfile NÃO compila o tema). Depois de mexer em JS/CSS/classes do admin:
+`cd packages/Webkul/Admin && npm install && npm run build` e commitar `public/admin/build`.
+Ao atualizar o Krayin oficial, reaplique esses 3 arquivos.

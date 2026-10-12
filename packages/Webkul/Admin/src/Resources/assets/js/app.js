@@ -16,6 +16,8 @@ window.app = createApp({
         return {
             isMenuActive: false,
 
+            sidebarOpen: true,
+
             hoveringMenu: '',
 
             lastScrollY: 0,
@@ -28,6 +30,8 @@ window.app = createApp({
     },
 
     mounted() {
+        this.sidebarOpen = ! this.$refs.sidebar?.parentElement?.classList.contains('sidebar-collapsed');
+
         this.$nextTick(() => {
             this._scrollEl = document.getElementById('main-content');
 
@@ -84,51 +88,42 @@ window.app = createApp({
             }, 100);
         },
 
-        handleMouseOver(event) {
-            if (this.isMenuActive) {
+        /**
+         * Opens or closes the side menu. The choice is kept in this browser, and the page
+         * content follows the menu width through CSS (see the layout), so nothing is hidden.
+         */
+        toggleSidebar() {
+            const container = this.$refs.sidebar?.parentElement;
+
+            if (! container) {
                 return;
             }
 
-            const parentElement = event.currentTarget.parentElement;
+            const closed = container.classList.toggle('sidebar-collapsed');
 
-            if (parentElement.classList.contains('sidebar-collapsed')) {
-                parentElement.classList.remove('sidebar-collapsed');
+            this.sidebarOpen = ! closed;
+            this.isMenuActive = false;
+            this.hoveringMenu = '';
 
-                parentElement.classList.add('sidebar-not-collapsed');
+            try {
+                localStorage.setItem('krayin.sidebar', closed ? 'closed' : 'open');
+            } catch (error) {
+                // Private mode or blocked storage: the menu still toggles, it just is not remembered.
             }
 
-        },
+            // Charts that only listen to the window size need to know the content width changed.
+            const content = document.getElementById('main-content');
 
-        handleMouseLeave(event) {
-            if (this.isMenuActive) {
-                return;
-            }
-
-            const parentElement = event.currentTarget.parentElement;
-
-            if (parentElement.classList.contains('sidebar-not-collapsed')) {
-                parentElement.classList.remove('sidebar-not-collapsed');
-
-                parentElement.classList.add('sidebar-collapsed');
+            if (content) {
+                content.addEventListener('transitionend', () => window.dispatchEvent(new Event('resize')), { once: true });
             }
         },
 
         handleFocusOut(event) {
             const sidebar = this.$refs.sidebar;
 
-            if (
-                sidebar &&
-                !sidebar.contains(event.target)
-            ) {
+            if (sidebar && ! sidebar.contains(event.target)) {
                 this.isMenuActive = false;
-
-                const parentElement = sidebar.parentElement;
-
-                if (parentElement.classList.contains('sidebar-not-collapsed')) {
-                    parentElement.classList.remove('sidebar-not-collapsed');
-
-                    parentElement.classList.add('sidebar-collapsed');
-                }
             }
         },
 

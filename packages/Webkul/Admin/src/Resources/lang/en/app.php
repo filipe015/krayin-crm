@@ -2185,6 +2185,8 @@ return [
         ],
     ],
     'layouts' => [
+        'sidebar-collapse' => 'Collapse menu',
+        'sidebar-toggle'   => 'Open or close the side menu',
         'app-version' => 'Version: :version',
         'dashboard' => 'Dashboard',
         'help' => 'Help & Resources',
