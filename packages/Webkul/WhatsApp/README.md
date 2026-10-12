@@ -337,3 +337,11 @@ a consulta (padrão: Reunião), o modelo aprovado, o valor de cada variável e o
 - Usa a conversa do lead no número oficial; se não houver, vincula uma conversa existente com o telefone
   do lead ou cria uma (um modelo pode abrir conversa). Lead sem telefone é ignorado.
 - Depois do deploy: `php artisan migrate --force` (cria `whatsapp_reminder_settings` e `whatsapp_reminders`).
+
+### Painel de super admin: endpoint de saúde
+
+Defina `WHATSAPP_CONTROL_KEY` (24+ caracteres, aleatória, única por instalação) e o painel passa a ler
+`GET /admin/whatsapp/control/health` com o cabeçalho `X-Control-Key`. A resposta traz versão do módulo,
+última execução do agendador, números conectados (status/qualidade) e contadores do mês (mensagens
+recebidas, enviadas, modelos, falhas em 24h, agendadas, usuários e leads). Nenhum dado de cliente final.
+Sem a variável, a rota responde 404. Opcional: `APP_VERSION` aparece como `app_version`.

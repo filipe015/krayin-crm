@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Webkul\WhatsApp\Http\Controllers\CloudWebhookController;
+use Webkul\WhatsApp\Http\Controllers\ControlHealthController;
 use Webkul\WhatsApp\Http\Controllers\LookupLeadController;
 use Webkul\WhatsApp\Http\Controllers\ReceiveMessageController;
 use Webkul\WhatsApp\Http\Controllers\WahaWebhookController;
@@ -20,3 +21,6 @@ Route::get('cloud/webhook', [CloudWebhookController::class, 'verify'])
 
 Route::post('cloud/webhook', [CloudWebhookController::class, 'receive'])
     ->name('admin.whatsapp.cloud.webhook');
+
+Route::get('control/health', ControlHealthController::class)
+    ->name('admin.whatsapp.control.health');

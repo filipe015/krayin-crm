@@ -13,6 +13,12 @@ return [
         'graph_version' => env('WHATSAPP_CLOUD_GRAPH_VERSION', 'v23.0'),
     ],
 
+    // Key the super-admin panel sends (X-Control-Key) to read health and usage. At least 24
+    // characters; empty keeps the endpoint off.
+    'control_key' => env('WHATSAPP_CONTROL_KEY'),
+
+    'app_version' => env('APP_VERSION'),
+
     // Optional path to ffmpeg; empty means "look it up on the PATH". Used to send voice notes
     // recorded in the browser through the Cloud API.
     'ffmpeg' => env('WHATSAPP_FFMPEG_BINARY'),

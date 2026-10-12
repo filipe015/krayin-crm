@@ -3,6 +3,8 @@
 namespace Webkul\WhatsApp\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
+use Webkul\WhatsApp\Http\Controllers\ControlHealthController;
 use Webkul\WhatsApp\Jobs\SendWhatsAppMessage;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Support\ScheduledMessage;
@@ -22,6 +24,9 @@ class SendScheduledMessages extends Command
 
     public function handle(): int
     {
+        // Heartbeat the super-admin panel reads to know the scheduler is running.
+        Cache::forever(ControlHealthController::SCHEDULER_CACHE_KEY, now()->toIso8601String());
+
         $due = Message::query()
             ->with('conversation.session:id,status')
             ->where('direction', 'outbound')
