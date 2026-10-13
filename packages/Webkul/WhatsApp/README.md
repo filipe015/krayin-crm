@@ -454,3 +454,9 @@ Card **Ciclo de vendas** no Início, abaixo do gráfico de negócios, com botão
 - Código: `Admin/Helpers/Reporting/SalesCycle.php` (`type=sales-cycle&mode=closing|scheduling` em `admin.dashboard.stats`).
 - Leads importados têm `created_at` = data da importação e distorcem o ciclo; ainda não há data de corte.
 - Não precisa de migration; o tema foi recompilado.
+
+### Erros do servidor em português
+
+`lang/pt_BR/` (raiz do projeto: `validation.php`, `auth.php`, `passwords.php`, `pagination.php`) traduz as mensagens de validação
+do Laravel ("O campo título é obrigatório."). Os nomes dos campos ficam em `attributes` de `validation.php`: um campo novo que
+apareça em inglês ou com o código cru ganha o nome ali. Não precisa de migration nem de recompilar o tema.
