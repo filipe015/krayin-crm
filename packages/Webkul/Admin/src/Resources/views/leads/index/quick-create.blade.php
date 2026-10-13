@@ -19,6 +19,21 @@
 @include('admin::leads.common.contact-component')
 
 @pushOnce('scripts')
+    <style>
+        /* Compact two-column card: fields side by side, tighter spacing. */
+        .lqc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; grid-auto-flow: row dense; }
+        .lqc-grid > * { margin-bottom: 8px; min-width: 0; }
+        .lqc-grid > :has([name="title"]),
+        .lqc-grid > :last-child:nth-child(odd),
+        .lqc-grid > :has(textarea) { grid-column: span 2; }
+        .lqc-grid textarea { min-height: 56px; height: 56px; }
+        .lqc-grid label { font-size: 12px; }
+        @media (max-width: 640px) {
+            .lqc-grid { grid-template-columns: minmax(0, 1fr); }
+            .lqc-grid > * { grid-column: auto !important; }
+        }
+    </style>
+
     <script
         type="text/x-template"
         id="v-lead-quick-create-template"
@@ -34,7 +49,7 @@
         <Teleport to="body">
             <x-admin::modal
                 ref="modal"
-                size="large"
+                size="medium"
             >
                 <x-slot:header>
                     <p class="text-xl font-semibold text-gray-800 dark:text-white">
@@ -55,40 +70,38 @@
                             <input type="hidden" name="quick_add" value="lead" />
                             <input type="hidden" name="lead_pipeline_id" :value="pipelineId" />
 
-                            <!-- Stage -->
-                            <x-admin::form.control-group>
-                                <x-admin::form.control-group.label>
-                                    @lang('admin::app.lead-quick-create.stage')
-                                </x-admin::form.control-group.label>
+                            <div class="lqc-grid">
+                                <!-- Stage -->
+                                <x-admin::form.control-group>
+                                    <x-admin::form.control-group.label>
+                                        @lang('admin::app.lead-quick-create.stage')
+                                    </x-admin::form.control-group.label>
 
-                                <select
-                                    name="lead_pipeline_stage_id"
-                                    v-model="stageId"
-                                    class="custom-select w-full rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                                >
-                                    <option
-                                        v-for="stage in stages"
-                                        :key="stage.id"
-                                        :value="stage.id"
+                                    <select
+                                        name="lead_pipeline_stage_id"
+                                        v-model="stageId"
+                                        class="custom-select w-full rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
                                     >
-                                        @{{ stage.name }}
-                                    </option>
-                                </select>
-                            </x-admin::form.control-group>
+                                        <option
+                                            v-for="stage in stages"
+                                            :key="stage.id"
+                                            :value="stage.id"
+                                        >
+                                            @{{ stage.name }}
+                                        </option>
+                                    </select>
+                                </x-admin::form.control-group>
 
-                            <!-- Contact -->
-                            <p class="mb-2 mt-1 font-semibold text-gray-800 dark:text-white">
-                                @lang('admin::app.leads.create.contact-person')
-                            </p>
-
-                            <v-contact-component :data="person"></v-contact-component>
+                                <!-- Contact (name, e-mail, phone, organization) -->
+                                <v-contact-component :data="person"></v-contact-component>
+                            </div>
 
                             <!-- Deal -->
-                            <p class="mb-2 mt-4 font-semibold text-gray-800 dark:text-white">
+                            <p class="mb-2 mt-2 font-semibold text-gray-800 dark:text-white">
                                 @lang('admin::app.leads.create.details')
                             </p>
 
-                            <div class="grid gap-4 max-sm:flex-wrap">
+                            <div class="lqc-grid lqc-details">
                                 <x-admin::attributes :custom-attributes="$quickAttributes" />
                             </div>
                         </form>
