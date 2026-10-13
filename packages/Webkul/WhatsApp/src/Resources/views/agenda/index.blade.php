@@ -22,70 +22,10 @@
         </div>
     </v-agenda>
 
+    @include('whatsapp::agenda.styles')
+    @include('whatsapp::agenda.book')
+
     @pushOnce('scripts')
-        <style>
-            .ag{--ag-bg:#fff;--ag-fg:#111827;--ag-muted:#6b7280;--ag-border:#e5e7eb;--ag-soft:#f3f4f6;--ag-accent:#0e90d9;display:flex;flex-direction:column;gap:12px;color:var(--ag-fg);font-size:14px}
-            .dark .ag{--ag-bg:#111827;--ag-fg:#e5e7eb;--ag-muted:#9ca3af;--ag-border:#1f2937;--ag-soft:#1f2937}
-            .ag *{box-sizing:border-box}
-            .ag button{cursor:pointer;font:inherit;color:inherit}
-            .ag-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;border:1px solid var(--ag-border);border-radius:8px;background:var(--ag-bg)}
-            .ag-bar h1{margin:0;font-size:18px;font-weight:600}
-            .ag-actions{display:flex;gap:8px;flex-wrap:wrap}
-            .ag-btn{padding:7px 14px;border:1px solid var(--ag-border);border-radius:6px;background:var(--ag-bg);font-size:13px;font-weight:500}
-            .ag-btn:hover{background:var(--ag-soft)}
-            .ag-btn.is-primary{background:var(--ag-accent);border-color:var(--ag-accent);color:#fff}
-            .ag-btn.is-primary:hover{filter:brightness(.95)}
-            .ag-btn.is-danger{border-color:#dc2626;color:#dc2626}
-            .ag-btn:disabled{opacity:.5;cursor:default}
-            .ag-filters{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border:1px solid var(--ag-border);border-radius:8px;background:var(--ag-bg)}
-            .ag-label{font-size:12px;color:var(--ag-muted);font-weight:600}
-            .ag-chips{display:flex;gap:6px;flex-wrap:wrap}
-            .ag-chip{padding:4px 12px;border:1px solid var(--ag-border);border-radius:999px;background:var(--ag-bg);font-size:12px}
-            .ag-chip.is-on{background:var(--ag-accent);border-color:var(--ag-accent);color:#fff}
-            .ag-check{display:flex;align-items:center;gap:6px;font-size:13px;margin-left:auto}
-            .ag-body{display:flex;gap:12px;align-items:flex-start}
-            .ag-cal{flex:1;min-width:0;border:1px solid var(--ag-border);border-radius:8px;background:var(--ag-bg);padding:8px}
-            .ag-side{width:280px;flex:none;display:flex;flex-direction:column;gap:12px}
-            @media (max-width:1100px){.ag-body{flex-direction:column;align-items:stretch}.ag-side{width:100%}}
-            .ag-card{border:1px solid var(--ag-border);border-radius:8px;background:var(--ag-bg);padding:12px;display:flex;flex-direction:column;gap:8px}
-            .ag-card h2{margin:0;font-size:13px;font-weight:600}
-            .ag-muted{color:var(--ag-muted);font-size:12px}
-            .ag-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 10px;border:1px solid var(--ag-border);border-left-width:4px;border-radius:6px;background:var(--ag-bg);text-align:left}
-            .ag-item:hover{background:var(--ag-soft)}
-            .ag-item.is-done{opacity:.6}
-            .ag-legend{display:flex;flex-direction:column;gap:6px}
-            .ag-legend span{display:flex;align-items:center;gap:8px;font-size:12px}
-            .ag-dot{width:10px;height:10px;border-radius:50%;flex:none}
-            .ag-event{height:100%;padding:3px 6px;overflow:hidden;border-left:4px solid;border-radius:4px;color:#111827;font-size:12px;line-height:1.25;text-align:left}
-            .ag-event strong{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-            .ag-event span,.ag-event small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-            .ag-event small{opacity:.8}
-            .ag-event.is-done{opacity:.55;text-decoration:line-through}
-            .ag-event.is-overdue{box-shadow:inset 0 0 0 1px #dc2626}
-            .ag-back{position:fixed;inset:0;z-index:10005;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.45)}
-            .ag-modal{width:100%;max-width:480px;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:20px;border-radius:10px;background:var(--ag-bg);color:var(--ag-fg);box-shadow:0 20px 40px rgba(0,0,0,.25)}
-            .ag-modal h2{margin:0;font-size:16px;font-weight:600}
-            .ag-field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ag-muted)}
-            .ag-field input,.ag-field select,.ag-field textarea{width:100%;padding:8px 10px;border:1px solid var(--ag-border);border-radius:6px;background:var(--ag-bg);color:var(--ag-fg);font:inherit;font-weight:400}
-            .ag-row{display:flex;gap:10px}
-            .ag-row>*{flex:1;min-width:0}
-            .ag-results{border:1px solid var(--ag-border);border-radius:6px;overflow:hidden}
-            .ag-results button{display:flex;flex-direction:column;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--ag-border);background:var(--ag-bg);text-align:left}
-            .ag-results button:last-child{border-bottom:0}
-            .ag-results button:hover{background:var(--ag-soft)}
-            .ag-picked{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--ag-accent);border-radius:6px}
-            .ag-alert{padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:13px}
-            .ag-detail{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13px}
-            .ag-detail dt{color:var(--ag-muted)}
-            .ag-detail dd{margin:0}
-            .ag-footer{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-            .ag .vuecal{background:transparent}
-            .ag .vuecal__event{background:transparent!important;border:0!important}
-            .ag .vuecal__cell--today{background:rgba(14,144,217,.06)}
-            .ag .vuecal__heading{font-size:12px;line-height:1.15}
-            .ag .vuecal__heading .weekday-label{display:flex;flex-direction:column;align-items:center;gap:0}
-            .ag .vuecal__heading .weekday-label span:nth-child(2){font-size:11px;opacity:.7}
-        </style>
 
         <script type="text/x-template" id="v-agenda-template">
             <div class="ag">
@@ -94,7 +34,8 @@
 
                     <div class="ag-actions">
                         <button type="button" class="ag-btn" @click="goToday">@{{ labels.today }}</button>
-                        <button v-if="canCreate" type="button" class="ag-btn is-primary" @click="openNew(null)">+ @{{ labels.new }}</button>
+                        <button v-if="canCreate" type="button" class="ag-btn" @click="openNew(null, 'followup')">+ @{{ labels.kind_followup }}</button>
+                        <button v-if="canCreate" type="button" class="ag-btn is-primary" @click="openNew(null, 'appointment')">+ @{{ labels.new }}</button>
                     </div>
                 </div>
 
@@ -114,6 +55,11 @@
                     </div>
 
                     <label class="ag-check">
+                        <input type="checkbox" v-model="includeFollowups" @change="load(); loadToday()">
+                        @{{ labels.show_followups }}
+                    </label>
+
+                    <label class="ag-check" style="margin-left:0">
                         <input type="checkbox" v-model="includeDone" @change="load(); loadToday()">
                         @{{ labels.show_done }}
                     </label>
@@ -147,11 +93,11 @@
                             <template #event="{ event }">
                                 <div
                                     class="ag-event"
-                                    :class="{ 'is-done': event.is_done, 'is-overdue': event.overdue }"
+                                    :class="{ 'is-done': event.is_done, 'is-overdue': event.overdue, 'is-followup': event.kind === 'followup' }"
                                     :style="{ background: event.bg, borderLeftColor: event.border }"
                                 >
                                     <strong>@{{ event.person || event.lead || event.title }}</strong>
-                                    <span>@{{ event.title }}</span>
+                                    <span><i class="ag-tag" v-if="event.kind === 'followup'">@{{ labels.followup_tag }}</i>@{{ event.title }}</span>
                                     <small>@{{ hhmm(event.start) }}–@{{ hhmm(event.end) }} · @{{ event.user_name }}</small>
                                 </div>
                             </template>
@@ -174,7 +120,7 @@
                                 @click="openDetail(item)"
                             >
                                 <strong>@{{ hhmm(item.start) }} · @{{ item.person || item.lead || item.title }}</strong>
-                                <span class="ag-muted">@{{ item.title }}<template v-if="item.user_name"> · @{{ item.user_name }}</template></span>
+                                <span class="ag-muted"><i class="ag-tag" v-if="item.kind === 'followup'">@{{ labels.followup_tag }}</i>@{{ item.title }}<template v-if="item.user_name"> · @{{ item.user_name }}</template></span>
                             </button>
                         </div>
 
@@ -190,100 +136,16 @@
                     </aside>
                 </div>
 
-                <!-- New appointment -->
-                <div v-if="form" class="ag-back" @click.self="form = null">
-                    <form class="ag-modal" @submit.prevent="submit(false)">
-                        <h2>@{{ labels.new }}</h2>
-
-                        <div class="ag-field">
-                            @{{ labels.lead }}
-
-                            <div v-if="form.lead" class="ag-picked">
-                                <span>
-                                    <strong>@{{ form.lead.person || form.lead.title }}</strong>
-                                    <span class="ag-muted" v-if="form.lead.stage"> · @{{ form.lead.stage }}</span>
-                                </span>
-                                <button type="button" class="ag-btn" @click="form.lead = null">×</button>
-                            </div>
-
-                            <template v-else>
-                                <input type="text" v-model="search" :placeholder="labels.search_ph" @input="searchLeads" autocomplete="off">
-
-                                <div class="ag-results" v-if="results.length">
-                                    <button v-for="lead in results" :key="lead.id" type="button" @click="pick(lead)">
-                                        <strong>@{{ lead.person || lead.title }}</strong>
-                                        <span class="ag-muted">@{{ lead.title }}<template v-if="lead.stage"> · @{{ lead.stage }}</template></span>
-                                    </button>
-                                </div>
-
-                                <span class="ag-muted" v-else-if="searched">@{{ labels.no_results }}</span>
-                            </template>
-                        </div>
-
-                        <label class="ag-field">
-                            @{{ labels.service }}
-                            <input type="text" v-model="form.title" maxlength="120" :placeholder="labels.default_title">
-                        </label>
-
-                        <div class="ag-row">
-                            <label class="ag-field">
-                                @{{ labels.start }}
-                                <input type="datetime-local" v-model="form.start" required>
-                            </label>
-
-                            <label class="ag-field">
-                                @{{ labels.duration }}
-                                <select v-model="form.duration">
-                                    <option v-for="minutes in durations" :key="minutes" :value="minutes">@{{ minutes }} @{{ labels.minutes }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <label class="ag-field">
-                            @{{ labels.professional }}
-                            <select v-model="form.user_id">
-                                <option v-if="autoAssign" value="auto">@{{ labels.auto }}</option>
-                                <option v-for="user in users" :key="user.id" :value="user.id">@{{ user.name }}</option>
-                            </select>
-                        </label>
-
-                        <div class="ag-field">
-                            @{{ labels.mode }}
-
-                            <div class="ag-row">
-                                <button type="button" class="ag-chip" :class="{ 'is-on': form.online }" @click="form.online = true">@{{ labels.online }}</button>
-                                <button type="button" class="ag-chip" :class="{ 'is-on': ! form.online }" @click="form.online = false">@{{ labels.in_person }}</button>
-                            </div>
-
-                            <input
-                                type="text"
-                                v-model="form.location"
-                                maxlength="255"
-                                :placeholder="form.online ? labels.link_ph : labels.address_ph"
-                                :aria-label="form.online ? labels.link_label : labels.address_label"
-                            >
-                        </div>
-
-                        <label class="ag-field">
-                            @{{ labels.notes }}
-                            <textarea v-model="form.comment" rows="2" maxlength="1000"></textarea>
-                        </label>
-
-                        <div class="ag-alert" v-if="problem">
-                            @{{ problem }}
-                            <template v-if="conflicts.length">
-                                <br>
-                                <span v-for="item in conflicts" :key="item.id">@{{ item.start }}–@{{ item.end }} · @{{ item.title }}<br></span>
-                            </template>
-                        </div>
-
-                        <div class="ag-footer">
-                            <button type="button" class="ag-btn" @click="form = null">@{{ labels.cancel }}</button>
-                            <button v-if="conflicts.length" type="button" class="ag-btn is-danger" :disabled="busy" @click="submit(true)">@{{ labels.conflict_force }}</button>
-                            <button type="submit" class="ag-btn is-primary" :disabled="busy">@{{ labels.save }}</button>
-                        </div>
-                    </form>
-                </div>
+                <!-- New appointment / follow-up (shared with the lead's "Agendar" button) -->
+                <v-agenda-book
+                    :urls="urls"
+                    :labels="labels"
+                    :users="users"
+                    :current-user-id="currentUserId"
+                    :durations="durations"
+                    :default-duration="defaultDuration"
+                    :auto-assign="autoAssign"
+                ></v-agenda-book>
 
                 <!-- Appointment details -->
                 <div v-if="detail" class="ag-back" @click.self="detail = null">
@@ -291,8 +153,8 @@
                         <h2>@{{ detail.person || detail.lead || detail.title }}</h2>
 
                         <dl class="ag-detail">
-                            <dt>@{{ labels.service }}</dt><dd>@{{ detail.title }}</dd>
-                            <dt>@{{ labels.start }}</dt><dd>@{{ dayLabel(detail.start) }} · @{{ hhmm(detail.start) }}–@{{ hhmm(detail.end) }}</dd>
+                            <dt>@{{ detail.kind === 'followup' ? labels.followup_tag : labels.service }}</dt><dd>@{{ detail.title }}</dd>
+                            <dt>@{{ labels.start }}</dt><dd>@{{ dayLabel(detail.start) }} · @{{ hhmm(detail.start) }}<template v-if="detail.kind !== 'followup'">–@{{ hhmm(detail.end) }}</template></dd>
                             <dt>@{{ labels.professional }}</dt><dd>@{{ detail.user_name || '—' }}</dd>
                             <dt>@{{ labels.stage }}</dt><dd>@{{ detail.stage || labels.no_stage }}</dd>
                             <dt v-if="detail.location">@{{ labels.location }}</dt>
@@ -345,16 +207,10 @@
                         todayEvents: [],
                         selectedUsers: [],
                         includeDone: false,
+                        includeFollowups: true,
                         theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
                         palette: ['#93c5fd', '#86efac', '#fde68a', '#fca5a5', '#c4b5fd', '#f9a8d4', '#a5f3fc', '#fdba74'],
                         borders: ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#0891b2', '#ea580c'],
-                        form: null,
-                        search: '',
-                        results: [],
-                        searched: false,
-                        searchTimer: null,
-                        problem: '',
-                        conflicts: [],
                         detail: null,
                         busy: false,
                     };
@@ -382,6 +238,8 @@
 
                 mounted() {
                     this.loadToday();
+
+                    this.$emitter.on('agenda-booked', () => { this.load(); this.loadToday(); });
 
                     if (this.$emitter) {
                         this.$emitter.on('change-theme', theme => { this.theme = theme; });
@@ -443,7 +301,7 @@
                     },
 
                     params(start, end) {
-                        const params = { start, end, include_done: this.includeDone ? 1 : 0 };
+                        const params = { start, end, include_done: this.includeDone ? 1 : 0, include_followups: this.includeFollowups ? 1 : 0 };
 
                         if (this.selectedUsers.length) {
                             params.user_ids = this.selectedUsers;
@@ -508,7 +366,7 @@
 
                     onCellClick(date) {
                         if (this.canCreate) {
-                            this.openNew(date instanceof Date ? date : new Date(date));
+                            this.openNew(date instanceof Date ? date : new Date(date), 'appointment');
                         }
                     },
 
@@ -524,91 +382,8 @@
                         this.detail = Object.assign({}, item);
                     },
 
-                    openNew(date) {
-                        const start = date || (() => { const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1); return d; })();
-
-                        this.problem = '';
-                        this.conflicts = [];
-                        this.search = '';
-                        this.results = [];
-                        this.searched = false;
-                        this.form = {
-                            lead: null,
-                            title: '',
-                            comment: '',
-                            start: this.localInput(start),
-                            duration: this.durations.includes(this.defaultDuration) ? this.defaultDuration : this.durations[0],
-                            online: true,
-                            location: '',
-                            user_id: this.autoAssign
-                                ? 'auto'
-                                : (this.users.some(user => user.id === this.currentUserId) ? this.currentUserId : (this.users[0] ? this.users[0].id : null)),
-                        };
-                    },
-
-                    searchLeads() {
-                        clearTimeout(this.searchTimer);
-
-                        if (this.search.trim().length < 2) {
-                            this.results = [];
-                            this.searched = false;
-
-                            return;
-                        }
-
-                        this.searchTimer = setTimeout(async () => {
-                            try {
-                                const { data } = await this.$axios.get(this.urls.leads, { params: { q: this.search.trim() } });
-
-                                this.results = data.data;
-                                this.searched = true;
-                            } catch (error) {
-                                this.results = [];
-                            }
-                        }, 250);
-                    },
-
-                    pick(lead) {
-                        this.form.lead = lead;
-                        this.results = [];
-                        this.search = '';
-                    },
-
-                    async submit(force) {
-                        if (! this.form.lead) {
-                            this.problem = this.labels.lead_required;
-                            this.conflicts = [];
-
-                            return;
-                        }
-
-                        this.busy = true;
-                        this.problem = '';
-
-                        try {
-                            await this.$axios.post(this.urls.store, {
-                                lead_id: this.form.lead.id,
-                                title: this.form.title,
-                                comment: this.form.comment,
-                                location: this.form.location,
-                                start: this.form.start,
-                                duration: this.form.duration,
-                                user_id: this.form.user_id,
-                                ignore_conflict: force ? 1 : 0,
-                            });
-
-                            this.form = null;
-                            this.$emitter.emit('add-flash', { type: 'success', message: this.labels.saved });
-                            this.load();
-                            this.loadToday();
-                        } catch (error) {
-                            const body = error.response && error.response.data;
-
-                            this.conflicts = (body && body.conflicts) || [];
-                            this.problem = (body && (body.message || Object.values(body.errors || {}).flat()[0])) || this.labels.error;
-                        } finally {
-                            this.busy = false;
-                        }
+                    openNew(date, kind = 'appointment') {
+                        this.$emitter.emit('agenda-open-book', { start: date, kind });
                     },
 
                     async markDone(item) {

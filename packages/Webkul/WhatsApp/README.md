@@ -418,3 +418,17 @@ A tela completa (`/admin/leads/create`) continua existindo.
 - A migration `2026_10_18_000001_adjust_lead_form_attributes` ajusta o atributo e marca valor, origem e responsável como
   adição rápida. Rodar `php artisan migrate --force` em cada instalação (`krayin` e `financerize-crm`).
 - Não precisa recompilar o tema.
+
+### Botão "Agendar" no card do lead e "Retomar contato"
+
+No card do lead (ao lado de WhatsApp, Nota e Atividade) há o botão **Agendar** (permissão `agenda.create`). Ele abre o
+**mesmo card da Agenda**, já com o lead escolhido, com duas opções:
+
+- **Compromisso** (consulta, call, reunião… conforme o vocabulário): responsável (manual, rodízio ou menos ocupado),
+  duração, Online/Presencial, aviso de conflito. Vira atividade **Reunião**: aparece na Agenda e entra nos lembretes.
+- **Retomar contato**: o lead pediu para falar numa data específica. Pede só data/hora (padrão: amanhã 9h), quem vai
+  retomar e o que ficou combinado. Vira uma atividade **Ligação** marcada com `additional.kind = followup`: aparece na
+  Agenda (borda tracejada e etiqueta "Retorno"), nas atividades do lead e em Atividades. **Não** gera lembrete nem envia
+  mensagem ao lead (os lembretes automáticos ignoram retornos). Na Agenda, o filtro **Mostrar retornos** liga/desliga.
+
+Ligações e almoços comuns (botão Atividade) continuam fora da Agenda. Não precisa de migration nem de recompilar o tema.

@@ -27,18 +27,11 @@ class AgendaController extends Controller
 
     public function index(): View
     {
-        $setting = AgendaSetting::current();
-
-        return view('whatsapp::agenda.index', [
-            'labels' => AgendaVocabulary::labels($setting),
-            'dayStart' => (int) $setting->day_start,
-            'dayEnd' => (int) $setting->day_end,
-            'defaultDuration' => (int) $setting->default_duration,
-            'autoAssign' => $setting->distribution_mode !== 'manual',
-            'users' => User::query()->where('status', 1)->orderBy('name')->get(['id', 'name']),
-            'currentUserId' => auth()->guard('user')->id(),
+        return view('whatsapp::agenda.index', self::bookingProps() + [
             'canCreate' => bouncer()->hasPermission('agenda.create'),
             'canOpenInbox' => bouncer()->hasPermission('whatsapp') && bouncer()->hasPermission('whatsapp.send'),
+            'dayStart' => (int) AgendaSetting::current()->day_start,
+            'dayEnd' => (int) AgendaSetting::current()->day_end,
             'urls' => [
                 'events'   => route('admin.agenda.events'),
                 'leads'    => route('admin.agenda.leads'),
@@ -48,8 +41,31 @@ class AgendaController extends Controller
                 'activity' => route('admin.activities.edit', ['id' => '__ID__']),
                 'inbox'    => route('admin.whatsapp.inbox.open-lead', ['leadId' => '__ID__']),
             ],
-            'durations' => self::DURATIONS,
         ]);
+    }
+
+    /**
+     * What the booking card ("Nova consulta" / "Agendar") needs, shared by the Agenda page and the
+     * lead's "Agendar" button.
+     *
+     * @return array<string, mixed>
+     */
+    public static function bookingProps(): array
+    {
+        $setting = AgendaSetting::current();
+
+        return [
+            'labels' => AgendaVocabulary::labels($setting),
+            'defaultDuration' => (int) $setting->default_duration,
+            'autoAssign' => $setting->distribution_mode !== 'manual',
+            'users' => User::query()->where('status', 1)->orderBy('name')->get(['id', 'name']),
+            'currentUserId' => (int) auth()->guard('user')->id(),
+            'durations' => self::DURATIONS,
+            'bookUrls' => [
+                'leads' => route('admin.agenda.leads'),
+                'store' => route('admin.agenda.store'),
+            ],
+        ];
     }
 
     public function events(Request $request): JsonResponse
@@ -60,6 +76,7 @@ class AgendaController extends Controller
             'user_ids'     => ['nullable', 'array', 'max:50'],
             'user_ids.*'   => ['integer'],
             'include_done' => ['nullable', 'boolean'],
+            'include_followups' => ['nullable', 'boolean'],
         ]);
 
         $from = Carbon::parse($data['start'], config('app.timezone'))->startOfDay();
@@ -76,7 +93,7 @@ class AgendaController extends Controller
             ->leftJoin('persons', 'persons.id', '=', 'leads.person_id')
             ->leftJoin('lead_pipeline_stages as stages', 'stages.id', '=', 'leads.lead_pipeline_stage_id')
             ->leftJoin('users', 'users.id', '=', 'activities.user_id')
-            ->where('activities.type', 'meeting')
+            ->where(fn ($query) => $this->ofAgenda($query, 'activities', (bool) ($data['include_followups'] ?? true)))
             ->whereBetween('activities.schedule_from', [$from, $to])
             ->when(! ($data['include_done'] ?? false), fn ($query) => $query->where('activities.is_done', 0))
             ->when(! empty($data['user_ids']), fn ($query) => $query->whereIn('activities.user_id', $data['user_ids']))
@@ -87,7 +104,7 @@ class AgendaController extends Controller
             ->orderBy('activities.schedule_from')
             ->get([
                 'activities.id', 'activities.title', 'activities.comment', 'activities.location', 'activities.schedule_from', 'activities.schedule_to',
-                'activities.is_done', 'activities.user_id', 'users.name as user_name',
+                'activities.is_done', 'activities.user_id', 'activities.type', 'users.name as user_name',
                 'leads.id as lead_id', 'leads.title as lead_title', 'persons.name as person_name',
                 'stages.id as stage_id', 'stages.name as stage_name',
             ]);
@@ -100,6 +117,7 @@ class AgendaController extends Controller
             'start'     => Carbon::parse($row->schedule_from)->format('Y-m-d H:i'),
             'end'       => Carbon::parse($row->schedule_to ?: $row->schedule_from)->format('Y-m-d H:i'),
             'is_done'   => (bool) $row->is_done,
+            'kind'      => $row->type === 'meeting' ? 'appointment' : 'followup',
             'user_id'   => $row->user_id,
             'user_name' => $row->user_name,
             'lead_id'   => $row->lead_id,
@@ -141,6 +159,7 @@ class AgendaController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'kind'            => ['nullable', Rule::in(['appointment', 'followup'])],
             'lead_id'         => ['required', 'integer', 'exists:leads,id'],
             'title'           => ['nullable', 'string', 'max:120'],
             'comment'         => ['nullable', 'string', 'max:1000'],
@@ -152,7 +171,8 @@ class AgendaController extends Controller
         ]);
 
         $setting = AgendaSetting::current();
-        $automatic = $data['user_id'] === 'auto' && $setting->distribution_mode !== 'manual';
+        $followup = ($data['kind'] ?? 'appointment') === 'followup';
+        $automatic = ! $followup && $data['user_id'] === 'auto' && $setting->distribution_mode !== 'manual';
 
         if (! $automatic) {
             abort_unless(
@@ -171,6 +191,10 @@ class AgendaController extends Controller
 
         $start = Carbon::createFromFormat('Y-m-d\TH:i', $data['start'], config('app.timezone'));
         $end = $start->copy()->addMinutes((int) $data['duration']);
+
+        if ($followup) {
+            return $this->storeFollowup($data, $start, $setting);
+        }
 
         $userId = $automatic
             ? $this->pickResponsible($setting, $start, $end)
@@ -224,7 +248,7 @@ class AgendaController extends Controller
 
     public function done(int $id): JsonResponse
     {
-        $query = DB::table('activities')->where('id', $id)->where('type', 'meeting');
+        $query = DB::table('activities')->where('id', $id)->where(fn ($inner) => $this->ofAgenda($inner, 'activities', true));
 
         if ($authorized = bouncer()->getAuthorizedUserIds()) {
             $query->where(function ($inner) use ($authorized) {
@@ -242,6 +266,52 @@ class AgendaController extends Controller
         Event::dispatch('activity.update.after', $activity);
 
         return response()->json(['done' => true]);
+    }
+
+    /**
+     * What the Agenda lists: appointments (meetings) and, optionally, follow-ups ("retomar contato"),
+     * which are calls marked with additional.kind = followup. Plain calls stay out of the Agenda.
+     */
+    private function ofAgenda($query, string $table, bool $withFollowups)
+    {
+        return $query->where(function ($inner) use ($table, $withFollowups) {
+            $inner->where($table.'.type', 'meeting');
+
+            if ($withFollowups) {
+                $inner->orWhere(function ($followup) use ($table) {
+                    $followup->where($table.'.type', 'call')
+                        ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT({$table}.additional, '$.kind')) = ?", ['followup']);
+                });
+            }
+        });
+    }
+
+    /**
+     * A follow-up is a reminder for a person to get back to the lead on a date: no professional
+     * distribution, no conflict check, no reminder message. It is saved as a call so it also shows
+     * in the lead's activities and in Atividades.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function storeFollowup(array $data, Carbon $start, AgendaSetting $setting): JsonResponse
+    {
+        Event::dispatch('activity.create.before');
+
+        $activity = app(ActivityRepository::class)->create([
+            'type'          => 'call',
+            'title'         => trim((string) ($data['title'] ?? '')) ?: AgendaVocabulary::labels($setting)['followup_title'],
+            'comment'       => $data['comment'] ?? null,
+            'additional'    => json_encode(['kind' => 'followup']),
+            'schedule_from' => $start,
+            'schedule_to'   => $start->copy()->addMinutes(15),
+            'is_done'       => 0,
+            'user_id'       => (int) $data['user_id'],
+        ]);
+
+        // The core listener links the activity to the lead named by `lead_id` in this request.
+        Event::dispatch('activity.create.after', $activity);
+
+        return response()->json(['data' => ['id' => $activity->id]], 201);
     }
 
     /**

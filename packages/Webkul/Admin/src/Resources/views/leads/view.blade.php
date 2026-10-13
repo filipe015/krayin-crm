@@ -100,6 +100,15 @@
                         />
                     @endif
 
+                    @if (
+                        bouncer()->hasPermission('agenda.create')
+                        && ! \Webkul\Admin\Bouncer::isDisabled('agenda')
+                        && \Illuminate\Support\Facades\Route::has('admin.agenda.store')
+                    )
+                        <!-- Agendar: appointment or follow-up, shown in the Agenda -->
+                        @include('whatsapp::agenda.book-button')
+                    @endif
+
                     {!! view_render_event('admin.leads.view.actions.after', ['lead' => $lead]) !!}
                 </div>
             </div>

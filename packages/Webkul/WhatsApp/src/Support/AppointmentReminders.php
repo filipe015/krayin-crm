@@ -137,6 +137,8 @@ final class AppointmentReminders
             ->join('leads', 'leads.id', '=', 'lead_activities.lead_id')
             ->where('leads.lead_pipeline_stage_id', $settings->stage_id)
             ->where('activities.type', $settings->activity_type)
+            // Follow-ups ("retomar contato") are reminders for the team, never a message to the lead.
+            ->whereRaw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(activities.additional, '$.kind')), '') <> 'followup'")
             ->where('activities.is_done', 0)
             ->where('activities.schedule_from', '>', now())
             ->get(['activities.id as activity_id', 'leads.id as lead_id']);
