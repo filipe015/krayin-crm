@@ -52,6 +52,19 @@
 
                 {!! view_render_event('admin.leads.view.title.after', ['lead' => $lead]) !!}
 
+                @if ($lead->created_at)
+                    <!-- Created at (the start of the sales cycle) -->
+                    <p
+                        class="-mt-1 text-xs text-gray-500 dark:text-gray-400"
+                        title="{{ $lead->created_at->timezone(config('app.timezone'))->format('Y-m-d H:i:s') }}"
+                    >
+                        @lang('admin::app.lead-created-at', [
+                            'date' => $lead->created_at->timezone(config('app.timezone'))->format('d/m/Y'),
+                            'time' => $lead->created_at->timezone(config('app.timezone'))->format('H:i'),
+                        ])
+                    </p>
+                @endif
+
                 <!-- Activity Actions -->
                 <div class="flex flex-wrap gap-2">
                     {!! view_render_event('admin.leads.view.actions.before', ['lead' => $lead]) !!}
@@ -125,7 +138,7 @@
         {!! view_render_event('admin.leads.view.right.before', ['lead' => $lead]) !!}
 
         <!-- Right Panel -->
-        <div class="flex w-full flex-col gap-4 rounded-lg">
+        <div class="flex w-full min-w-0 flex-col gap-4 rounded-lg">
             <!-- Stages Navigation -->
             @include ('admin::leads.view.stages')
 

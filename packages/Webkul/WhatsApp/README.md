@@ -432,3 +432,12 @@ No card do lead (ao lado de WhatsApp, Nota e Atividade) há o botão **Agendar**
   mensagem ao lead (os lembretes automáticos ignoram retornos). Na Agenda, o filtro **Mostrar retornos** liga/desliga.
 
 Ligações e almoços comuns (botão Atividade) continuam fora da Agenda. Não precisa de migration nem de recompilar o tema.
+
+### Card do lead: layout e data de criação
+
+- O painel da direita (funil + abas) encolhe com a tela: sem rolagem lateral. A barra de etapas **quebra em duas linhas**
+  quando o funil não cabe em uma.
+- Abaixo do título do negócio aparece **"Criado em dd/mm/aaaa às HH:MM"** (fuso `APP_TIMEZONE`). É a coluna `leads.created_at`,
+  o início do ciclo de fechamento; o fim é `leads.closed_at` (preenchida pelo Krayin ao marcar Ganho/Perdido).
+  Ciclo = `closed_at − created_at`.
+- Recompilar o tema (`cd packages/Webkul/Admin && npm run build`) ao mexer em classes de estilo; o build vai versionado.

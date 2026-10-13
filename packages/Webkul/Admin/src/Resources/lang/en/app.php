@@ -2184,6 +2184,8 @@ return [
             ],
         ],
     ],
+    'lead-created-at' => 'Created on :date at :time',
+
     'lead-quick-create' => [
         'title' => 'New deal',
         'stage' => 'Stage',
