@@ -21,12 +21,21 @@ class WhatsAppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+
+        // Outgoing webhooks: lead and appointment events.
+        \Webkul\WhatsApp\Api\Support\WebhookEvents::register();
+
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'whatsapp');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'whatsapp');
 
         Route::middleware('api')
             ->prefix(config('app.admin_path').'/whatsapp')
             ->group(__DIR__.'/../Routes/webhook.php');
+
+        // Public REST API (API key, not the admin session). Limited per key/IP.
+        Route::middleware(['api', 'throttle:120,1', \Webkul\WhatsApp\Api\Http\Middleware\AuthenticateApiKey::class])
+            ->prefix('api/v1')
+            ->group(__DIR__.'/../Routes/api.php');
 
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/leads')
@@ -39,6 +48,10 @@ class WhatsAppServiceProvider extends ServiceProvider
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/settings/agenda')
             ->group(__DIR__.'/../Routes/agenda-settings.php');
+
+        Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/settings/api')
+            ->group(__DIR__.'/../Routes/api-settings.php');
 
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/whatsapp/inbox')

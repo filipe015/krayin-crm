@@ -460,3 +460,9 @@ Card **Ciclo de vendas** no Início, abaixo do gráfico de negócios, com botão
 `lang/pt_BR/` (raiz do projeto: `validation.php`, `auth.php`, `passwords.php`, `pagination.php`) traduz as mensagens de validação
 do Laravel ("O campo título é obrigatório."). Os nomes dos campos ficam em `attributes` de `validation.php`: um campo novo que
 apareça em inglês ou com o código cru ganha o nome ali. Não precisa de migration nem de recompilar o tema.
+
+### API REST e webhooks
+
+Chaves de API, endpoints (`/api/v1`) e webhooks de saída: ver [API.md](API.md). Código em `src/Api/`; tela em
+Configurações → Integração (API). Roda `php artisan migrate --force` (tabelas `api_keys` e `api_webhooks`). Sem rebuild do tema.
+O agendamento por API usa o mesmo serviço da Agenda (`Support/AppointmentBooking`).

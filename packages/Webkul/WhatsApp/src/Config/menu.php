@@ -23,4 +23,12 @@ return [
         'sort'       => 5,
         'icon-class' => 'icon-calendar',
     ],
+    [
+        'key'        => 'settings.other_settings.api',
+        'name'       => 'whatsapp::app.menu.api_settings',
+        'info'       => 'whatsapp::app.menu.api_settings_info',
+        'route'      => 'admin.api.settings.index',
+        'sort'       => 6,
+        'icon-class' => 'icon-settings-webhooks',
+    ],
 ];

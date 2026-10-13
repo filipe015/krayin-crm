@@ -108,7 +108,8 @@ class Bouncer
     {
         $user = auth()->guard('user')->user();
 
-        if ($user->view_permission == 'global') {
+        // No logged user (API key, console): the installation as a whole.
+        if (! $user || $user->view_permission == 'global') {
             return null;
         }
 

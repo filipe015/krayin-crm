@@ -102,4 +102,22 @@ return [
         'route' => 'admin.agenda.settings.update',
         'sort'  => 1,
     ],
+    [
+        'key'   => 'settings.other_settings.api',
+        'name'  => 'whatsapp::app.acl.api_settings',
+        'route' => ['admin.api.settings.index', 'admin.api.settings.list'],
+        'sort'  => 7,
+    ], [
+        'key'   => 'settings.other_settings.api.edit',
+        'name'  => 'whatsapp::app.acl.api_settings_edit',
+        'route' => [
+            'admin.api.settings.keys.store',
+            'admin.api.settings.keys.revoke',
+            'admin.api.settings.webhooks.store',
+            'admin.api.settings.webhooks.update',
+            'admin.api.settings.webhooks.delete',
+            'admin.api.settings.webhooks.test',
+        ],
+        'sort'  => 1,
+    ],
 ];
