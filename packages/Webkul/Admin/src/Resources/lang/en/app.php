@@ -2184,6 +2184,11 @@ return [
             ],
         ],
     ],
+    'lead-quick-create' => [
+        'title' => 'New deal',
+        'stage' => 'Stage',
+    ],
+
     'activity-calendar' => [
         'type'            => 'Type',
         'responsible'     => 'Responsible',

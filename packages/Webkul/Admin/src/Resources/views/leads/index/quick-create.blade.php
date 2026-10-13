@@ -1,0 +1,204 @@
+{{--
+    "Adicionar Negócio" as a card over the pipeline, instead of a separate page. It is the same
+    contact block and the same quick-add fields the header "+" uses; which fields appear is
+    controlled by "Adicionar Rápido" in Configurações → Campos Personalizados.
+--}}
+@php
+    $quickAttributes = app('Webkul\Attribute\Repositories\AttributeRepository')
+        ->findWhere(['entity_type' => 'leads', 'quick_add' => 1])
+        ->reject(fn ($attribute) => in_array($attribute->code, ['lead_pipeline_id', 'lead_pipeline_stage_id']));
+@endphp
+
+<v-lead-quick-create
+    :pipeline-id="{{ (int) $pipeline->id }}"
+    :stages="{{ Illuminate\Support\Js::from($pipeline->stages->map(fn ($stage) => ['id' => $stage->id, 'name' => $stage->name, 'code' => $stage->code])->values()) }}"
+    view-type="{{ request()->view_type ?? 'kanban' }}"
+></v-lead-quick-create>
+
+{{-- Registers the contact component (person lookup, e-mail, phone, organization). --}}
+@include('admin::leads.common.contact-component')
+
+@pushOnce('scripts')
+    <script
+        type="text/x-template"
+        id="v-lead-quick-create-template"
+    >
+        <button
+            type="button"
+            class="primary-button"
+            @click="open(null)"
+        >
+            @lang('admin::app.leads.index.create-btn')
+        </button>
+
+        <Teleport to="body">
+            <x-admin::modal
+                ref="modal"
+                size="large"
+            >
+                <x-slot:header>
+                    <p class="text-xl font-semibold text-gray-800 dark:text-white">
+                        @lang('admin::app.lead-quick-create.title')
+                    </p>
+                </x-slot>
+
+                <x-slot:content>
+                    <x-admin::form
+                        v-slot="{ meta, errors, handleSubmit }"
+                        as="div"
+                        ref="formWrapper"
+                    >
+                        <form
+                            @submit="handleSubmit($event, create)"
+                            ref="form"
+                        >
+                            <input type="hidden" name="quick_add" value="lead" />
+                            <input type="hidden" name="lead_pipeline_id" :value="pipelineId" />
+
+                            <!-- Stage -->
+                            <x-admin::form.control-group>
+                                <x-admin::form.control-group.label>
+                                    @lang('admin::app.lead-quick-create.stage')
+                                </x-admin::form.control-group.label>
+
+                                <select
+                                    name="lead_pipeline_stage_id"
+                                    v-model="stageId"
+                                    class="custom-select w-full rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                                >
+                                    <option
+                                        v-for="stage in stages"
+                                        :key="stage.id"
+                                        :value="stage.id"
+                                    >
+                                        @{{ stage.name }}
+                                    </option>
+                                </select>
+                            </x-admin::form.control-group>
+
+                            <!-- Contact -->
+                            <p class="mb-2 mt-1 font-semibold text-gray-800 dark:text-white">
+                                @lang('admin::app.leads.create.contact-person')
+                            </p>
+
+                            <v-contact-component :data="person"></v-contact-component>
+
+                            <!-- Deal -->
+                            <p class="mb-2 mt-4 font-semibold text-gray-800 dark:text-white">
+                                @lang('admin::app.leads.create.details')
+                            </p>
+
+                            <div class="grid gap-4 max-sm:flex-wrap">
+                                <x-admin::attributes :custom-attributes="$quickAttributes" />
+                            </div>
+                        </form>
+                    </x-admin::form>
+                </x-slot>
+
+                <x-slot:footer>
+                    <x-admin::button
+                        class="primary-button"
+                        :title="trans('admin::app.leads.create.save-btn')"
+                        ::loading="isStoring"
+                        ::disabled="isStoring"
+                        @click="submit"
+                    />
+                </x-slot>
+            </x-admin::modal>
+        </Teleport>
+    </script>
+
+    <script type="module">
+        app.component('v-lead-quick-create', {
+            template: '#v-lead-quick-create-template',
+
+            props: {
+                pipelineId: { type: Number, required: true },
+                stages: { type: Array, default: () => [] },
+                viewType: { type: String, default: 'kanban' },
+            },
+
+            data() {
+                return {
+                    isStoring: false,
+                    person: { name: '' },
+                    stageId: this.firstStageId(),
+                };
+            },
+
+            mounted() {
+                // The "+" of a stage column opens this same card with that stage chosen.
+                this.$emitter.on('open-lead-quick-create', stageId => this.open(stageId));
+            },
+
+            methods: {
+                firstStageId() {
+                    const open = this.stages.find(stage => ! ['won', 'lost'].includes(stage.code));
+
+                    return (open || this.stages[0] || {}).id;
+                },
+
+                open(stageId) {
+                    this.stageId = stageId || this.firstStageId();
+                    this.person = { name: '' };
+                    this.$refs.modal.open();
+                },
+
+                submit() {
+                    const form = this.$refs.form;
+
+                    if (! form) {
+                        return;
+                    }
+
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
+                },
+
+                create(params, { setErrors }) {
+                    const form = this.$refs.form;
+
+                    if (! form) {
+                        return;
+                    }
+
+                    this.isStoring = true;
+
+                    this.$axios.post("{{ route('admin.leads.store') }}", new FormData(form))
+                        .then(response => {
+                            this.$emitter.emit('add-flash', { type: 'success', message: response.data.message });
+
+                            this.$refs.modal.close();
+
+                            form.reset();
+
+                            // The kanban reloads itself; the table is simply reloaded.
+                            if (this.viewType === 'table') {
+                                window.location.reload();
+
+                                return;
+                            }
+
+                            this.$emitter.emit('lead-created');
+                        })
+                        .catch(error => {
+                            if (error.response?.status == 422) {
+                                setErrors(error.response.data.errors);
+                            } else {
+                                this.$emitter.emit('add-flash', {
+                                    type: 'error',
+                                    message: error.response?.data?.message || error.message,
+                                });
+                            }
+                        })
+                        .finally(() => {
+                            this.isStoring = false;
+                        });
+                },
+            },
+        });
+    </script>
+@endPushOnce

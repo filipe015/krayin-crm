@@ -61,12 +61,12 @@
                                     </a>
 
                                     @if (bouncer()->hasPermission('leads.create'))
-                                        <a
-                                            :href="'{{ route('admin.leads.create') }}' + '?stage_id=' + stage.id"
+                                        <button
+                                            type="button"
                                             class="icon-add cursor-pointer rounded p-1 text-lg text-gray-600 transition-all hover:bg-gray-200 hover:text-gray-800 dark:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-white"
-                                            target="_blank"
+                                            @click="$emitter.emit('open-lead-quick-create', stage.id)"
                                         >
-                                        </a>
+                                        </button>
                                     @endif
                                 </div>
                             </div>
@@ -126,12 +126,13 @@
                                         </div>
 
                                         @if (bouncer()->hasPermission('leads.create'))
-                                            <a
-                                                :href="'{{ route('admin.leads.create') }}' + '?stage_id=' + stage.id"
+                                            <button
+                                                type="button"
                                                 class="secondary-button"
+                                                @click="$emitter.emit('open-lead-quick-create', stage.id)"
                                             >
                                                 @lang('admin::app.leads.index.kanban.create-lead-btn')
-                                            </a>
+                                            </button>
                                         @endif
                                     </div>
                                 </div>
@@ -486,6 +487,9 @@
                 this.boot();
 
                 this.getCardPreferences();
+
+                // A lead created from the card appears on the board without reloading the page.
+                this.$emitter.on('lead-created', () => this.boot());
             },
 
             beforeUnmount() {

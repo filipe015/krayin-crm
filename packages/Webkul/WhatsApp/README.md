@@ -406,3 +406,15 @@ reunião, neutro). O padrão de uma instalação nova é neutro ("Agendamento" /
 Ao marcar, o formato é **Online** (link) ou **Presencial** (endereço); vai para o campo `location` da atividade, aparece
 no detalhe e pode entrar nos lembretes pela variável **"Link ou local do agendamento"**. "Compareceu?"/no-show é só
 uma etapa do funil.
+
+## Novo negócio em card (Oportunidades)
+
+Em **Oportunidades**, "Adicionar Negócio" (cabeçalho, "+" de cada coluna e botão da coluna vazia) abre um **card na própria
+tela** em vez de outra aba. Ele mostra a etapa (já escolhida quando o clique veio de uma coluna), a pessoa de contato e os
+campos marcados como **adição rápida** nos Campos Personalizados de Negócios. Ao salvar, o kanban atualiza sem recarregar.
+A tela completa (`/admin/leads/create`) continua existindo.
+
+- **E-mail deixou de ser obrigatório** (formulário e atributo `persons.emails`).
+- A migration `2026_10_18_000001_adjust_lead_form_attributes` ajusta o atributo e marca valor, origem e responsável como
+  adição rápida. Rodar `php artisan migrate --force` em cada instalação (`krayin` e `financerize-crm`).
+- Não precisa recompilar o tema.
