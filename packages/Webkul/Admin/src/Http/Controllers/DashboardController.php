@@ -17,6 +17,7 @@ class DashboardController extends Controller
         'over-all' => 'getOverAllStats',
         'revenue-stats' => 'getRevenueStats',
         'total-leads' => 'getTotalLeadsStats',
+        'sales-cycle' => 'getSalesCycleStats',
         'revenue-by-sources' => 'getLeadsStatsBySources',
         'revenue-by-types' => 'getLeadsStatsByTypes',
         'top-selling-products' => 'getTopSellingProducts',

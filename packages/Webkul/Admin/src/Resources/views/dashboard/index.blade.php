@@ -50,6 +50,9 @@
             <!-- Total Leads Stats -->
             @include('admin::dashboard.index.total-leads')
 
+            <!-- Sales cycle (creation to closing / to first appointment) -->
+            @include('admin::dashboard.index.sales-cycle')
+
         </div>
 
         {!! view_render_event('admin.dashboard.index.content.left.after') !!}

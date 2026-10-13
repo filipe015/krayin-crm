@@ -2101,6 +2101,18 @@ return [
                 'won' => 'Negócios ganhos',
                 'lost' => 'Negócios perdidos',
             ],
+            'sales-cycle' => [
+                'title' => 'Ciclo de vendas',
+                'mode-closing' => 'Até o fechamento',
+                'mode-scheduling' => 'Até o agendamento',
+                'average' => 'Média',
+                'median' => 'Mediana',
+                'days' => 'dias',
+                'total-closing' => 'negócios ganhos no período',
+                'total-scheduling' => 'negócios agendados no período',
+                'empty-closing' => 'Nenhum negócio ganho neste período.',
+                'empty-scheduling' => 'Nenhum agendamento neste período.',
+            ],
             'revenue-by-sources' => [
                 'title' => 'Faturamento por origens',
                 'empty-title' => 'Ainda não há dados',

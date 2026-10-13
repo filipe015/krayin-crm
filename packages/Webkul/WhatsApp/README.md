@@ -441,3 +441,16 @@ Ligações e almoços comuns (botão Atividade) continuam fora da Agenda. Não p
   o início do ciclo de fechamento; o fim é `leads.closed_at` (preenchida pelo Krayin ao marcar Ganho/Perdido).
   Ciclo = `closed_at − created_at`.
 - Recompilar o tema (`cd packages/Webkul/Admin && npm run build`) ao mexer em classes de estilo; o build vai versionado.
+
+### Dashboard: ciclo de vendas
+
+Card **Ciclo de vendas** no Início, abaixo do gráfico de negócios, com botão no canto: **Até o fechamento** / **Até o agendamento**
+(a escolha fica lembrada no navegador). Respeita o filtro de datas do dashboard e as permissões (só leads visíveis ao usuário).
+
+- **Fechamento:** negócios **ganhos** com `closed_at` no período; ciclo = `closed_at − created_at`.
+- **Agendamento:** negócios cuja **primeira atividade do tipo Reunião** foi criada no período; ciclo = criação dessa reunião
+  − `created_at` do lead. Retornos ("Retomar contato") e ligações não contam.
+- Mostra **média**, **mediana** e quantidade, e barras por dia (≤ 14 dias), semana (≤ 120) ou mês, pelo dia em que o ciclo terminou.
+- Código: `Admin/Helpers/Reporting/SalesCycle.php` (`type=sales-cycle&mode=closing|scheduling` em `admin.dashboard.stats`).
+- Leads importados têm `created_at` = data da importação e distorcem o ciclo; ainda não há data de corte.
+- Não precisa de migration; o tema foi recompilado.

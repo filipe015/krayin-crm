@@ -73,6 +73,14 @@ class Dashboard
     }
 
     /**
+     * Returns the sales cycle (days from lead creation to closing or to the first appointment).
+     */
+    public function getSalesCycleStats(): array
+    {
+        return app(\Webkul\Admin\Helpers\Reporting\SalesCycle::class)->stats((string) request()->query('mode', 'closing'));
+    }
+
+    /**
      * Returns leads revenue statistics by sources.
      */
     public function getLeadsStatsBySources(): mixed

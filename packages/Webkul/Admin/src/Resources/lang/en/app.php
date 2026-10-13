@@ -2102,6 +2102,18 @@ return [
                 'won' => 'Won Leads',
                 'lost' => 'Lost Leads',
             ],
+            'sales-cycle' => [
+                'title' => 'Sales cycle',
+                'mode-closing' => 'To closing',
+                'mode-scheduling' => 'To scheduling',
+                'average' => 'Average',
+                'median' => 'Median',
+                'days' => 'days',
+                'total-closing' => 'deals won in the period',
+                'total-scheduling' => 'deals scheduled in the period',
+                'empty-closing' => 'No deals won in this period.',
+                'empty-scheduling' => 'No appointments in this period.',
+            ],
             'revenue-by-sources' => [
                 'title' => 'Revenue By Sources',
                 'empty-title' => 'No Data Available',
