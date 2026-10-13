@@ -176,6 +176,20 @@ export default {
                     },
                 },
         
+                pt_BR: {
+                    ...pt_BR,
+                    messages: {
+                        ...pt_BR.messages,
+                        _default: "O campo {field} não é válido",
+                        phone: "O campo {field} deve ser um número de telefone válido",
+                        after: "O campo {field} deve ser uma data de hoje em diante",
+                        address: "O campo {field} possui um formato inválido",
+                        postcode: "O campo {field} deve ser um CEP válido",
+                        decimal: "O campo {field} deve ser um número válido",
+                        date_format: "O campo {field} deve ser uma data válida",
+                    },
+                },
+
                 tr: {
                     ...tr,
                     messages: {
