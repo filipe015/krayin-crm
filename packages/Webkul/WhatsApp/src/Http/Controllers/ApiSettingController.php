@@ -6,6 +6,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Webkul\WhatsApp\Api\Models\ApiKey;
@@ -24,6 +25,7 @@ class ApiSettingController extends Controller
             'webhooks' => $this->webhooks(),
             'events'   => WebhookEvents::EVENTS,
             'baseUrl'  => rtrim(config('app.url'), '/').'/api/v1',
+            'docs'     => $this->documentation(rtrim(config('app.url'), '/').'/api/v1'),
             'urls'     => [
                 'keys'     => route('admin.api.settings.keys.store'),
                 'revoke'   => route('admin.api.settings.keys.revoke', ['id' => '__ID__']),
@@ -33,6 +35,22 @@ class ApiSettingController extends Controller
                 'list'     => route('admin.api.settings.list'),
             ],
         ]);
+    }
+
+    /**
+     * API.md (the same file kept in the repository) rendered for the screen, with this installation's address.
+     */
+    private function documentation(string $baseUrl): string
+    {
+        $path = __DIR__.'/../../../API.md';
+
+        if (! File::exists($path)) {
+            return '';
+        }
+
+        $markdown = str_replace('https://<seu-crm>/api/v1', $baseUrl, File::get($path));
+
+        return Str::markdown($markdown, ['html_input' => 'strip', 'allow_unsafe_links' => false]);
     }
 
     public function list(): JsonResponse

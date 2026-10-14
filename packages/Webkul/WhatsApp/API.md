@@ -14,8 +14,8 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 | `GET /users` · `/sources` · `/tags` | responsáveis ativos, origens e etiquetas |
 | `GET /leads` | lista paginada. Filtros: `q`, `pipeline_id`, `stage_id`, `status` (open/won/lost), `source_id`, `user_id`, `email`, `phone`, `created_from/to`, `closed_from/to`, `updated_since`, `per_page` (≤100), `page` |
 | `GET /leads/{id}` | negócio completo + últimas atividades |
-| `GET /appointments?start=&end=` | compromissos e retornos (`kind=appointment|followup|all`, `user_id`, `lead_id`, `include_done`; até 93 dias) |
-| `GET /reports/sales-cycle?mode=closing|scheduling&start=&end=` | média, mediana, total e série do ciclo de vendas (mesmos números do dashboard) |
+| `GET /appointments?start=&end=` | compromissos e retornos (`kind=appointment\|followup\|all`, `user_id`, `lead_id`, `include_done`; até 93 dias) |
+| `GET /reports/sales-cycle?mode=closing\|scheduling&start=&end=` | média, mediana, total e série do ciclo de vendas (mesmos números do dashboard) |
 | `GET /reports/leads-summary?start=&end=&pipeline_id=` | criados, ganhos (com valor), perdidos, abertos, por etapa e por origem |
 
 ## Escrita (chave com permissão de escrita)
@@ -34,7 +34,7 @@ Regras iguais às da tela: agendamento com conflito devolve 409 com os horários
 | Endpoint | O que faz |
 | --- | --- |
 | `POST /ads/insights` | (escrita) recebe `rows` (até 1000) com `account_id`, `date`, `ad_id` e, opcionais, `ad_name`, `adset_id/name`, `campaign_id/name`, `spend`, `impressions`, `clicks`, `results` (`{"lead": 12, "Lead - Online": 9}`). Idempotente: regravar o mesmo anúncio e dia atualiza. |
-| `GET /ads/performance?start=&end=&level=campaign|adset|ad&account_id=` | (leitura) investimento por dia gasto, resultados do Meta e, cruzando UTM (campaign = campanha, medium = conjunto, content = anúncio, sem diferenciar maiúsculas), leads do CRM, agendados, ganhos, CPL, custo por agendamento, custo por venda e ROAS. Traz também os leads do período sem UTM ou com UTM que não bate com nenhum anúncio. |
+| `GET /ads/performance?start=&end=&level=campaign\|adset\|ad&account_id=` | (leitura) investimento por dia gasto, resultados do Meta e, cruzando UTM (campaign = campanha, medium = conjunto, content = anúncio, sem diferenciar maiúsculas), leads do CRM, agendados, ganhos, CPL, custo por agendamento, custo por venda e ROAS. Traz também os leads do período sem UTM ou com UTM que não bate com nenhum anúncio. |
 
 Leads contam pelo dia de criação e são acompanhados até o estado atual. A tela **Anúncios** usa o mesmo relatório.
 

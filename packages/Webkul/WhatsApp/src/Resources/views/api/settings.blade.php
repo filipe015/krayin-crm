@@ -14,8 +14,38 @@
         <div class="p-6 text-sm text-gray-500">@lang('whatsapp::app.agenda.loading')</div>
     </v-api-settings>
 
+    @if ($docs !== '')
+        <details class="api-docs" open style="max-width:900px;margin-top:16px">
+            <summary>@lang('whatsapp::app.api_settings.docs')</summary>
+
+            {{-- Rendered Markdown (API.md): Vue must not compile it. --}}
+            <div class="api-docs-body" v-pre>{!! $docs !!}</div>
+        </details>
+    @endif
+
     @pushOnce('scripts')
         <style>
+            .api-docs{border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:0 16px;font-size:14px;color:#111827}
+            .dark .api-docs{background:#111827;border-color:#1f2937;color:#e5e7eb}
+            .api-docs summary{cursor:pointer;padding:14px 0;font-size:14px;font-weight:600}
+            .api-docs-body{padding-bottom:16px;line-height:1.5}
+            .api-docs-body h1{font-size:18px;font-weight:600;margin:4px 0 10px}
+            .api-docs-body h2{font-size:15px;font-weight:600;margin:22px 0 8px;padding-top:6px;border-top:1px solid #e5e7eb}
+            .dark .api-docs-body h2{border-color:#1f2937}
+            .api-docs-body p,.api-docs-body ul,.api-docs-body ol{margin:8px 0}
+            .api-docs-body ul,.api-docs-body ol{padding-left:22px}
+            .api-docs-body ul{list-style:disc}
+            .api-docs-body table{display:block;overflow:auto;border-collapse:collapse;font-size:13px;margin:8px 0}
+            .api-docs-body th,.api-docs-body td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:top}
+            .dark .api-docs-body th,.dark .api-docs-body td{border-color:#1f2937}
+            .api-docs-body th{background:#f3f4f6;font-weight:600}
+            .dark .api-docs-body th{background:#1f2937}
+            .api-docs-body code{font-size:12px;background:#f3f4f6;padding:1px 5px;border-radius:4px;word-break:break-word}
+            .dark .api-docs-body code{background:#1f2937}
+            .api-docs-body pre{margin:8px 0;padding:10px 12px;border-radius:6px;background:#f3f4f6;overflow:auto}
+            .dark .api-docs-body pre{background:#1f2937}
+            .api-docs-body pre code{background:none;padding:0}
+            .api-docs-body a{color:#0e90d9}
             .api{--a-bg:#fff;--a-fg:#111827;--a-muted:#6b7280;--a-border:#e5e7eb;--a-soft:#f3f4f6;--a-accent:#0e90d9;display:flex;flex-direction:column;gap:16px;max-width:900px;color:var(--a-fg);font-size:14px}
             .dark .api{--a-bg:#111827;--a-fg:#e5e7eb;--a-muted:#9ca3af;--a-border:#1f2937;--a-soft:#1f2937}
             .api *{box-sizing:border-box}

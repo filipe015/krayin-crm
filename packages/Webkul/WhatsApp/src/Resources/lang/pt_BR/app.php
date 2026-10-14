@@ -369,6 +369,7 @@ return [
         'error'          => 'Não foi possível carregar os dados.',
     ],
     'api_settings' => [
+        'docs'           => 'Documentação da API',
         'title'          => 'Integração (API)',
         'intro'          => 'Chaves e webhooks para conectar o CRM a automações (n8n, Make, scripts) e a outros sistemas.',
         'keys'           => 'Chaves de API',
