@@ -29,6 +29,14 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 
 Regras iguais às da tela: agendamento com conflito devolve 409 com os horários; o ciclo de vendas usa a primeira Reunião criada.
 
+## Anúncios (Meta Ads)
+| Endpoint | O que faz |
+| --- | --- |
+| `POST /ads/insights` | (escrita) recebe `rows` (até 1000) com `account_id`, `date`, `ad_id` e, opcionais, `ad_name`, `adset_id/name`, `campaign_id/name`, `spend`, `impressions`, `clicks`, `results` (`{"lead": 12, "Lead - Online": 9}`). Idempotente: regravar o mesmo anúncio e dia atualiza. |
+| `GET /ads/performance?start=&end=&level=campaign|adset|ad&account_id=` | (leitura) investimento por dia gasto, resultados do Meta e, cruzando UTM (campaign = campanha, medium = conjunto, content = anúncio, sem diferenciar maiúsculas), leads do CRM, agendados, ganhos, CPL, custo por agendamento, custo por venda e ROAS. Traz também os leads do período sem UTM ou com UTM que não bate com nenhum anúncio. |
+
+Leads contam pelo dia de criação e são acompanhados até o estado atual. A tela **Anúncios** usa o mesmo relatório.
+
 ## Webhooks de saída
 Cadastrados em **Integração (API) → Webhooks**. Eventos: `lead.created`, `lead.stage_changed`, `lead.won`, `lead.lost`,
 `appointment.created`, `appointment.done`, `followup.created` (ou todos). Corpo (`POST`, JSON):

@@ -50,6 +50,10 @@ class WhatsAppServiceProvider extends ServiceProvider
             ->group(__DIR__.'/../Routes/agenda-settings.php');
 
         Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/ads')
+            ->group(__DIR__.'/../Routes/ads.php');
+
+        Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/settings/api')
             ->group(__DIR__.'/../Routes/api-settings.php');
 

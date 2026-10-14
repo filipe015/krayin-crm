@@ -120,4 +120,10 @@ return [
         ],
         'sort'  => 1,
     ],
+    [
+        'key'   => 'ads',
+        'name'  => 'whatsapp::app.acl.ads',
+        'route' => ['admin.ads.index', 'admin.ads.data'],
+        'sort'  => 8,
+    ],
 ];

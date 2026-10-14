@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Webkul\WhatsApp\Api\Http\Controllers\AdsApiController;
 use Webkul\WhatsApp\Api\Http\Controllers\AppointmentApiController;
 use Webkul\WhatsApp\Api\Http\Controllers\CatalogController;
 use Webkul\WhatsApp\Api\Http\Controllers\LeadApiController;
@@ -25,3 +26,6 @@ Route::post('appointments/{id}/done', [AppointmentApiController::class, 'done'])
 
 Route::get('reports/sales-cycle', [ReportApiController::class, 'salesCycle']);
 Route::get('reports/leads-summary', [ReportApiController::class, 'leadsSummary']);
+
+Route::post('ads/insights', [AdsApiController::class, 'ingest']);
+Route::get('ads/performance', [AdsApiController::class, 'performance']);

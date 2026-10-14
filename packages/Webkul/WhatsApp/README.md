@@ -466,3 +466,10 @@ apareça em inglês ou com o código cru ganha o nome ali. Não precisa de migra
 Chaves de API, endpoints (`/api/v1`) e webhooks de saída: ver [API.md](API.md). Código em `src/Api/`; tela em
 Configurações → Integração (API). Roda `php artisan migrate --force` (tabelas `api_keys` e `api_webhooks`). Sem rebuild do tema.
 O agendamento por API usa o mesmo serviço da Agenda (`Support/AppointmentBooking`).
+
+### Anúncios (Meta Ads x leads)
+
+Item **Anúncios** no menu (permissão `ads`): investimento do Meta por campanha, conjunto ou anúncio, cruzado com os leads
+do CRM pelos UTMs. Os campos de UTM são detectados pelo nome ou código ("UTM Campaign", `utm_medium`...). O gasto chega por
+`POST /api/v1/ads/insights` (workflow do n8n) e fica em `ad_insights_daily`. Ver [API.md](API.md).
+Rodar `php artisan migrate --force`. Sem rebuild do tema.

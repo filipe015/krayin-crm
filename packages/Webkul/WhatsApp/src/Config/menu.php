@@ -16,6 +16,13 @@ return [
         'icon-class' => 'icon-calendar',
     ],
     [
+        'key'        => 'ads',
+        'name'       => 'whatsapp::app.menu.ads',
+        'route'      => 'admin.ads.index',
+        'sort'       => 4,
+        'icon-class' => 'icon-leads',
+    ],
+    [
         'key'        => 'settings.other_settings.agenda',
         'name'       => 'whatsapp::app.menu.agenda_settings',
         'info'       => 'whatsapp::app.menu.agenda_settings_info',
