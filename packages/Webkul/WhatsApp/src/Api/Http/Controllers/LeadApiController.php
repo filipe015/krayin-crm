@@ -133,7 +133,15 @@ class LeadApiController extends ApiController
             'person.phone'        => ['nullable', 'string', 'max:40'],
             'custom'              => ['nullable', 'array'],
             'on_duplicate'        => ['nullable', Rule::in(['create', 'return'])],
+            'tags'                => ['nullable', 'array', 'max:50'],
+            'tags.*'              => ['integer'],
         ]);
+
+        $tagIds = $this->tagIds($data['tags'] ?? []);
+
+        if ($missing = $this->missingTags($tagIds)) {
+            return $this->invalidTags($missing);
+        }
 
         // The same person, found by e-mail or phone, is reused instead of duplicated.
         $personId = $data['person_id'] ?? null;
@@ -154,6 +162,9 @@ class LeadApiController extends ApiController
                 ->first(['leads.*']);
 
             if ($existing) {
+                // A resubmission (same phone/e-mail) still adds its tags, keeping the ones already there.
+                $this->attachTags($existing, $tagIds);
+
                 return $this->ok(LeadPresenter::make($existing) + ['created' => false, 'person_existed' => true]);
             }
         }
@@ -210,6 +221,8 @@ class LeadApiController extends ApiController
         Event::dispatch('lead.create.before');
 
         $lead = $this->leads->create($payload);
+
+        $this->attachTags($lead, $tagIds);
 
         Event::dispatch('lead.create.after', $lead);
 
@@ -284,6 +297,80 @@ class LeadApiController extends ApiController
         Event::dispatch('activity.create.after', $activity);
 
         return $this->ok(['id' => $activity->id], [], 201);
+    }
+
+    /**
+     * Adds tags to a lead; the ones it already has stay (and are not duplicated).
+     */
+    public function tags(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'tags'   => ['required', 'array', 'min:1', 'max:50'],
+            'tags.*' => ['integer'],
+        ]);
+
+        $lead = Lead::query()->find($id);
+
+        if (! $lead) {
+            return $this->fail('not_found', 'Negócio não encontrado.', 404);
+        }
+
+        $tagIds = $this->tagIds($data['tags']);
+
+        if ($missing = $this->missingTags($tagIds)) {
+            return $this->invalidTags($missing);
+        }
+
+        $this->attachTags($lead, $tagIds);
+
+        return $this->show($id);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function tagIds(array $ids): array
+    {
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    private function missingTags(array $ids): array
+    {
+        if (! $ids) {
+            return [];
+        }
+
+        $found = DB::table('tags')->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return array_values(array_diff($ids, $found));
+    }
+
+    private function invalidTags(array $missing): JsonResponse
+    {
+        return $this->fail('invalid_tags', 'Etiqueta(s) inexistente(s): '.implode(', ', $missing).'. Veja GET /tags.', 422, ['tags' => $missing]);
+    }
+
+    /**
+     * @param  list<int>  $ids
+     */
+    private function attachTags(Lead $lead, array $ids): void
+    {
+        if (! $ids) {
+            return;
+        }
+
+        $changes = $lead->tags()->syncWithoutDetaching($ids);
+
+        // Tag changes count as an update, so "GET /leads?updated_since=" picks them up.
+        if ($changes['attached']) {
+            $lead->touch();
+        }
+
+        $lead->unsetRelation('tags');
     }
 
     /**

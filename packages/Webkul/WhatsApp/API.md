@@ -21,7 +21,8 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 ## Escrita (chave com permissão de escrita)
 | Endpoint | Corpo |
 | --- | --- |
-| `POST /leads` | `title` (obrig.), `value`, `description`, `pipeline_id`/`stage_id`, `source_id`, `type_id`, `user_id`, `expected_close_date`, `custom` (campos personalizados por código), e a pessoa: `person_id` **ou** `person: {name, email, phone}`. A pessoa é **reaproveitada** se o e-mail ou telefone já existir (`person_existed`). `on_duplicate: "return"` devolve o negócio aberto da pessoa em vez de criar outro (`created: false`). |
+| `POST /leads` | `title` (obrig.), `value`, `description`, `pipeline_id`/`stage_id`, `source_id`, `type_id`, `user_id`, `expected_close_date`, `custom` (campos personalizados por código), e a pessoa: `person_id` **ou** `person: {name, email, phone}`. A pessoa é **reaproveitada** se o e-mail ou telefone já existir (`person_existed`). `on_duplicate: "return"` devolve o negócio aberto da pessoa em vez de criar outro (`created: false`). `tags`: lista de ids de etiquetas (`GET /tags`), ex. `[2]`; também são **adicionadas** ao negócio devolvido por `on_duplicate` (sem remover as que ele já tem). Id inexistente = 422 `invalid_tags`, nada é criado. |
+| `POST /leads/{id}/tags` | `tags` (ids, obrig.). Adiciona sem remover as existentes e sem duplicar (repetir a chamada não muda nada); devolve o negócio no formato de `GET /leads/{id}`. 404 se o negócio não existe, 422 `invalid_tags` se algum id não existe. |
 | `PATCH /leads/{id}/stage` | `stage_id` (do funil do negócio), `lost_reason`, `value` (ao ganhar) |
 | `POST /leads/{id}/notes` | `comment` |
 | `POST /leads/{id}/appointments` | `start` (ISO 8601; sem fuso = horário da instalação), `user_id` (número ou `"auto"` = rodízio/menos ocupado da Agenda), `duration` (15–120), `title`, `location`, `comment`, `ignore_conflict`; `kind: "followup"` cria um **retomar contato** (só data, sem conflito nem lembrete) |

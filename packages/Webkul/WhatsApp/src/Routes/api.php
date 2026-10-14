@@ -19,6 +19,7 @@ Route::post('leads', [LeadApiController::class, 'store']);
 Route::get('leads/{id}', [LeadApiController::class, 'show'])->whereNumber('id');
 Route::patch('leads/{id}/stage', [LeadApiController::class, 'stage'])->whereNumber('id');
 Route::post('leads/{id}/notes', [LeadApiController::class, 'note'])->whereNumber('id');
+Route::post('leads/{id}/tags', [LeadApiController::class, 'tags'])->whereNumber('id');
 Route::post('leads/{id}/appointments', [AppointmentApiController::class, 'store'])->whereNumber('id');
 
 Route::get('appointments', [AppointmentApiController::class, 'index']);
