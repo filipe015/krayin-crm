@@ -41,6 +41,9 @@ final class WebhookEvents
 
     private static ?bool $hasWebhooks = null;
 
+    /** Bulk imports ask for silence: nothing recorded in this request reaches the webhooks. */
+    private static bool $muted = false;
+
     /** @var array<int, int|null> */
     private static array $stageBefore = [];
 
@@ -105,9 +108,26 @@ final class WebhookEvents
         return null;
     }
 
+    /**
+     * Forgets what was noted in this process (a long-lived worker, or the test suite).
+     */
+    public static function reset(): void
+    {
+        self::$pending = [];
+        self::$scheduled = false;
+        self::$hasWebhooks = null;
+        self::$muted = false;
+        self::$stageBefore = [];
+    }
+
+    public static function mute(bool $muted = true): void
+    {
+        self::$muted = $muted;
+    }
+
     public static function record(string $event, array $context): void
     {
-        if (! self::anyWebhook()) {
+        if (self::$muted || ! self::anyWebhook()) {
             return;
         }
 

@@ -22,6 +22,8 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 | Endpoint | Corpo |
 | --- | --- |
 | `POST /leads` | `title` (obrig.), `value`, `description`, `pipeline_id`/`stage_id`, `source_id`, `type_id`, `user_id`, `expected_close_date`, `custom` (campos personalizados por código), e a pessoa: `person_id` **ou** `person: {name, email, phone}`. A pessoa é **reaproveitada** se o e-mail ou telefone já existir (`person_existed`). `on_duplicate: "return"` devolve o negócio aberto da pessoa em vez de criar outro (`created: false`). `tags`: lista de ids de etiquetas (`GET /tags`), ex. `[2]`; também são **adicionadas** ao negócio devolvido por `on_duplicate` (sem remover as que ele já tem). Id inexistente = 422 `invalid_tags`, nada é criado. |
+| `POST /pipelines` | `name`, `stages` (lista de `{name, type?: open\|won\|lost, probability?}`). Cria um funil com as etapas, na ordem; acrescenta "Ganho" e "Perdido" se a lista não tiver. Idempotente pelo nome (devolve o existente, `created: false`). |
+| `POST /tags` | `name`, `color?` (`#RRGGBB`). Cria a etiqueta; idempotente pelo nome. |
 | `POST /leads/{id}/tags` | `tags` (ids, obrig.). Adiciona sem remover as existentes e sem duplicar (repetir a chamada não muda nada); devolve o negócio no formato de `GET /leads/{id}`. 404 se o negócio não existe, 422 `invalid_tags` se algum id não existe. |
 | `PATCH /leads/{id}/stage` | `stage_id` (do funil do negócio), `lost_reason`, `value` (ao ganhar) |
 | `POST /leads/{id}/notes` | `comment` |
@@ -29,6 +31,18 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 | `POST /appointments/{id}/done` | marca como concluído |
 
 Regras iguais às da tela: agendamento com conflito devolve 409 com os horários; o ciclo de vendas usa a primeira Reunião criada.
+
+## Importação (de outro sistema)
+Em `POST /leads` e `POST /leads/{id}/notes`, parâmetros opcionais para migrar dados sem distorcer relatórios nem disparar avisos:
+
+| Parâmetro | Efeito |
+| --- | --- |
+| `external: {source, id}` (lead) | guarda a origem (ex.: `trello` + id do cartão). Repetir a chamada **não duplica**: devolve o negócio já importado (`created: false`, `external_existed: true`). |
+| `created_at`, `updated_at`, `closed_at`, `stage_entered_at` (lead) | datas originais; o ciclo de vendas e os dias na etapa usam estas datas. |
+| `created_at` (nota) | data original do comentário. |
+| `silent: true` | nenhum webhook de saída é disparado por esta chamada. |
+
+Pessoa sem e-mail e sem telefone é criada normalmente (uma por chamada, sem juntar por nome).
 
 ## Anúncios (Meta Ads)
 | Endpoint | O que faz |

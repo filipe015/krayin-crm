@@ -7,14 +7,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Webkul\Activity\Repositories\ActivityRepository;
+use Webkul\Attribute\Repositories\AttributeValueRepository;
 use Webkul\Contact\Models\Person;
 use Webkul\Lead\Models\Lead;
 use Webkul\Lead\Repositories\LeadRepository;
 use Webkul\Lead\Repositories\PipelineRepository;
 use Webkul\Lead\Repositories\StageRepository;
 use Webkul\WhatsApp\Api\Support\LeadPresenter;
+use Webkul\WhatsApp\Api\Support\WebhookEvents;
 use Webkul\WhatsApp\Support\PhoneNumberMatcher;
 
 class LeadApiController extends ApiController
@@ -135,7 +138,35 @@ class LeadApiController extends ApiController
             'on_duplicate'        => ['nullable', Rule::in(['create', 'return'])],
             'tags'                => ['nullable', 'array', 'max:50'],
             'tags.*'              => ['integer'],
+            // Imports: where it came from (repeating the call does not duplicate), original dates, no webhooks.
+            'external'            => ['nullable', 'array'],
+            'external.source'     => ['required_with:external', 'string', 'max:40'],
+            'external.id'         => ['required_with:external', 'string', 'max:100'],
+            'created_at'          => ['nullable', 'date'],
+            'updated_at'          => ['nullable', 'date'],
+            'closed_at'           => ['nullable', 'date'],
+            'stage_entered_at'    => ['nullable', 'date'],
+            'silent'              => ['nullable', 'boolean'],
         ]);
+
+        if ($request->boolean('silent')) {
+            WebhookEvents::mute();
+        }
+
+        // Already imported: the lead that exists is returned, nothing is created.
+        if (! empty($data['external'])) {
+            $leadId = DB::table('api_external_refs')
+                ->where('source', $data['external']['source'])
+                ->where('external_id', $data['external']['id'])
+                ->where('entity_type', 'lead')
+                ->value('entity_id');
+
+            $known = $leadId ? Lead::query()->find($leadId) : null;
+
+            if ($known) {
+                return $this->ok(LeadPresenter::make($known) + ['created' => false, 'external_existed' => true]);
+            }
+        }
 
         $tagIds = $this->tagIds($data['tags'] ?? []);
 
@@ -150,6 +181,12 @@ class LeadApiController extends ApiController
         if (! $personId && ! empty($data['person'])) {
             $personId = $this->findPerson($data['person']['email'] ?? null, $data['person']['phone'] ?? null);
             $personExisted = (bool) $personId;
+        }
+
+        // A person with neither e-mail nor phone: Krayin's own unique key would be empty and collide with
+        // the next such person, so each one gets a key of its own.
+        if (! $personId && ! empty($data['person']) && empty($data['person']['email']) && empty($data['person']['phone'])) {
+            $personId = $this->createContactlessPerson((string) $data['person']['name']);
         }
 
         // "on_duplicate: return": an open lead of that person comes back instead of a second one.
@@ -224,6 +261,19 @@ class LeadApiController extends ApiController
 
         $this->attachTags($lead, $tagIds);
 
+        $this->applyOriginalDates($lead, $data);
+
+        if (! empty($data['external'])) {
+            DB::table('api_external_refs')->insertOrIgnore([
+                'source'      => $data['external']['source'],
+                'external_id' => $data['external']['id'],
+                'entity_type' => 'lead',
+                'entity_id'   => $lead->id,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
+
         Event::dispatch('lead.create.after', $lead);
 
         return $this->ok(LeadPresenter::make($lead->refresh()) + ['created' => true, 'person_existed' => $personExisted], [], 201);
@@ -275,12 +325,20 @@ class LeadApiController extends ApiController
 
     public function note(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['comment' => ['required', 'string', 'max:5000']]);
+        $data = $request->validate([
+            'comment'    => ['required', 'string', 'max:5000'],
+            'created_at' => ['nullable', 'date'],
+            'silent'     => ['nullable', 'boolean'],
+        ]);
 
         $lead = Lead::query()->find($id);
 
         if (! $lead) {
             return $this->fail('not_found', 'Negócio não encontrado.', 404);
+        }
+
+        if ($request->boolean('silent')) {
+            WebhookEvents::mute();
         }
 
         Event::dispatch('activity.create.before');
@@ -294,9 +352,52 @@ class LeadApiController extends ApiController
 
         $lead->activities()->attach($activity->id);
 
+        // An imported note keeps the date it was written.
+        if (! empty($data['created_at'])) {
+            DB::table('activities')->where('id', $activity->id)->update([
+                'created_at' => Carbon::parse($data['created_at']),
+                'updated_at' => Carbon::parse($data['created_at']),
+            ]);
+        }
+
         Event::dispatch('activity.create.after', $activity);
 
         return $this->ok(['id' => $activity->id], [], 201);
+    }
+
+    /**
+     * Imports keep the dates of the original record: the sales-cycle report reads created_at and
+     * closed_at, and "days in stage" reads stage_entered_at.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function applyOriginalDates(Lead $lead, array $data): void
+    {
+        $columns = [];
+
+        foreach (['created_at', 'updated_at', 'closed_at', 'stage_entered_at'] as $column) {
+            if (! empty($data[$column])) {
+                $columns[$column] = Carbon::parse($data[$column]);
+            }
+        }
+
+        if (! $columns) {
+            return;
+        }
+
+        // A lead imported as "created in March" was last touched no earlier than that.
+        $columns += ['updated_at' => $columns['created_at'] ?? $columns['closed_at'] ?? now()];
+        $columns += isset($columns['created_at']) ? ['stage_entered_at' => $columns['created_at']] : [];
+
+        DB::table('leads')->where('id', $lead->id)->update($columns);
+
+        // The "lead created" entry of the timeline is dated like the lead.
+        if (isset($columns['created_at'])) {
+            DB::table('activities')
+                ->whereIn('id', DB::table('lead_activities')->where('lead_id', $lead->id)->select('activity_id'))
+                ->where('type', 'system')
+                ->update(['created_at' => $columns['created_at'], 'updated_at' => $columns['created_at']]);
+        }
     }
 
     /**
@@ -371,6 +472,19 @@ class LeadApiController extends ApiController
         }
 
         $lead->unsetRelation('tags');
+    }
+
+    private function createContactlessPerson(string $name): int
+    {
+        $person = Person::query()->create(['name' => $name, 'unique_id' => 'api|'.Str::uuid()]);
+
+        app(AttributeValueRepository::class)->save([
+            'entity_type' => 'persons',
+            'name'        => $name,
+            'entity_id'   => $person->id,
+        ]);
+
+        return (int) $person->id;
     }
 
     /**

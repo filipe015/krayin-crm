@@ -10,9 +10,11 @@ use Webkul\WhatsApp\Api\Http\Controllers\ReportApiController;
 // REST API v1 (prefix /api/v1). Authenticated by API key; see Configurações → Integração (API).
 Route::get('ping', [CatalogController::class, 'ping']);
 Route::get('pipelines', [CatalogController::class, 'pipelines']);
+Route::post('pipelines', [CatalogController::class, 'createPipeline']);
 Route::get('users', [CatalogController::class, 'users']);
 Route::get('sources', [CatalogController::class, 'sources']);
 Route::get('tags', [CatalogController::class, 'tags']);
+Route::post('tags', [CatalogController::class, 'createTag']);
 
 Route::get('leads', [LeadApiController::class, 'index']);
 Route::post('leads', [LeadApiController::class, 'store']);
