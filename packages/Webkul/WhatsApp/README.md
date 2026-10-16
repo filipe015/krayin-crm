@@ -473,3 +473,9 @@ Item **Anúncios** no menu (permissão `ads`): investimento do Meta por campanha
 do CRM pelos UTMs. Os campos de UTM são detectados pelo nome ou código ("UTM Campaign", `utm_medium`...). O gasto chega por
 `POST /api/v1/ads/insights` (workflow do n8n) e fica em `ad_insights_daily`. Ver [API.md](API.md).
 Rodar `php artisan migrate --force`. Sem rebuild do tema.
+
+### Importação de outros sistemas (Trello etc.)
+
+A API tem o necessário para migrar dados: `POST /pipelines`, `/tags`, `/sources`, `/attributes` (cria funil, etiquetas, origens
+e campos personalizados, sem duplicar) e, em `POST /leads`, `external`, datas originais, `lost_reason`, `person.organization`
+e `silent`. Ver [API.md](API.md). O script do Trello fica fora do repositório (pasta `trello-import/` do projeto).
