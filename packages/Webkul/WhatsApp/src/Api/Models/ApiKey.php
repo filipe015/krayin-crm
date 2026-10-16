@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
  */
 class ApiKey extends Model
 {
-    public const ABILITIES = ['read', 'write'];
+    public const ABILITIES = ['read', 'write', 'delete'];
 
     protected $table = 'api_keys';
 

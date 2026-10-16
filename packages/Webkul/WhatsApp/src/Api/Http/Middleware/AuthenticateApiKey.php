@@ -23,7 +23,8 @@ class AuthenticateApiKey
             return response()->json(['error' => 'unauthenticated', 'message' => 'Chave de API ausente ou inválida.'], 401);
         }
 
-        $needed = $request->isMethodSafe() ? 'read' : 'write';
+        // GET reads, POST/PUT/PATCH write, DELETE needs the key's own "delete" ability.
+        $needed = $request->isMethodSafe() ? 'read' : ($request->isMethod('DELETE') ? 'delete' : 'write');
 
         if (! $key->can($needed)) {
             return response()->json(['error' => 'forbidden', 'message' => 'Esta chave não tem a permissão "'.$needed.'".'], 403);

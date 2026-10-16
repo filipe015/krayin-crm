@@ -133,7 +133,14 @@ class CatalogController extends ApiController
             ->where('entity_type', $data['entity'] ?? 'leads')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get(['id', 'code', 'name', 'type', 'is_user_defined', 'is_required']);
+            ->get(['id', 'code', 'name', 'type', 'is_user_defined', 'is_required', 'created_at']);
+
+        $counts = DB::table('attribute_values')
+            ->where('entity_type', $data['entity'] ?? 'leads')
+            ->whereIn('attribute_id', $rows->pluck('id'))
+            ->groupBy('attribute_id')
+            ->selectRaw('attribute_id, COUNT(*) as total')
+            ->pluck('total', 'attribute_id');
 
         return $this->ok($rows->map(fn ($row) => [
             'id'              => $row->id,
@@ -142,6 +149,8 @@ class CatalogController extends ApiController
             'type'            => $row->type,
             'is_user_defined' => (bool) $row->is_user_defined,
             'is_required'     => (bool) $row->is_required,
+            'values_count'    => (int) ($counts[$row->id] ?? 0),
+            'created_at'      => $row->created_at,
         ])->values());
     }
 

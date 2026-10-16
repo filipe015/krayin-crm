@@ -382,6 +382,8 @@ return [
         'can_write'      => 'Escrita',
         'mode_read'      => 'Somente leitura',
         'mode_write'     => 'Leitura e escrita',
+        'mode_delete'    => 'Leitura, escrita e exclusão',
+        'can_delete'     => 'Exclusão',
         'key_name_ph'    => 'Ex.: n8n produção',
         'create_key'     => 'Criar chave',
         'new_key'        => 'Chave criada. Copie agora:',

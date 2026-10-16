@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Webkul\WhatsApp\Api\Http\Controllers\AdsApiController;
 use Webkul\WhatsApp\Api\Http\Controllers\AppointmentApiController;
 use Webkul\WhatsApp\Api\Http\Controllers\CatalogController;
+use Webkul\WhatsApp\Api\Http\Controllers\DeleteApiController;
 use Webkul\WhatsApp\Api\Http\Controllers\LeadApiController;
 use Webkul\WhatsApp\Api\Http\Controllers\ReportApiController;
 
@@ -35,3 +36,12 @@ Route::get('reports/leads-summary', [ReportApiController::class, 'leadsSummary']
 
 Route::post('ads/insights', [AdsApiController::class, 'ingest']);
 Route::get('ads/performance', [AdsApiController::class, 'performance']);
+
+// Deletions (key with the "delete" ability).
+Route::delete('leads/{id}', [DeleteApiController::class, 'lead'])->whereNumber('id');
+Route::get('imports/{system}', [DeleteApiController::class, 'importSummary'])->where('system', '[A-Za-z0-9_-]{1,40}');
+Route::delete('imports/{system}', [DeleteApiController::class, 'purgeImport'])->where('system', '[A-Za-z0-9_-]{1,40}');
+Route::delete('pipelines/{id}', [DeleteApiController::class, 'pipeline'])->whereNumber('id');
+Route::delete('attributes/{code}', [DeleteApiController::class, 'attribute']);
+Route::delete('tags/{id}', [DeleteApiController::class, 'tag'])->whereNumber('id');
+Route::delete('sources/{id}', [DeleteApiController::class, 'source'])->whereNumber('id');

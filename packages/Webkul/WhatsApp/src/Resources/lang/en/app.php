@@ -382,6 +382,8 @@ return [
         'can_write'      => 'Write',
         'mode_read'      => 'Read only',
         'mode_write'     => 'Read and write',
+        'mode_delete'    => 'Read, write and delete',
+        'can_delete'     => 'Delete',
         'key_name_ph'    => 'E.g. n8n production',
         'create_key'     => 'Create key',
         'new_key'        => 'Key created. Copy it now:',

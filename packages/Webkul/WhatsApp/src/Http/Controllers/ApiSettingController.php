@@ -66,8 +66,12 @@ class ApiSettingController extends Controller
             'abilities.*' => [Rule::in(ApiKey::ABILITIES)],
         ]);
 
-        // "write" is meaningless without "read".
-        $abilities = in_array('write', $data['abilities'], true) ? ['read', 'write'] : ['read'];
+        // Each level includes the ones below it: delete > write > read.
+        $abilities = match (true) {
+            in_array('delete', $data['abilities'], true) => ['read', 'write', 'delete'],
+            in_array('write', $data['abilities'], true)  => ['read', 'write'],
+            default                                      => ['read'],
+        };
 
         [$key, $token] = ApiKey::issue($data['name'], $abilities, auth()->guard('user')->id());
 

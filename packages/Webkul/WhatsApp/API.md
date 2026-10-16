@@ -35,6 +35,21 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 
 Regras iguais às da tela: agendamento com conflito devolve 409 com os horários; o ciclo de vendas usa a primeira Reunião criada.
 
+## Exclusões
+Exigem uma chave com a permissão **Exclusão** ("Leitura, escrita e exclusão" ao criar a chave). O que está em uso é
+**recusado** (409), nunca apagado junto com o que depende dele.
+
+| Endpoint | O que faz |
+| --- | --- |
+| `DELETE /leads/{id}` | exclui um negócio (com suas notas e atividades) |
+| `GET /imports/{origem}` | quantos negócios foram importados da origem (ex.: `trello`) |
+| `DELETE /imports/{origem}` | **sem** `?confirm=yes` só conta (simulação). Com `confirm=yes` exclui todos os negócios importados da origem e as pessoas/empresas que a importação criou (`persons=0` mantém as pessoas) |
+| `DELETE /pipelines/{id}` | exclui o funil. 409 se ainda tem negócios; 422 se é o padrão |
+| `DELETE /attributes/{code}?entity=leads\|persons` | exclui um campo personalizado. 409 se algum registro tem valor (`force=1` exclui mesmo assim); campos do sistema, 422 |
+| `DELETE /tags/{id}` · `DELETE /sources/{id}` | exclui se não estiver em uso (409 se estiver) |
+
+`GET /attributes` informa `values_count` e `created_at` de cada campo, para decidir o que é seguro apagar.
+
 ## Importação (de outro sistema)
 Em `POST /leads` e `POST /leads/{id}/notes`, parâmetros opcionais para migrar dados sem distorcer relatórios nem disparar avisos:
 

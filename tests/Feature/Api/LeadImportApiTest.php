@@ -22,6 +22,9 @@ function importHeaders(): array
 
 beforeEach(function () {
     WebhookEvents::reset();
+
+    // The suite makes more than the 120 calls/minute the API allows a client.
+    test()->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 });
 
 it('creates a funnel with its stages once, adding won and lost', function () {
@@ -238,4 +241,73 @@ it('creates a custom field once and stores its value on a lead', function () {
     ], importHeaders())->assertStatus(201)->json('data');
 
     expect($lead['custom'][$field['code']])->toBe('valor importado');
+});
+
+function deleteHeaders(array $abilities = ['read', 'write', 'delete']): array
+{
+    [, $token] = ApiKey::issue('delete-test', $abilities, null);
+
+    return ['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'];
+}
+
+it('refuses deletions without the delete ability', function () {
+    $lead = test()->postJson('/api/v1/leads', ['title' => 'Nao apagar', 'person' => ['name' => 'Pessoa Protegida']], importHeaders())
+        ->assertStatus(201)->json('data');
+
+    test()->deleteJson('/api/v1/leads/'.$lead['id'], [], importHeaders())
+        ->assertStatus(403)
+        ->assertJsonPath('error', 'forbidden');
+
+    expect(DB::table('leads')->where('id', $lead['id'])->exists())->toBeTrue();
+});
+
+it('purges an import: leads, people, then the unused funnel and field', function () {
+    $source = 'trello-del-'.uniqid();
+    $pipeline = test()->postJson('/api/v1/pipelines', ['name' => 'Funil Del '.uniqid(), 'stages' => [['name' => 'Novo']]], importHeaders())->json('data');
+    $field = test()->postJson('/api/v1/attributes', ['entity' => 'leads', 'name' => 'Campo Del '.uniqid(), 'type' => 'text'], importHeaders())->json('data');
+
+    foreach (['Um', 'Dois'] as $n) {
+        test()->postJson('/api/v1/leads', [
+            'title'    => 'Importado '.$n,
+            'person'   => ['name' => 'Pessoa Del '.$n, 'email' => 'del-'.strtolower($n).'-'.uniqid().'@example.com'],
+            'stage_id' => $pipeline['stages'][0]['id'],
+            'custom'   => [$field['code'] => 'valor'],
+            'external' => ['source' => $source, 'id' => 'c-'.$n.uniqid()],
+        ], importHeaders())->assertStatus(201);
+    }
+
+    $headers = deleteHeaders();
+
+    // in use: refused
+    test()->deleteJson('/api/v1/pipelines/'.$pipeline['id'], [], $headers)->assertStatus(409)->assertJsonPath('error', 'in_use');
+    test()->deleteJson('/api/v1/attributes/'.$field['code'].'?entity=leads', [], $headers)->assertStatus(409)->assertJsonPath('data', null);
+
+    // dry run counts, deletes nothing
+    test()->deleteJson("/api/v1/imports/{$source}", [], $headers)
+        ->assertStatus(200)
+        ->assertJsonPath('data.dry_run', true)
+        ->assertJsonPath('data.leads', 2);
+
+    test()->deleteJson("/api/v1/imports/{$source}?confirm=yes", [], $headers)
+        ->assertStatus(200)
+        ->assertJsonPath('data.leads_deleted', 2)
+        ->assertJsonPath('data.people_deleted', 2);
+
+    test()->getJson("/api/v1/imports/{$source}", $headers)->assertJsonPath('data.leads', 0);
+
+    // now free
+    test()->deleteJson('/api/v1/attributes/'.$field['code'].'?entity=leads', [], $headers)->assertStatus(200)->assertJsonPath('data.deleted', true);
+    test()->deleteJson('/api/v1/pipelines/'.$pipeline['id'], [], $headers)->assertStatus(200)->assertJsonPath('data.deleted', true);
+
+    expect(DB::table('lead_pipelines')->where('id', $pipeline['id'])->exists())->toBeFalse();
+});
+
+it('refuses to delete a system field or the default funnel', function () {
+    test()->deleteJson('/api/v1/attributes/title?entity=leads', [], deleteHeaders())->assertStatus(422)->assertJsonPath('error', 'system_field');
+
+    $default = DB::table('lead_pipelines')->where('is_default', 1)->value('id');
+
+    if ($default) {
+        test()->deleteJson('/api/v1/pipelines/'.$default, [], deleteHeaders())->assertStatus(422)->assertJsonPath('error', 'default_pipeline');
+    }
 });

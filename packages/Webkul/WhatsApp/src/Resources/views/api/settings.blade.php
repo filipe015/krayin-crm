@@ -105,7 +105,7 @@
                             <tr v-for="item in keys" :key="item.id" :style="item.revoked ? 'opacity:.5' : ''">
                                 <td>@{{ item.name }}<div class="api-muted">@{{ item.created_at }}</div></td>
                                 <td><code>@{{ item.prefix }}…</code></td>
-                                <td><span class="api-pill" v-for="ability in item.abilities" :key="ability">@{{ ability === 'write' ? labels.can_write : labels.can_read }}</span></td>
+                                <td><span class="api-pill" v-for="ability in item.abilities" :key="ability">@{{ ability === 'delete' ? labels.can_delete : (ability === 'write' ? labels.can_write : labels.can_read) }}</span></td>
                                 <td>@{{ item.last_used_at || '—' }}<div class="api-muted" v-if="item.last_used_ip">@{{ item.last_used_ip }}</div></td>
                                 <td style="text-align:right">
                                     <span v-if="item.revoked" class="api-pill is-bad">@{{ labels.revoked }}</span>
@@ -122,6 +122,7 @@
                             <select v-model="newKey.mode">
                                 <option value="read">@{{ labels.mode_read }}</option>
                                 <option value="write">@{{ labels.mode_write }}</option>
+                                <option value="delete">@{{ labels.mode_delete }}</option>
                             </select>
                         </label>
                         <div><button type="submit" class="api-btn is-primary" :disabled="busy">@{{ labels.create_key }}</button></div>
@@ -268,7 +269,7 @@
                         try {
                             const { data } = await this.$axios.post(this.urls.keys, {
                                 name: this.newKey.name,
-                                abilities: this.newKey.mode === 'write' ? ['read', 'write'] : ['read'],
+                                abilities: this.newKey.mode === 'delete' ? ['read', 'write', 'delete'] : (this.newKey.mode === 'write' ? ['read', 'write'] : ['read']),
                             });
 
                             this.secret = { label: this.labels.new_key, value: data.token };

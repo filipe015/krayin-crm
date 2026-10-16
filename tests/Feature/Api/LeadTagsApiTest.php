@@ -6,6 +6,8 @@ use Webkul\WhatsApp\Api\Models\ApiKey;
 
 uses(DatabaseTransactions::class);
 
+beforeEach(fn () => test()->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class));
+
 /**
  * REST API v1: tags on leads (POST /leads "tags" and POST /leads/{id}/tags).
  * Needs a migrated and seeded database (default pipeline + admin user).
