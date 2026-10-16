@@ -105,6 +105,50 @@ class DeleteApiController extends ApiController
         return $this->ok(['dry_run' => false, 'leads_deleted' => count($ids), 'people_deleted' => $peopleDeleted, 'companies_deleted' => $companiesDeleted]);
     }
 
+    /**
+     * People with no deal (and no quote) and companies with no people, created since `since`.
+     * Without confirm=yes it only lists what would go.
+     */
+    public function orphanContacts(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'since'   => ['required', 'date'],
+            'confirm' => ['nullable', 'in:yes'],
+        ]);
+
+        $since = Carbon::parse($data['since']);
+
+        $people = DB::table('persons')
+            ->where('created_at', '>=', $since)
+            ->whereNotIn('id', DB::table('leads')->whereNotNull('person_id')->select('person_id'))
+            ->whereNotIn('id', DB::table('quotes')->whereNotNull('person_id')->select('person_id'))
+            ->get(['id', 'name', 'organization_id']);
+
+        $peopleIds = $people->pluck('id')->all();
+
+        // Companies that are empty now, or will be once these people are gone.
+        $companies = DB::table('organizations')
+            ->where('created_at', '>=', $since)
+            ->whereNotIn('id', DB::table('persons')->whereNotNull('organization_id')->whereNotIn('id', $peopleIds)->select('organization_id'))
+            ->get(['id', 'name']);
+
+        if (($data['confirm'] ?? null) !== 'yes') {
+            return $this->ok([
+                'dry_run'          => true,
+                'people'           => $people->count(),
+                'companies'        => $companies->count(),
+                'people_sample'    => $people->take(10)->pluck('name'),
+                'companies_sample' => $companies->take(10)->pluck('name'),
+            ]);
+        }
+
+        DB::table('attribute_values')->where('entity_type', 'persons')->whereIn('entity_id', $peopleIds)->delete();
+        $peopleDeleted = DB::table('persons')->whereIn('id', $peopleIds)->delete();
+        $companiesDeleted = DB::table('organizations')->whereIn('id', $companies->pluck('id')->all())->delete();
+
+        return $this->ok(['dry_run' => false, 'people_deleted' => $peopleDeleted, 'companies_deleted' => $companiesDeleted]);
+    }
+
     public function pipeline(int $id, PipelineRepository $pipelines): JsonResponse
     {
         $pipeline = DB::table('lead_pipelines')->where('id', $id)->first(['id', 'name', 'is_default']);

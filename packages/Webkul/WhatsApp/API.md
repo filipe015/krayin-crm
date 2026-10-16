@@ -45,6 +45,7 @@ Exigem uma chave com a permissão **Exclusão** ("Leitura, escrita e exclusão" 
 | `DELETE /leads/{id}` | exclui um negócio (com suas notas e atividades) |
 | `GET /imports/{origem}` | quantos negócios foram importados da origem (ex.: `trello`) |
 | `DELETE /imports/{origem}` | **sem** `?confirm=yes` só conta (simulação). Com `confirm=yes` exclui todos os negócios importados da origem e as pessoas/empresas que a importação criou (`persons=0` mantém as pessoas) |
+| `DELETE /contacts/orphans?since=AAAA-MM-DD` | pessoas sem negócio/cotação e empresas sem pessoas, criadas a partir de `since`. **Sem** `confirm=yes` só lista (simulação, com amostra de nomes); com `confirm=yes` exclui |
 | `DELETE /pipelines/{id}` | exclui o funil. 409 se ainda tem negócios; 422 se é o padrão |
 | `DELETE /attributes/{code}?entity=leads\|persons` | exclui um campo personalizado. 409 se algum registro tem valor (`force=1` exclui mesmo assim); campos do sistema, 422 |
 | `DELETE /tags/{id}` · `DELETE /sources/{id}` | exclui se não estiver em uso (409 se estiver) |

@@ -383,3 +383,29 @@ it('updates an already imported lead when asked, without creating another', func
 
     expect(DB::table('api_external_refs')->where('source', 'trello-test')->where('entity_id', $first['id'])->count())->toBe(1);
 });
+
+it('lists orphan contacts first and only deletes them with confirm=yes', function () {
+    [, $token] = ApiKey::issue('orphans-test', ['read', 'write', 'delete'], null);
+    $headers = ['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'];
+
+    $now = now();
+    $orgId = DB::table('organizations')->insertGetId(['name' => 'Org Orfã', 'created_at' => $now, 'updated_at' => $now]);
+    $orphan = DB::table('persons')->insertGetId(['name' => 'Pessoa Órfã', 'organization_id' => $orgId, 'unique_id' => 'orf-'.uniqid(), 'created_at' => $now, 'updated_at' => $now]);
+    $old = DB::table('persons')->insertGetId(['name' => 'Pessoa Antiga', 'unique_id' => 'old-'.uniqid(), 'created_at' => $now->copy()->subYear(), 'updated_at' => $now]);
+
+    $since = $now->copy()->subMinute()->toIso8601String();
+
+    test()->deleteJson('/api/v1/contacts/orphans?since='.urlencode($since), [], $headers)
+        ->assertOk()
+        ->assertJsonPath('data.dry_run', true);
+
+    expect(DB::table('persons')->where('id', $orphan)->exists())->toBeTrue();
+
+    test()->deleteJson('/api/v1/contacts/orphans?confirm=yes&since='.urlencode($since), [], $headers)
+        ->assertOk()
+        ->assertJsonPath('data.dry_run', false);
+
+    expect(DB::table('persons')->where('id', $orphan)->exists())->toBeFalse()
+        ->and(DB::table('organizations')->where('id', $orgId)->exists())->toBeFalse()
+        ->and(DB::table('persons')->where('id', $old)->exists())->toBeTrue();
+});

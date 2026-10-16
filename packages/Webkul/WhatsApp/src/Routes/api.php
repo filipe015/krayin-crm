@@ -42,6 +42,7 @@ Route::get('ads/performance', [AdsApiController::class, 'performance']);
 Route::delete('leads/{id}', [DeleteApiController::class, 'lead'])->whereNumber('id');
 Route::get('imports/{system}', [DeleteApiController::class, 'importSummary'])->where('system', '[A-Za-z0-9_-]{1,40}');
 Route::delete('imports/{system}', [DeleteApiController::class, 'purgeImport'])->where('system', '[A-Za-z0-9_-]{1,40}');
+Route::delete('contacts/orphans', [DeleteApiController::class, 'orphanContacts']);
 Route::delete('pipelines/{id}', [DeleteApiController::class, 'pipeline'])->whereNumber('id');
 Route::delete('attributes/{code}', [DeleteApiController::class, 'attribute']);
 Route::delete('tags/{id}', [DeleteApiController::class, 'tag'])->whereNumber('id');
