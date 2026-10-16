@@ -13,6 +13,7 @@ Route::get('pipelines', [CatalogController::class, 'pipelines']);
 Route::post('pipelines', [CatalogController::class, 'createPipeline']);
 Route::get('users', [CatalogController::class, 'users']);
 Route::get('sources', [CatalogController::class, 'sources']);
+Route::post('sources', [CatalogController::class, 'createSource']);
 Route::get('tags', [CatalogController::class, 'tags']);
 Route::post('tags', [CatalogController::class, 'createTag']);
 

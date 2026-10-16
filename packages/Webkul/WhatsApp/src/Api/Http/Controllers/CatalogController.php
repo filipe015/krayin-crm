@@ -125,6 +125,26 @@ class CatalogController extends ApiController
         return $this->ok(DB::table('users')->where('status', 1)->orderBy('name')->get(['id', 'name', 'email']));
     }
 
+    /**
+     * Creates a lead source (idempotent by name, case-insensitive).
+     */
+    public function createSource(Request $request): JsonResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:100']]);
+
+        $name = trim($data['name']);
+
+        $existing = DB::table('lead_sources')->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first(['id', 'name']);
+
+        if ($existing) {
+            return $this->ok(['id' => $existing->id, 'name' => $existing->name, 'created' => false]);
+        }
+
+        $id = DB::table('lead_sources')->insertGetId(['name' => $name, 'created_at' => now(), 'updated_at' => now()]);
+
+        return $this->ok(['id' => $id, 'name' => $name, 'created' => true], [], 201);
+    }
+
     public function sources(): JsonResponse
     {
         return $this->ok(DB::table('lead_sources')->orderBy('name')->get(['id', 'name']));

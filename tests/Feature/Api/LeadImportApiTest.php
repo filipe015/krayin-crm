@@ -161,3 +161,55 @@ it('creates several leads without e-mail or phone', function () {
 
     expect($ids->unique()->count())->toBe(3);
 });
+
+it('creates a source once and puts the company on the person', function () {
+    $name = 'Origem Import '.uniqid();
+
+    $first = test()->postJson('/api/v1/sources', ['name' => $name], importHeaders())
+        ->assertStatus(201)
+        ->assertJsonPath('data.created', true);
+
+    test()->postJson('/api/v1/sources', ['name' => mb_strtoupper($name)], importHeaders())
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $first->json('data.id'));
+
+    $company = 'Empresa Import '.uniqid();
+
+    foreach (['com contato' => ['email' => 'org-'.uniqid().'@example.com'], 'sem contato' => []] as $label => $contact) {
+        $lead = test()->postJson('/api/v1/leads', [
+            'title'     => 'Lead '.$label,
+            'source_id' => $first->json('data.id'),
+            'person'    => ['name' => 'Pessoa '.$label, 'organization' => $company] + $contact,
+        ], importHeaders())->assertStatus(201)->assertJsonPath('data.source.id', $first->json('data.id'))->json('data');
+
+        $organization = DB::table('persons')
+            ->join('organizations', 'organizations.id', '=', 'persons.organization_id')
+            ->where('persons.id', $lead['person']['id'])
+            ->value('organizations.name');
+
+        expect($organization)->toBe($company);
+    }
+});
+
+it('imports again after the earlier lead was deleted', function () {
+    $body = [
+        'title'    => 'Apagado e reimportado',
+        'person'   => ['name' => 'Pessoa Reimport'],
+        'external' => ['source' => 'trello-test', 'id' => 'card-'.uniqid()],
+    ];
+
+    $first = test()->postJson('/api/v1/leads', $body, importHeaders())->assertStatus(201)->json('data.id');
+
+    DB::table('leads')->where('id', $first)->delete();
+
+    $second = test()->postJson('/api/v1/leads', $body, importHeaders())
+        ->assertStatus(201)
+        ->assertJsonPath('data.created', true)
+        ->json('data.id');
+
+    expect($second)->not->toBe($first);
+
+    test()->postJson('/api/v1/leads', $body, importHeaders())
+        ->assertStatus(200)
+        ->assertJsonPath('data.id', $second);
+});

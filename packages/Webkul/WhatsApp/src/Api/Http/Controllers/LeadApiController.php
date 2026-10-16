@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Webkul\Activity\Repositories\ActivityRepository;
 use Webkul\Attribute\Repositories\AttributeValueRepository;
+use Webkul\Contact\Repositories\PersonRepository;
 use Webkul\Contact\Models\Person;
 use Webkul\Lead\Models\Lead;
 use Webkul\Lead\Repositories\LeadRepository;
@@ -134,6 +135,7 @@ class LeadApiController extends ApiController
             'person.name'         => ['required_without:person_id', 'nullable', 'string', 'max:255'],
             'person.email'        => ['nullable', 'email', 'max:150'],
             'person.phone'        => ['nullable', 'string', 'max:40'],
+            'person.organization' => ['nullable', 'string', 'max:255'],
             'custom'              => ['nullable', 'array'],
             'on_duplicate'        => ['nullable', Rule::in(['create', 'return'])],
             'tags'                => ['nullable', 'array', 'max:50'],
@@ -187,7 +189,7 @@ class LeadApiController extends ApiController
         // A person with neither e-mail nor phone: Krayin's own unique key would be empty and collide with
         // the next such person, so each one gets a key of its own.
         if (! $personId && ! empty($data['person']) && empty($data['person']['email']) && empty($data['person']['phone'])) {
-            $personId = $this->createContactlessPerson((string) $data['person']['name']);
+            $personId = $this->createContactlessPerson((string) $data['person']['name'], $data['person']['organization'] ?? null);
         }
 
         // "on_duplicate: return": an open lead of that person comes back instead of a second one.
@@ -247,9 +249,10 @@ class LeadApiController extends ApiController
             $person = $data['person'];
 
             $payload['person'] = array_filter([
-                'name'            => $person['name'],
-                'emails'          => ! empty($person['email']) ? [['value' => $person['email'], 'label' => 'work']] : null,
-                'contact_numbers' => ! empty($person['phone']) ? [['value' => $person['phone'], 'label' => 'work']] : null,
+                'name'              => $person['name'],
+                'emails'            => ! empty($person['email']) ? [['value' => $person['email'], 'label' => 'work']] : null,
+                'contact_numbers'   => ! empty($person['phone']) ? [['value' => $person['phone'], 'label' => 'work']] : null,
+                'organization_name' => ! empty($person['organization']) ? trim($person['organization']) : null,
             ]);
         }
 
@@ -269,14 +272,15 @@ class LeadApiController extends ApiController
         $this->applyOriginalDates($lead, $data);
 
         if (! empty($data['external'])) {
-            DB::table('api_external_refs')->insertOrIgnore([
-                'source'      => $data['external']['source'],
-                'external_id' => $data['external']['id'],
-                'entity_type' => 'lead',
-                'entity_id'   => $lead->id,
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
+            // If the earlier lead was deleted, the id now points to the new one.
+            DB::table('api_external_refs')->updateOrInsert(
+                [
+                    'source'      => $data['external']['source'],
+                    'external_id' => $data['external']['id'],
+                    'entity_type' => 'lead',
+                ],
+                ['entity_id' => $lead->id, 'updated_at' => now(), 'created_at' => now()],
+            );
         }
 
         Event::dispatch('lead.create.after', $lead);
@@ -479,9 +483,15 @@ class LeadApiController extends ApiController
         $lead->unsetRelation('tags');
     }
 
-    private function createContactlessPerson(string $name): int
+    private function createContactlessPerson(string $name, ?string $organization = null): int
     {
-        $person = Person::query()->create(['name' => $name, 'unique_id' => 'api|'.Str::uuid()]);
+        $attributes = ['name' => $name, 'unique_id' => 'api|'.Str::uuid()];
+
+        if ($organization !== null && trim($organization) !== '') {
+            $attributes['organization_id'] = app(PersonRepository::class)->fetchOrCreateOrganizationByName(trim($organization))->id;
+        }
+
+        $person = Person::query()->create($attributes);
 
         app(AttributeValueRepository::class)->save([
             'entity_type' => 'persons',
