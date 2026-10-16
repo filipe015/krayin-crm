@@ -29,6 +29,8 @@ class ApiSettingController extends Controller
             'urls'     => [
                 'keys'     => route('admin.api.settings.keys.store'),
                 'revoke'   => route('admin.api.settings.keys.revoke', ['id' => '__ID__']),
+                'deleteKey' => route('admin.api.settings.keys.delete', ['id' => '__ID__']),
+                'deleteRevoked' => route('admin.api.settings.keys.delete-revoked'),
                 'webhooks' => route('admin.api.settings.webhooks.store'),
                 'webhook'  => route('admin.api.settings.webhooks.update', ['id' => '__ID__']),
                 'test'     => route('admin.api.settings.webhooks.test', ['id' => '__ID__']),
@@ -84,6 +86,28 @@ class ApiSettingController extends Controller
         ApiKey::query()->whereKey($id)->whereNull('revoked_at')->update(['revoked_at' => now()]);
 
         return response()->json(['revoked' => true]);
+    }
+
+    /**
+     * Removes revoked keys from the list (a key still in use must be revoked first).
+     */
+    public function deleteKey(int $id): JsonResponse
+    {
+        $key = ApiKey::query()->find($id);
+
+        abort_if(! $key, 404);
+        abort_if(! $key->revoked_at, 422, trans('whatsapp::app.api_settings.revoke_first'));
+
+        $key->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    public function deleteRevokedKeys(): JsonResponse
+    {
+        $deleted = ApiKey::query()->whereNotNull('revoked_at')->delete();
+
+        return response()->json(['deleted' => $deleted]);
     }
 
     public function storeWebhook(Request $request): JsonResponse

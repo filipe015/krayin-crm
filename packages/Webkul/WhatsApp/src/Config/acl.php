@@ -113,6 +113,8 @@ return [
         'route' => [
             'admin.api.settings.keys.store',
             'admin.api.settings.keys.revoke',
+            'admin.api.settings.keys.delete',
+            'admin.api.settings.keys.delete-revoked',
             'admin.api.settings.webhooks.store',
             'admin.api.settings.webhooks.update',
             'admin.api.settings.webhooks.delete',

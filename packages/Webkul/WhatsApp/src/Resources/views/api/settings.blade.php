@@ -108,13 +108,20 @@
                                 <td><span class="api-pill" v-for="ability in item.abilities" :key="ability">@{{ ability === 'delete' ? labels.can_delete : (ability === 'write' ? labels.can_write : labels.can_read) }}</span></td>
                                 <td>@{{ item.last_used_at || '—' }}<div class="api-muted" v-if="item.last_used_ip">@{{ item.last_used_ip }}</div></td>
                                 <td style="text-align:right">
-                                    <span v-if="item.revoked" class="api-pill is-bad">@{{ labels.revoked }}</span>
+                                    <template v-if="item.revoked">
+                                        <span class="api-pill is-bad">@{{ labels.revoked }}</span>
+                                        <button v-if="canEdit" type="button" class="api-btn" style="margin-left:6px" @click="deleteKey(item)">@{{ labels.delete_key }}</button>
+                                    </template>
                                     <button v-else-if="canEdit" type="button" class="api-btn is-danger" @click="revoke(item)">@{{ labels.revoke }}</button>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                     <p class="api-muted" v-else>@{{ labels.no_keys }}</p>
+
+                    <div v-if="canEdit && revokedCount > 0">
+                        <button type="button" class="api-btn" @click="deleteRevoked">@{{ labels.delete_revoked }} (@{{ revokedCount }})</button>
+                    </div>
 
                     <form class="api-row" v-if="canEdit" @submit.prevent="createKey">
                         <label class="api-field">@{{ labels.name }}<input type="text" v-model="newKey.name" maxlength="80" :placeholder="labels.key_name_ph" required></label>
@@ -224,6 +231,12 @@
                     };
                 },
 
+                computed: {
+                    revokedCount() {
+                        return this.keys.filter(item => item.revoked).length;
+                    },
+                },
+
                 methods: {
                     url(name, id) {
                         return this.urls[name].replace('__ID__', id);
@@ -290,6 +303,32 @@
 
                         try {
                             await this.$axios.delete(this.url('revoke', item.id));
+                            await this.refresh();
+                        } catch (error) {
+                            this.fail(error);
+                        }
+                    },
+
+                    async deleteKey(item) {
+                        if (! window.confirm(this.labels.delete_key_confirm)) {
+                            return;
+                        }
+
+                        try {
+                            await this.$axios.delete(this.url('deleteKey', item.id));
+                            await this.refresh();
+                        } catch (error) {
+                            this.fail(error);
+                        }
+                    },
+
+                    async deleteRevoked() {
+                        if (! window.confirm(this.labels.delete_revoked_confirm)) {
+                            return;
+                        }
+
+                        try {
+                            await this.$axios.delete(this.urls.deleteRevoked);
                             await this.refresh();
                         } catch (error) {
                             this.fail(error);
