@@ -23,6 +23,7 @@ Route::post('tags', [CatalogController::class, 'createTag']);
 Route::get('leads', [LeadApiController::class, 'index']);
 Route::post('leads', [LeadApiController::class, 'store']);
 Route::get('leads/{id}', [LeadApiController::class, 'show'])->whereNumber('id');
+Route::patch('leads/{id}', [LeadApiController::class, 'update'])->whereNumber('id');
 Route::patch('leads/{id}/stage', [LeadApiController::class, 'stage'])->whereNumber('id');
 Route::post('leads/{id}/notes', [LeadApiController::class, 'note'])->whereNumber('id');
 Route::post('leads/{id}/tags', [LeadApiController::class, 'tags'])->whereNumber('id');

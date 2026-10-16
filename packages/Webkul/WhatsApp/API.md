@@ -28,6 +28,7 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 | `POST /sources` | `name`. Cria a origem de lead; idempotente pelo nome. |
 | `POST /tags` | `name`, `color?` (`#RRGGBB`). Cria a etiqueta; idempotente pelo nome. |
 | `POST /leads/{id}/tags` | `tags` (ids, obrig.). Adiciona sem remover as existentes e sem duplicar (repetir a chamada não muda nada); devolve o negócio no formato de `GET /leads/{id}`. 404 se o negócio não existe, 422 `invalid_tags` se algum id não existe. |
+| `PATCH /leads/{id}` | Atualiza **só o que for enviado**: `title`, `description`, `value`, `source_id`, `type_id`, `user_id`, `expected_close_date`, `lost_reason`, `custom` (por código), `tags` (soma), datas (`created_at`, `updated_at`, `closed_at`, `stage_entered_at`) e `person: {email, phone, organization}`, que só **completa** o que falta na pessoa. Códigos de `custom` inexistentes vêm em `skipped`. A etapa continua em `PATCH /leads/{id}/stage`. |
 | `PATCH /leads/{id}/stage` | `stage_id` (do funil do negócio), `lost_reason`, `value` (ao ganhar) |
 | `POST /leads/{id}/notes` | `comment` |
 | `POST /leads/{id}/appointments` | `start` (ISO 8601; sem fuso = horário da instalação), `user_id` (número ou `"auto"` = rodízio/menos ocupado da Agenda), `duration` (15–120), `title`, `location`, `comment`, `ignore_conflict`; `kind: "followup"` cria um **retomar contato** (só data, sem conflito nem lembrete) |
@@ -59,6 +60,7 @@ Em `POST /leads` e `POST /leads/{id}/notes`, parâmetros opcionais para migrar d
 | `created_at`, `updated_at`, `closed_at`, `stage_entered_at` (lead) | datas originais; o ciclo de vendas e os dias na etapa usam estas datas. |
 | `created_at` (nota) | data original do comentário. |
 | `lost_reason` (lead em etapa de perda) | motivo da perda gravado no negócio. |
+| `on_existing: "update"` (com `external`) | se o registro já foi importado, atualiza os campos enviados (como `PATCH /leads/{id}`) em vez de só devolvê-lo (`updated: true`). |
 | `silent: true` | nenhum webhook de saída é disparado por esta chamada. |
 
 Pessoa sem e-mail e sem telefone é criada normalmente (uma por chamada, sem juntar por nome).

@@ -311,3 +311,75 @@ it('refuses to delete a system field or the default funnel', function () {
         test()->deleteJson('/api/v1/pipelines/'.$default, [], deleteHeaders())->assertStatus(422)->assertJsonPath('error', 'default_pipeline');
     }
 });
+
+it('updates only what is sent on an existing lead and completes the person', function () {
+    $field = test()->postJson('/api/v1/attributes', ['entity' => 'leads', 'name' => 'Campo Upd '.uniqid(), 'type' => 'text'], importHeaders())->json('data');
+    $company = 'Empresa Upd '.uniqid();
+
+    $lead = test()->postJson('/api/v1/leads', [
+        'title'               => 'Antes',
+        'description'         => 'descricao original',
+        'expected_close_date' => '2026-12-31',
+        'person'              => ['name' => 'Pessoa Upd'],
+    ], importHeaders())->assertStatus(201)->json('data');
+
+    $email = 'upd-'.uniqid().'@example.com';
+
+    $updated = test()->patchJson('/api/v1/leads/'.$lead['id'], [
+        'title'  => 'Depois',
+        'custom' => [$field['code'] => 'preenchido depois', 'codigo_inexistente' => 'x'],
+        'person' => ['email' => $email, 'phone' => '11977770001', 'organization' => $company],
+    ], importHeaders())->assertStatus(200)->json('data');
+
+    expect($updated['title'])->toBe('Depois')
+        ->and($updated['description'])->toBe('descricao original')
+        ->and($updated['expected_close_date'])->toBe('2026-12-31')
+        ->and($updated['custom'][$field['code']])->toBe('preenchido depois')
+        ->and($updated['person']['emails'])->toBe([$email])
+        ->and($updated['changed'])->toContain('title', $field['code'], 'person.email', 'person.phone', 'person.organization')
+        ->and($updated['skipped'])->toContain('custom:codigo_inexistente');
+
+    $org = DB::table('persons')->join('organizations', 'organizations.id', '=', 'persons.organization_id')
+        ->where('persons.id', $lead['person']['id'])->value('organizations.name');
+
+    expect($org)->toBe($company);
+
+    // a person that already has an e-mail is not overwritten
+    test()->patchJson('/api/v1/leads/'.$lead['id'], ['person' => ['email' => 'outro-'.uniqid().'@example.com']], importHeaders())
+        ->assertStatus(200)
+        ->assertJsonPath('data.person.emails', [$email]);
+
+    test()->patchJson('/api/v1/leads/'.$lead['id'], ['title' => 'x'], deleteHeaders(['read']))->assertStatus(403);
+    test()->patchJson('/api/v1/leads/99999999', ['title' => 'x'], importHeaders())->assertStatus(404);
+});
+
+it('updates an already imported lead when asked, without creating another', function () {
+    $field = test()->postJson('/api/v1/attributes', ['entity' => 'leads', 'name' => 'Campo Reimp '.uniqid(), 'type' => 'text'], importHeaders())->json('data');
+
+    $body = [
+        'title'    => 'Importado',
+        'person'   => ['name' => 'Pessoa Reimp'],
+        'external' => ['source' => 'trello-test', 'id' => 'card-'.uniqid()],
+        'silent'   => true,
+    ];
+
+    $first = test()->postJson('/api/v1/leads', $body, importHeaders())->assertStatus(201)->json('data');
+
+    // same call again: kept as it was
+    test()->postJson('/api/v1/leads', $body + ['custom' => [$field['code'] => 'novo']], importHeaders())
+        ->assertStatus(200)
+        ->assertJsonPath('data.created', false)
+        ->assertJsonPath('data.custom', []);
+
+    // asking to update: the field is filled, no new lead
+    $again = test()->postJson('/api/v1/leads', $body + ['custom' => [$field['code'] => 'novo'], 'on_existing' => 'update'], importHeaders())
+        ->assertStatus(200)
+        ->assertJsonPath('data.created', false)
+        ->assertJsonPath('data.updated', true)
+        ->json('data');
+
+    expect($again['id'])->toBe($first['id'])
+        ->and($again['custom'][$field['code']])->toBe('novo');
+
+    expect(DB::table('api_external_refs')->where('source', 'trello-test')->where('entity_id', $first['id'])->count())->toBe(1);
+});

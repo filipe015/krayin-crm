@@ -150,6 +150,8 @@ class LeadApiController extends ApiController
             'stage_entered_at'    => ['nullable', 'date'],
             'lost_reason'         => ['nullable', 'string', 'max:500'],
             'silent'              => ['nullable', 'boolean'],
+            // With "external": what to do when that record was already imported.
+            'on_existing'         => ['nullable', Rule::in(['skip', 'update'])],
         ]);
 
         if ($request->boolean('silent')) {
@@ -167,6 +169,15 @@ class LeadApiController extends ApiController
             $known = $leadId ? Lead::query()->find($leadId) : null;
 
             if ($known) {
+                if (($data['on_existing'] ?? 'skip') === 'update') {
+                    $result = $this->applyUpdate($known, $data);
+
+                    return $this->ok(LeadPresenter::make($known->refresh()) + [
+                        'created' => false, 'external_existed' => true, 'updated' => true,
+                        'changed' => $result['changed'], 'skipped' => $result['skipped'],
+                    ]);
+                }
+
                 return $this->ok(LeadPresenter::make($known) + ['created' => false, 'external_existed' => true]);
             }
         }
@@ -286,6 +297,206 @@ class LeadApiController extends ApiController
         Event::dispatch('lead.create.after', $lead);
 
         return $this->ok(LeadPresenter::make($lead->refresh()) + ['created' => true, 'person_existed' => $personExisted], [], 201);
+    }
+
+    /**
+     * Updates fields of an existing lead (only what is sent). The stage has its own endpoint.
+     * People are only completed (e-mail, phone, company when missing), never overwritten.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'title'               => ['sometimes', 'string', 'max:255'],
+            'description'         => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'value'               => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'source_id'           => ['sometimes', 'nullable', 'integer', 'exists:lead_sources,id'],
+            'type_id'             => ['sometimes', 'nullable', 'integer', 'exists:lead_types,id'],
+            'user_id'             => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'expected_close_date' => ['sometimes', 'nullable', 'date'],
+            'lost_reason'         => ['sometimes', 'nullable', 'string', 'max:500'],
+            'custom'              => ['nullable', 'array'],
+            'tags'                => ['nullable', 'array', 'max:50'],
+            'tags.*'              => ['integer'],
+            'person'              => ['nullable', 'array'],
+            'person.email'        => ['nullable', 'email', 'max:150'],
+            'person.phone'        => ['nullable', 'string', 'max:40'],
+            'person.organization' => ['nullable', 'string', 'max:255'],
+            'created_at'          => ['nullable', 'date'],
+            'updated_at'          => ['nullable', 'date'],
+            'closed_at'           => ['nullable', 'date'],
+            'stage_entered_at'    => ['nullable', 'date'],
+            'silent'              => ['nullable', 'boolean'],
+        ]);
+
+        $lead = Lead::query()->find($id);
+
+        if (! $lead) {
+            return $this->fail('not_found', 'Negócio não encontrado.', 404);
+        }
+
+        if ($request->boolean('silent')) {
+            WebhookEvents::mute();
+        }
+
+        $missing = $this->missingTags($this->tagIds($data['tags'] ?? []));
+
+        if ($missing) {
+            return $this->invalidTags($missing);
+        }
+
+        $result = $this->applyUpdate($lead, $data);
+
+        return $this->ok(LeadPresenter::make($lead->refresh()) + ['changed' => $result['changed'], 'skipped' => $result['skipped']]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{changed: list<string>, skipped: list<string>}
+     */
+    private function applyUpdate(Lead $lead, array $data): array
+    {
+        $changed = [];
+        $skipped = [];
+
+        // Lead fields: the column and, for system fields, the attribute value Krayin shows on the card.
+        $map = [
+            'title'               => 'title',
+            'description'         => 'description',
+            'value'               => 'lead_value',
+            'source_id'           => 'lead_source_id',
+            'type_id'             => 'lead_type_id',
+            'user_id'             => 'user_id',
+            'expected_close_date' => 'expected_close_date',
+            'lost_reason'         => 'lost_reason',
+        ];
+
+        $columns = [];
+
+        foreach ($map as $key => $column) {
+            if (array_key_exists($key, $data)) {
+                $columns[$column] = $data[$key];
+            }
+        }
+
+        $values = $columns;
+
+        // Custom fields, by code, only the ones defined for leads.
+        if (! empty($data['custom'])) {
+            $known = DB::table('attributes')->where('entity_type', 'leads')->where('is_user_defined', 1)->pluck('code')->all();
+
+            foreach ($data['custom'] as $code => $value) {
+                if (in_array($code, $known, true)) {
+                    $values[$code] = $value;
+                } else {
+                    $skipped[] = "custom:{$code}";
+                }
+            }
+        }
+
+        if ($columns) {
+            $lead->forceFill($columns)->save();
+        }
+
+        if ($values) {
+            $attributes = app(\Webkul\Attribute\Repositories\AttributeRepository::class)
+                ->findWhere(['entity_type' => 'leads'])
+                ->whereIn('code', array_keys($values))
+                ->values();
+
+            app(AttributeValueRepository::class)->save(
+                $values + ['entity_type' => 'leads', 'entity_id' => $lead->id],
+                $attributes,
+            );
+
+            $changed = array_merge($changed, $attributes->pluck('code')->all());
+
+            foreach (array_diff(array_keys($values), $attributes->pluck('code')->all(), array_keys($columns)) as $code) {
+                $skipped[] = $code;
+            }
+        }
+
+        $changed = array_values(array_unique(array_merge($changed, array_keys($columns))));
+
+        $tagIds = $this->tagIds($data['tags'] ?? []);
+
+        if ($tagIds) {
+            $this->attachTags($lead, $tagIds);
+            $changed[] = 'tags';
+        }
+
+        if (! empty($data['person']) && $lead->person) {
+            $changed = array_merge($changed, $this->completePerson($lead->person, $data['person'], $skipped));
+        }
+
+        $dateKeys = array_intersect(['created_at', 'updated_at', 'closed_at', 'stage_entered_at'], array_keys(array_filter($data)));
+
+        if ($dateKeys) {
+            $this->applyOriginalDates($lead, $data);
+            $changed = array_merge($changed, $dateKeys);
+        }
+
+        return ['changed' => array_values(array_unique($changed)), 'skipped' => $skipped];
+    }
+
+    /**
+     * Fills what the person lacks (e-mail, phone, company); anything already there is kept.
+     *
+     * @param  array<string, mixed>  $incoming
+     * @param  list<string>  $skipped
+     * @return list<string>
+     */
+    private function completePerson(Person $person, array $incoming, array &$skipped): array
+    {
+        $updates = [];
+        $changed = [];
+
+        if (! empty($incoming['email']) && empty($person->emails)) {
+            $other = $this->findPerson($incoming['email'], null);
+
+            if ($other && $other !== (int) $person->id) {
+                $skipped[] = 'person.email (já pertence a outra pessoa)';
+            } else {
+                $updates['emails'] = [['value' => $incoming['email'], 'label' => 'work']];
+                $changed[] = 'person.email';
+            }
+        }
+
+        if (! empty($incoming['phone']) && empty($person->contact_numbers)) {
+            $other = $this->findPerson(null, $incoming['phone']);
+
+            if ($other && $other !== (int) $person->id) {
+                $skipped[] = 'person.phone (já pertence a outra pessoa)';
+            } else {
+                $updates['contact_numbers'] = [['value' => $incoming['phone'], 'label' => 'work']];
+                $changed[] = 'person.phone';
+            }
+        }
+
+        if (! empty($incoming['organization']) && empty($person->organization_id)) {
+            $updates['organization_id'] = app(PersonRepository::class)->fetchOrCreateOrganizationByName(trim($incoming['organization']))->id;
+            $changed[] = 'person.organization';
+        }
+
+        if (! $updates) {
+            return [];
+        }
+
+        $person->forceFill($updates)->save();
+
+        // The card reads e-mail and phone from the attribute values too.
+        $attributes = app(\Webkul\Attribute\Repositories\AttributeRepository::class)
+            ->findWhere(['entity_type' => 'persons'])
+            ->whereIn('code', array_keys($updates))
+            ->values();
+
+        if ($attributes->isNotEmpty()) {
+            app(AttributeValueRepository::class)->save(
+                $updates + ['entity_type' => 'persons', 'entity_id' => $person->id],
+                $attributes,
+            );
+        }
+
+        return $changed;
     }
 
     public function stage(Request $request, int $id): JsonResponse
