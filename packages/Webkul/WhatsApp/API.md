@@ -11,6 +11,7 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 | --- | --- |
 | `GET /ping` | confere a chave; nome, versão e fuso da instalação |
 | `GET /pipelines` | funis com etapas (`id`, `name`, `code`: `won`/`lost` marcam fechamento) |
+| `GET /attributes?entity=leads\|persons` | campos (inclusive os do sistema) com `code`, `name`, `type`: os códigos aceitos em `custom` |
 | `GET /users` · `/sources` · `/tags` | responsáveis ativos, origens e etiquetas |
 | `GET /leads` | lista paginada. Filtros: `q`, `pipeline_id`, `stage_id`, `status` (open/won/lost), `source_id`, `user_id`, `email`, `phone`, `created_from/to`, `closed_from/to`, `updated_since`, `per_page` (≤100), `page` |
 | `GET /leads/{id}` | negócio completo + últimas atividades |
@@ -23,6 +24,7 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 | --- | --- |
 | `POST /leads` | `title` (obrig.), `value`, `description`, `pipeline_id`/`stage_id`, `source_id`, `type_id`, `user_id`, `expected_close_date`, `custom` (campos personalizados por código), e a pessoa: `person_id` **ou** `person: {name, email, phone, organization}` (`organization` cria ou reaproveita a empresa). A pessoa é **reaproveitada** se o e-mail ou telefone já existir (`person_existed`). `on_duplicate: "return"` devolve o negócio aberto da pessoa em vez de criar outro (`created: false`). `tags`: lista de ids de etiquetas (`GET /tags`), ex. `[2]`; também são **adicionadas** ao negócio devolvido por `on_duplicate` (sem remover as que ele já tem). Id inexistente = 422 `invalid_tags`, nada é criado. |
 | `POST /pipelines` | `name`, `stages` (lista de `{name, type?: open\|won\|lost, probability?}`). Cria um funil com as etapas, na ordem; acrescenta "Ganho" e "Perdido" se a lista não tiver. Idempotente pelo nome (devolve o existente, `created: false`). |
+| `POST /attributes` | `entity` (`leads` ou `persons`), `name`, `type` (`text`, `textarea`, `date`, `datetime`, `price`, `email`, `phone`, `boolean`), `code?`. Cria um campo personalizado; se já existir um com o mesmo código ou nome (sem diferenciar maiúsculas e acentos), devolve o existente (`created: false`). |
 | `POST /sources` | `name`. Cria a origem de lead; idempotente pelo nome. |
 | `POST /tags` | `name`, `color?` (`#RRGGBB`). Cria a etiqueta; idempotente pelo nome. |
 | `POST /leads/{id}/tags` | `tags` (ids, obrig.). Adiciona sem remover as existentes e sem duplicar (repetir a chamada não muda nada); devolve o negócio no formato de `GET /leads/{id}`. 404 se o negócio não existe, 422 `invalid_tags` se algum id não existe. |

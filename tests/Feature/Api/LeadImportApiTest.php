@@ -213,3 +213,29 @@ it('imports again after the earlier lead was deleted', function () {
         ->assertStatus(200)
         ->assertJsonPath('data.id', $second);
 });
+
+it('creates a custom field once and stores its value on a lead', function () {
+    $name = 'Campo Import '.uniqid();
+
+    $field = test()->postJson('/api/v1/attributes', ['entity' => 'leads', 'name' => $name, 'type' => 'text'], importHeaders())
+        ->assertStatus(201)
+        ->assertJsonPath('data.created', true)
+        ->json('data');
+
+    test()->postJson('/api/v1/attributes', ['entity' => 'leads', 'name' => mb_strtoupper($name), 'type' => 'text'], importHeaders())
+        ->assertStatus(200)
+        ->assertJsonPath('data.created', false)
+        ->assertJsonPath('data.code', $field['code']);
+
+    test()->getJson('/api/v1/attributes?entity=leads', importHeaders())
+        ->assertStatus(200)
+        ->assertJsonFragment(['code' => $field['code']]);
+
+    $lead = test()->postJson('/api/v1/leads', [
+        'title'  => 'Lead com campo',
+        'person' => ['name' => 'Pessoa Campo'],
+        'custom' => [$field['code'] => 'valor importado'],
+    ], importHeaders())->assertStatus(201)->json('data');
+
+    expect($lead['custom'][$field['code']])->toBe('valor importado');
+});

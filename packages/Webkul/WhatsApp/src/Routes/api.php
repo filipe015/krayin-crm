@@ -11,6 +11,8 @@ use Webkul\WhatsApp\Api\Http\Controllers\ReportApiController;
 Route::get('ping', [CatalogController::class, 'ping']);
 Route::get('pipelines', [CatalogController::class, 'pipelines']);
 Route::post('pipelines', [CatalogController::class, 'createPipeline']);
+Route::get('attributes', [CatalogController::class, 'attributes']);
+Route::post('attributes', [CatalogController::class, 'createAttribute']);
 Route::get('users', [CatalogController::class, 'users']);
 Route::get('sources', [CatalogController::class, 'sources']);
 Route::post('sources', [CatalogController::class, 'createSource']);

@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Webkul\Attribute\Repositories\AttributeRepository;
 use Webkul\Lead\Repositories\PipelineRepository;
 
 /**
@@ -118,6 +119,79 @@ class CatalogController extends ApiController
             'stages'     => DB::table('lead_pipeline_stages')->where('lead_pipeline_id', $id)->orderBy('sort_order')
                 ->get(['id', 'name', 'code'])->map(fn ($stage) => ['id' => $stage->id, 'name' => $stage->name, 'code' => $stage->code])->values(),
         ];
+    }
+
+    /**
+     * Custom fields ("Campos Personalizados") of leads or persons, system ones included, so an
+     * integration can see which codes exist before sending values in "custom".
+     */
+    public function attributes(Request $request): JsonResponse
+    {
+        $data = $request->validate(['entity' => ['nullable', 'in:leads,persons']]);
+
+        $rows = DB::table('attributes')
+            ->where('entity_type', $data['entity'] ?? 'leads')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'code', 'name', 'type', 'is_user_defined', 'is_required']);
+
+        return $this->ok($rows->map(fn ($row) => [
+            'id'              => $row->id,
+            'code'            => $row->code,
+            'name'            => $row->name,
+            'type'            => $row->type,
+            'is_user_defined' => (bool) $row->is_user_defined,
+            'is_required'     => (bool) $row->is_required,
+        ])->values());
+    }
+
+    /**
+     * Creates a custom field. Idempotent: an existing field with the same code, or with the same
+     * name (ignoring case and accents), is returned instead.
+     */
+    public function createAttribute(Request $request, AttributeRepository $attributes): JsonResponse
+    {
+        $data = $request->validate([
+            'entity' => ['required', 'in:leads,persons'],
+            'name'   => ['required', 'string', 'max:100'],
+            'type'   => ['required', 'in:text,textarea,date,datetime,price,email,phone,boolean'],
+            'code'   => ['nullable', 'regex:/^[a-z][a-z0-9_]{1,59}$/'],
+        ]);
+
+        $normalize = fn (string $text) => trim(preg_replace('/[^a-z0-9]+/', ' ', Str::lower(Str::ascii($text))));
+
+        $existing = DB::table('attributes')->where('entity_type', $data['entity'])->get(['id', 'code', 'name', 'type'])
+            ->first(fn ($row) => (! empty($data['code']) && $row->code === $data['code']) || $normalize($row->name) === $normalize($data['name']));
+
+        if ($existing) {
+            return $this->ok(['id' => $existing->id, 'code' => $existing->code, 'name' => $existing->name, 'type' => $existing->type, 'created' => false]);
+        }
+
+        $code = $data['code'] ?? Str::limit(Str::slug($data['name'], '_'), 55, '');
+
+        $base = $code !== '' ? $code : 'campo';
+        $code = $base;
+
+        for ($i = 2; DB::table('attributes')->where('entity_type', $data['entity'])->where('code', $code)->exists(); $i++) {
+            $code = $base.'_'.$i;
+        }
+
+        $attribute = $attributes->create([
+            'code'            => $code,
+            'name'            => trim($data['name']),
+            'type'            => $data['type'],
+            'entity_type'     => $data['entity'],
+            'is_required'     => 0,
+            'is_unique'       => 0,
+            'quick_add'       => 0,
+            'is_user_defined' => 1,
+        ]);
+
+        DB::table('attributes')->where('id', $attribute->id)->update([
+            'sort_order' => ((int) DB::table('attributes')->where('entity_type', $data['entity'])->max('sort_order')) + 1,
+        ]);
+
+        return $this->ok(['id' => $attribute->id, 'code' => $code, 'name' => trim($data['name']), 'type' => $data['type'], 'created' => true], [], 201);
     }
 
     public function users(): JsonResponse
