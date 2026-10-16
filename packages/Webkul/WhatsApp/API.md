@@ -40,6 +40,7 @@ Em `POST /leads` e `POST /leads/{id}/notes`, parâmetros opcionais para migrar d
 | `external: {source, id}` (lead) | guarda a origem (ex.: `trello` + id do cartão). Repetir a chamada **não duplica**: devolve o negócio já importado (`created: false`, `external_existed: true`). |
 | `created_at`, `updated_at`, `closed_at`, `stage_entered_at` (lead) | datas originais; o ciclo de vendas e os dias na etapa usam estas datas. |
 | `created_at` (nota) | data original do comentário. |
+| `lost_reason` (lead em etapa de perda) | motivo da perda gravado no negócio. |
 | `silent: true` | nenhum webhook de saída é disparado por esta chamada. |
 
 Pessoa sem e-mail e sem telefone é criada normalmente (uma por chamada, sem juntar por nome).

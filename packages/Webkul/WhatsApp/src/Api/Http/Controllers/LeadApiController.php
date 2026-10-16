@@ -146,6 +146,7 @@ class LeadApiController extends ApiController
             'updated_at'          => ['nullable', 'date'],
             'closed_at'           => ['nullable', 'date'],
             'stage_entered_at'    => ['nullable', 'date'],
+            'lost_reason'         => ['nullable', 'string', 'max:500'],
             'silent'              => ['nullable', 'boolean'],
         ]);
 
@@ -234,6 +235,10 @@ class LeadApiController extends ApiController
 
         if (in_array($stage->code, ['won', 'lost'], true)) {
             $payload['closed_at'] = Carbon::now();
+        }
+
+        if ($stage->code === 'lost' && ! empty($data['lost_reason'])) {
+            $payload['lost_reason'] = $data['lost_reason'];
         }
 
         if ($personId) {

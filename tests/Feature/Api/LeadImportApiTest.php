@@ -64,6 +64,17 @@ it('keeps original dates and does not duplicate an external id', function () {
         'silent'     => true,
     ];
 
+    $lost = collect($pipeline['stages'])->firstWhere('code', 'lost');
+
+    $lostLead = test()->postJson('/api/v1/leads', [
+        'title'       => 'Perdido importado',
+        'person'      => ['name' => 'Pessoa Perdida'],
+        'stage_id'    => $lost['id'],
+        'lost_reason' => 'Segmento restaurantes',
+    ], importHeaders())->assertStatus(201)->json('data');
+
+    expect(DB::table('leads')->where('id', $lostLead['id'])->value('lost_reason'))->toBe('Segmento restaurantes');
+
     $first = test()->postJson('/api/v1/leads', $body, importHeaders())
         ->assertStatus(201)
         ->assertJsonPath('data.created', true)
