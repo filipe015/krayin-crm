@@ -93,7 +93,7 @@
 
                             <!-- Activity Item -->
                             <div
-                                class="flex gap-2"
+                                class="flex min-w-0 gap-2"
                                 v-for="(activity, index) in filteredActivities"
                             >
                                 {!! view_render_event('admin.components.activities.content.activity.item.icon.before') !!}
@@ -111,10 +111,10 @@
 
                                 <!-- Activity Details -->
                                 <div
-                                    class="flex w-full justify-between gap-4 rounded-md p-4"
+                                    class="flex w-full min-w-0 justify-between gap-4 rounded-md p-4"
                                     :class="{'bg-gray-100 dark:bg-gray-950': index % 2 != 0 }"
                                 >
-                                    <div class="flex flex-col gap-2">
+                                    <div class="flex min-w-0 flex-col gap-2">
                                         {!! view_render_event('admin.components.activities.content.activity.item.title.before') !!}
 
                                         <!-- Activity Title -->
@@ -215,7 +215,7 @@
 
                                         <!-- Activity Description -->
                                         <p
-                                            class="dark:text-white"
+                                            class="whitespace-pre-line [overflow-wrap:anywhere] dark:text-white"
                                             v-if="activity.comment"
                                         >@{{ activity.comment }}</p>
 
