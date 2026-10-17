@@ -1107,6 +1107,7 @@ return [
                     'save-btn' => 'Salvar Tag',
                     'title' => 'Adicionar Tag',
                     'color' => 'Cor',
+                    'other-color' => 'Outra cor',
                 ],
                 'edit' => [
                     'title' => 'Editar Tag',

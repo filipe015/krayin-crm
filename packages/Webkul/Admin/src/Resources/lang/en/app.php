@@ -1108,6 +1108,7 @@ return [
                     'save-btn' => 'Save Tag',
                     'title' => 'Create Tag',
                     'color' => 'Color',
+                    'other-color' => 'Other color',
                 ],
                 'edit' => [
                     'title' => 'Edit Tag',

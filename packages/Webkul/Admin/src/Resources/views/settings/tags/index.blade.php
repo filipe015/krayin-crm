@@ -252,7 +252,7 @@
                                 @lang('admin::app.settings.tags.index.create.color')
                             </x-admin::form.control-group.label>
                             
-                            <div class="flex gap-3">
+                            <div class="flex flex-wrap gap-3">
                                 <template v-for="(color, index) in colors">
                                     <span class="relative inline-block">
                                         <x-admin::form.control-group.control
@@ -271,6 +271,19 @@
                                         </label>
                                     </span>
                                 </template>
+
+                                <!-- Any other color -->
+                                <label
+                                    class="relative block h-6 w-6 cursor-pointer overflow-hidden rounded-full shadow-md"
+                                    title="@lang('admin::app.settings.tags.index.create.other-color')"
+                                    style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
+                                >
+                                    <input
+                                        type="color"
+                                        class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                        @input="pickColor($event.target.value)"
+                                    />
+                                </label>
                             </div>
 
                             {!! view_render_event('admin.settings.tags.index.content.after') !!}
@@ -309,19 +322,42 @@
                         selectedTag: false,
 
                         colors: [
-                            {
-                                background: '#FEE2E2',
-                            }, {
-                                background: '#FFEDD5',
-                            }, {
-                                background: '#FEF3C7',
-                            }, {
-                                background: '#FEF9C3',
-                            }, {
-                                background: '#ECFCCB',
-                            }, {
-                                background: '#DCFCE7',
-                            },
+                            { background: '#FEE2E2' },
+                            { background: '#FFEDD5' },
+                            { background: '#FEF3C7' },
+                            { background: '#FEF9C3' },
+                            { background: '#ECFCCB' },
+                            { background: '#DCFCE7' },
+                            { background: '#CCFBF1' },
+                            { background: '#E0F2FE' },
+                            { background: '#DBEAFE' },
+                            { background: '#EDE9FE' },
+                            { background: '#FCE7F3' },
+                            { background: '#EF4444' },
+                            { background: '#F97316' },
+                            { background: '#F59E0B' },
+                            { background: '#EAB308' },
+                            { background: '#84CC16' },
+                            { background: '#22C55E' },
+                            { background: '#10B981' },
+                            { background: '#14B8A6' },
+                            { background: '#06B6D4' },
+                            { background: '#0EA5E9' },
+                            { background: '#3B82F6' },
+                            { background: '#6366F1' },
+                            { background: '#8B5CF6' },
+                            { background: '#A855F7' },
+                            { background: '#D946EF' },
+                            { background: '#EC4899' },
+                            { background: '#F43F5E' },
+                            { background: '#B91C1C' },
+                            { background: '#9A3412' },
+                            { background: '#166534' },
+                            { background: '#1E40AF' },
+                            { background: '#6B21A8' },
+                            { background: '#6B7280' },
+                            { background: '#374151' },
+                            { background: '#111827' },
                         ],
                     };
                 },
@@ -376,9 +412,26 @@
                         });
                     },
                     
+                    /**
+                     * A color outside the palette (a tag that already has one, or the free picker).
+                     */
+                    addColor(color) {
+                        if (color && ! this.colors.some(item => item.background.toLowerCase() === color.toLowerCase())) {
+                            this.colors.push({ background: color });
+                        }
+                    },
+
+                    pickColor(color) {
+                        this.addColor(color);
+
+                        this.$refs.modalForm.setFieldValue('color', color);
+                    },
+
                     editModal(url) {
                         this.$axios.get(url)
                             .then(response => {
+                                this.addColor(response.data.data.color);
+
                                 this.$refs.modalForm.setValues(response.data.data);
                                 
                                 this.$refs.tagsUpdateAndCreateModal.toggle();
