@@ -280,7 +280,7 @@ class LeadDataGrid extends DataGrid
             'sortable' => true,
             'filterable' => true,
             'filterable_type' => 'date_range',
-            'closure' => fn ($row) => $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('d/m/Y') : '--',
+            'closure' => fn ($row) => $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('d/m/Y H:i') : '--',
         ]);
     }
 
