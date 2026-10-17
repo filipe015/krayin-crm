@@ -1835,6 +1835,7 @@ return [
                         'to' => 'To',
                     ],
                     'clear-filters' => 'Clear filters',
+                    'total'         => 'deals in the pipeline',
                 ],
                 'stages' => [
                     'won' => 'Won',

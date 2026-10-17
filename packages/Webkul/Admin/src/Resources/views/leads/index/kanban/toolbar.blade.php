@@ -25,6 +25,12 @@
             @lang('admin::app.leads.index.kanban.toolbar.clear-filters')
         </button>
 
+        <!-- Total of deals in the pipeline (follows the filters) -->
+        <span class="whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+            <strong class="font-semibold text-gray-800 dark:text-white">@{{ totalLeads }}</strong>
+            @lang('admin::app.leads.index.kanban.toolbar.total')
+        </span>
+
         <div class="z-10 hidden w-full divide-y divide-gray-100 rounded bg-white shadow dark:bg-gray-900"></div>
     </div>
 

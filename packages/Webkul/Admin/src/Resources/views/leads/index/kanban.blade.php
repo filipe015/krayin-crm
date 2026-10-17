@@ -468,6 +468,13 @@
                 },
 
                 /**
+                 * Number of deals across all stages (already narrowed by the active filters).
+                 */
+                totalLeads() {
+                    return Object.values(this.stageLeads).reduce((sum, stage) => sum + (stage.leads?.meta?.total || 0), 0);
+                },
+
+                /**
                  * Computes the total amount of leads across all stages.
                  *
                  * @return {number} The total amount of leads.

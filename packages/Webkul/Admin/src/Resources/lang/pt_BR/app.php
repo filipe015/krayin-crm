@@ -1834,6 +1834,7 @@ return [
                         'to' => 'Para',
                     ],
                     'clear-filters' => 'Limpar filtros',
+                    'total'         => 'oportunidades no funil',
                 ],
                 'stages' => [
                     'won' => 'Ganho',
