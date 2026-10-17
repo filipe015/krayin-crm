@@ -268,7 +268,7 @@ class LeadDataGrid extends DataGrid
                     return '--';
                 }
 
-                return $row->expected_close_date;
+                return \Carbon\Carbon::parse($row->expected_close_date)->format('d/m/Y');
             },
         ]);
 
@@ -280,6 +280,7 @@ class LeadDataGrid extends DataGrid
             'sortable' => true,
             'filterable' => true,
             'filterable_type' => 'date_range',
+            'closure' => fn ($row) => $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('d/m/Y') : '--',
         ]);
     }
 
