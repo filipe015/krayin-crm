@@ -263,7 +263,7 @@
 
                                 <!-- Card Content -->
                                 <div class="grid gap-2">
-                                    <template v-for="column in available.columns">
+                                    <template v-for="column in available.columns.filter(column => column.visibility)">
                                         <div class="flex flex-wrap items-baseline gap-x-2">
                                             <span class="text-slate-600 dark:text-gray-300" v-html="column.label + ':'"></span>
                                             <span class="break-words font-medium text-slate-900 dark:text-white" v-html="record[column.index]"></span>

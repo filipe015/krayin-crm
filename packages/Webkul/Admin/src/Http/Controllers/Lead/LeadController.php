@@ -13,6 +13,7 @@ use Prettus\Repository\Criteria\RequestCriteria;
 use Webkul\Admin\DataGrids\Lead\LeadDataGrid;
 use Webkul\Admin\Http\Controllers\Controller;
 use Webkul\Admin\Http\Requests\LeadForm;
+use Webkul\Admin\Support\LeadCustomFieldFilters;
 use Webkul\Admin\Http\Requests\MassDestroyRequest;
 use Webkul\Admin\Http\Requests\MassUpdateRequest;
 use Webkul\Admin\Http\Resources\LeadResource;
@@ -119,6 +120,8 @@ class LeadController extends Controller
             if ($createdAtRange) {
                 $query->whereBetween('leads.created_at', $createdAtRange);
             }
+
+            LeadCustomFieldFilters::apply($query, request()->query('cf'));
 
             $stage->lead_value = (clone $query)->sum('lead_value');
 
@@ -714,6 +717,7 @@ class LeadController extends Controller
                 'sortable' => true,
                 'visibility' => true,
             ],
+            ...LeadCustomFieldFilters::columns(),
         ];
     }
 

@@ -4,6 +4,7 @@ namespace Webkul\Admin\DataGrids\Lead;
 
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Webkul\Admin\Support\LeadCustomFieldFilters;
 use Webkul\Contact\Repositories\PersonRepository;
 use Webkul\Contract\Repositories\Pipeline;
 use Webkul\DataGrid\DataGrid;
@@ -102,6 +103,11 @@ class LeadDataGrid extends DataGrid
         $this->addFilter('expected_close_date', 'leads.expected_close_date');
         $this->addFilter('created_at', 'leads.created_at');
         $this->addFilter('rotten_lead', DB::raw('DATEDIFF(NOW(), '.$tablePrefix.'leads.created_at) >= '.$tablePrefix.'lead_pipelines.rotten_days'));
+
+        // Custom fields: filter-only columns, read by sub-query.
+        foreach (LeadCustomFieldFilters::attributes() as $attribute) {
+            $this->addFilter(LeadCustomFieldFilters::index($attribute), DB::raw(LeadCustomFieldFilters::expression($attribute)));
+        }
 
         return $queryBuilder;
     }
@@ -282,6 +288,13 @@ class LeadDataGrid extends DataGrid
             'filterable_type' => 'date_range',
             'closure' => fn ($row) => $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('d/m/Y H:i') : '--',
         ]);
+
+        // Custom fields only show up in the filter drawer (picked by field name), never as table columns.
+        foreach (LeadCustomFieldFilters::columns() as $column) {
+            $this->addColumn($column);
+
+            $this->columns[array_key_last($this->columns)]->setExportable(false);
+        }
     }
 
     /**

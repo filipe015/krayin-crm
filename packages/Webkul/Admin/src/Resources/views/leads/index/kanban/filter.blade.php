@@ -59,7 +59,28 @@
                 {!! view_render_event('admin.leads.index.kanban.filter.drawer.content.before') !!}
 
                 <div>
-                    <div v-for="column in available.columns">
+                    <!-- Custom fields: pick the field first, then its options appear below -->
+                    <div class="mb-4" v-if="customColumns.length">
+                        <p class="mb-1.5 text-xs font-medium text-gray-800 dark:text-white">
+                            @lang('admin::app.leads.index.kanban.toolbar.filters.custom-field')
+                        </p>
+
+                        <select
+                            v-model="customIndex"
+                            class="custom-select w-full rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                        >
+                            <option value="">@lang('admin::app.leads.index.kanban.toolbar.filters.custom-field-select')</option>
+
+                            <option
+                                v-for="column in customColumns"
+                                :key="column.index"
+                                :value="column.index"
+                                v-text="column.label"
+                            ></option>
+                        </select>
+                    </div>
+
+                    <div v-for="column in drawerColumns">
                         <div v-if="column.filterable">
                             <!-- Boolean -->
                             <div v-if="column.type === 'boolean'">
@@ -669,7 +690,29 @@
                     filters: {
                         columns: [],
                     },
+
+                    customIndex: '',
                 };
+            },
+
+            computed: {
+                /**
+                 * Custom fields, picked from a list instead of one block each.
+                 */
+                customColumns() {
+                    return this.available.columns.filter(column => column.index.startsWith('cf_') && column.filterable);
+                },
+
+                /**
+                 * Regular columns, plus the custom field being picked and those already applied.
+                 */
+                drawerColumns() {
+                    const shown = this.available.columns.filter(column => column.index.startsWith('cf_')
+                        && (column.index === this.customIndex || this.hasAnyAppliedColumnValues(column.index)));
+
+                    // The picked custom fields come first, right under the field selector.
+                    return [...shown, ...this.available.columns.filter(column => ! column.index.startsWith('cf_'))];
+                },
             },
 
             mounted() {

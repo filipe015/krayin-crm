@@ -280,6 +280,8 @@ return [
                 ],
             ],
             'filters' => [
+                'custom-field' => 'Campo personalizado',
+                'custom-field-select' => 'Escolher campo...',
                 'select' => 'Selecionar',
                 'title' => 'Filtros',
                 'dropdown' => [
@@ -1825,6 +1827,8 @@ return [
                         'title' => 'Buscar por título',
                     ],
                     'filters' => [
+                        'custom-field' => 'Campo personalizado',
+                        'custom-field-select' => 'Escolher campo...',
                         'apply-filters' => 'Aplicar Filtros',
                         'clear-all' => 'Limpar Tudo',
                         'filter' => 'Filtrar',

@@ -681,7 +681,15 @@
                         limit: 50,
                     };
 
+                    let customFields = [];
+
                     this.applied.filters.columns.forEach((column) => {
+                        if (column.index.startsWith('cf_')) {
+                            customFields.push({ index: column.index, value: column.value });
+
+                            return;
+                        }
+
                         if (column.index === 'all') {
                             if (! column.value.length) {
                                 return;
@@ -703,6 +711,10 @@
 
                         params['searchFields'] += `${column.index}:${column.search_field};`;
                     });
+
+                    if (customFields.length) {
+                        params['cf'] = JSON.stringify(customFields);
+                    }
 
                     return this.$axios
                         .get("{{ route('admin.leads.get') }}", {
