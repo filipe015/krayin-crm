@@ -87,3 +87,56 @@ it('builds the monthly dashboard: spend, tax, funnel leads and platforms', funct
         ->and(collect($report['daily']['days'])->firstWhere('date', '2026-03-10')['spend'])->toBe(150.0)
         ->and($report['campaigns'][0]['campaign'])->toBe('Camp Online');
 });
+
+it('matches CRM leads to campaigns ignoring copies and numbering, reads UTMs from the description, and counts sales and CAC', function () {
+    $now = now();
+    $base = ['entity_type' => 'leads', 'is_user_defined' => 1, 'is_required' => 0, 'is_unique' => 0, 'quick_add' => 0, 'sort_order' => 99, 'created_at' => $now, 'updated_at' => $now, 'type' => 'text'];
+    $campaignAttr = DB::table('attributes')->insertGetId($base + ['code' => 'utm_campaign_t'.uniqid(), 'name' => 'UTM Campaign']);
+    DB::table('attributes')->insertGetId($base + ['code' => 'utm_source_t'.uniqid(), 'name' => 'UTM Source']);
+
+    $pipeline = DB::table('lead_pipelines')->where('is_default', 1)->value('id');
+    $stage = fn (string $code) => DB::table('lead_pipeline_stages')->where('lead_pipeline_id', $pipeline)->where('code', $code)->value('id');
+    $first = DB::table('lead_pipeline_stages')->where('lead_pipeline_id', $pipeline)->orderBy('sort_order')->value('id');
+
+    $lead = function (string $title, int $stageId, ?string $campaign, ?string $description = null, float $value = 0) use ($pipeline, $now, $campaignAttr) {
+        $id = DB::table('leads')->insertGetId(['title' => $title, 'description' => $description, 'status' => 1, 'lead_value' => $value, 'lead_pipeline_id' => $pipeline, 'lead_pipeline_stage_id' => $stageId, 'created_at' => $now, 'updated_at' => $now]);
+
+        if ($campaign !== null) {
+            DB::table('attribute_values')->insert(['entity_type' => 'leads', 'entity_id' => $id, 'attribute_id' => $campaignAttr, 'text_value' => $campaign]);
+        }
+
+        return $id;
+    };
+
+    $month = $now->copy()->startOfMonth();
+
+    test()->postJson('/api/v1/ads/insights', ['rows' => [
+        adsRow(['date' => $month->toDateString(), 'platform' => 'instagram', 'funnel' => 'Lead - Online', 'campaign_name' => '02 - [LEADS ONLINE] - [ESCALA]', 'spend' => 300, 'results' => ['Lead - Online' => 10]]),
+        adsRow(['date' => $month->toDateString(), 'ad_id' => 'a2', 'platform' => 'instagram', 'funnel' => 'Lead - Bari', 'campaign_name' => '15 - [BARI PRA SEMPRE]', 'spend' => 100, 'results' => ['Lead - Bari' => 4]]),
+    ]], adsHeaders())->assertStatus(201);
+
+    // A copy of the campaign, with a different number, still counts; one is won.
+    $lead('copia', $first, '02 - [LEADS ONLINE] - [ESCALA] — Cópia');
+    $lead('ganho', $stage('won'), '12 - [LEADS ONLINE] - [ESCALA]', null, 1500);
+    // From the LP: UTM only in the description.
+    $lead('lp', $first, null, "Prioridade: alta\nUTM source: ig\nUTM campaign: 15 - [BARI PRA SEMPRE]\nUTM medium: -");
+    $lead('perdido', $stage('lost'), '02 - [LEADS ONLINE] - [ESCALA]');
+    // Organic and untracked.
+    $lead('organico', $first, 'link_bio');
+    $lead('sem utm', $first, null, 'sem nada');
+
+    $report = app(AdsOverview::class)->month($month, '999');
+    $funnels = collect($report['funnels'])->keyBy('name');
+
+    expect($report['summary']['leads_crm'])->toBe(4)
+        ->and($report['summary']['unmatched'])->toBe(1)
+        ->and($report['summary']['no_utm'])->toBe(1)
+        ->and($report['summary']['won'])->toBe(1)
+        ->and($report['summary']['won_value'])->toBe(1500.0)
+        ->and($report['summary']['cac'])->toBe(400.0)
+        ->and($report['summary']['mql'])->toBe(3)
+        ->and($funnels['Lead - Online']['leads_crm'])->toBe(3)
+        ->and($funnels['Lead - Online']['cpl_meta'])->toBe(30.0)
+        ->and($funnels['Lead - Bari']['leads_crm'])->toBe(1)
+        ->and($funnels['Lead - Bari']['leads_meta'])->toBe(4);
+});

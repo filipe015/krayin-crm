@@ -99,6 +99,7 @@ final class AdsOverview
         $funnels = [];
         $platforms = [];
         $campaigns = [];
+        $looseToExact = [];
         $totalSpend = 0.0;
         $totalMeta = 0.0;
 
@@ -107,6 +108,7 @@ final class AdsOverview
             $spend = (float) $row->spend;
             $meta = $this->metaLeads($row);
             $campaignKey = $this->normalize($row->campaign_name);
+            $looseToExact[$this->campaignKey($row->campaign_name)] ??= $campaignKey;
             $funnelKey = $funnel ?? '';
             $platformKey = $row->platform !== '' ? $row->platform : '';
 
@@ -138,16 +140,20 @@ final class AdsOverview
         }
 
         // CRM side.
-        $crm = ['leads' => 0, 'mql' => 0, 'disqualified' => 0, 'scheduled' => 0];
+        $crm = ['leads' => 0, 'mql' => 0, 'disqualified' => 0, 'scheduled' => 0, 'won' => 0, 'won_value' => 0.0];
         $noUtm = 0;
         $unmatched = 0;
         $origins = [];
 
         foreach ($leads as $lead) {
-            $origin = $this->originLabel($lead->utm_source);
+            // Leads created by automations may carry the UTMs only in the description.
+            $utmSource = $lead->utm_source ?: $this->fromDescription($lead->description, 'source');
+            $utmCampaign = $lead->utm_campaign ?: $this->fromDescription($lead->description, 'campaign');
+
+            $origin = $this->originLabel($utmSource);
             $origins[$origin] = ($origins[$origin] ?? 0) + 1;
 
-            $campaign = $this->normalize($lead->utm_campaign);
+            $campaign = $this->campaignKey($utmCampaign);
 
             if ($campaign === '') {
                 $noUtm++;
@@ -155,15 +161,19 @@ final class AdsOverview
                 continue;
             }
 
-            if (! array_key_exists($campaign, $this->campaignFunnel) && ! isset($campaigns[$campaign])) {
+            $exact = $looseToExact[$campaign] ?? null;
+
+            if ($exact === null && ! array_key_exists($campaign, $this->campaignFunnel)) {
                 $unmatched++;
 
                 continue;
             }
 
-            $funnel = $campaigns[$campaign]['funnel'] ?? $this->campaignFunnel[$campaign] ?? null;
+            $funnel = ($exact !== null ? ($campaigns[$exact]['funnel'] ?? null) : null) ?? $this->campaignFunnel[$campaign] ?? null;
             $funnelKey = $funnel ?? '';
             $lost = $lead->stage_code === 'lost';
+            $won = $lead->stage_code === 'won';
+            $wonValue = $won ? (float) $lead->lead_value : 0.0;
 
             $f = &$funnels[$funnelKey];
             $f ??= $this->blankFunnel($funnel);
@@ -171,16 +181,20 @@ final class AdsOverview
             $f['mql'] += $lost ? 0 : 1;
             $f['disqualified'] += $lost ? 1 : 0;
             $f['scheduled'] += $lead->scheduled ? 1 : 0;
+            $f['won'] += $won ? 1 : 0;
+            $f['won_value'] += $wonValue;
             unset($f);
 
-            if (isset($campaigns[$campaign])) {
-                $campaigns[$campaign]['leads_crm']++;
+            if ($exact !== null) {
+                $campaigns[$exact]['leads_crm']++;
             }
 
             $crm['leads']++;
             $crm['mql'] += $lost ? 0 : 1;
             $crm['disqualified'] += $lost ? 1 : 0;
             $crm['scheduled'] += $lead->scheduled ? 1 : 0;
+            $crm['won'] += $won ? 1 : 0;
+            $crm['won_value'] += $wonValue;
         }
 
         $summary = $this->derive([
@@ -190,6 +204,8 @@ final class AdsOverview
             'mql'          => $crm['mql'],
             'disqualified' => $crm['disqualified'],
             'scheduled'    => $crm['scheduled'],
+            'won'          => $crm['won'],
+            'won_value'    => $crm['won_value'],
         ], $tax) + ['no_utm' => $noUtm, 'unmatched' => $unmatched];
 
         $funnelRows = array_values(array_map(fn ($f) => $this->derive($f, $tax) + ['name' => $f['name']], $funnels));
@@ -304,7 +320,7 @@ final class AdsOverview
             ->get();
 
         foreach ($names as $row) {
-            $this->campaignFunnel[$this->normalize($row->campaign_name)] = $row->funnel ?: null;
+            $this->campaignFunnel[$this->campaignKey($row->campaign_name)] ??= $row->funnel ?: null;
         }
     }
 
@@ -314,8 +330,8 @@ final class AdsOverview
             ->join('lead_pipeline_stages as stages', 'stages.id', '=', 'leads.lead_pipeline_stage_id')
             ->whereBetween('leads.created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->select([
-                'leads.id', 'stages.code as stage_code',
-                DB::raw('EXISTS (SELECT 1 FROM lead_activities la JOIN activities a ON a.id = la.activity_id WHERE la.lead_id = leads.id AND a.type = \'meeting\') as scheduled'),
+                'leads.id', 'leads.description', 'leads.lead_value', 'stages.code as stage_code',
+                DB::raw('(EXISTS (SELECT 1 FROM lead_activities la JOIN activities a ON a.id = la.activity_id WHERE la.lead_id = leads.id AND a.type = \'meeting\') OR stages.code LIKE \'%agend%\' OR stages.name LIKE \'%agend%\') as scheduled'),
             ]);
 
         foreach (['campaign' => 'utm_campaign', 'source' => 'utm_source'] as $role => $alias) {
@@ -337,7 +353,7 @@ final class AdsOverview
 
     private function blankFunnel(?string $name): array
     {
-        return ['name' => $name, 'spend' => 0.0, 'leads_meta' => 0.0, 'leads_crm' => 0, 'mql' => 0, 'disqualified' => 0, 'scheduled' => 0];
+        return ['name' => $name, 'spend' => 0.0, 'leads_meta' => 0.0, 'leads_crm' => 0, 'mql' => 0, 'disqualified' => 0, 'scheduled' => 0, 'won' => 0, 'won_value' => 0.0];
     }
 
     /**
@@ -350,6 +366,8 @@ final class AdsOverview
         $crmLeads = (int) ($base['leads_crm'] ?? 0);
         $mql = (int) ($base['mql'] ?? 0);
         $scheduled = (int) ($base['scheduled'] ?? 0);
+        $won = (int) ($base['won'] ?? 0);
+        $wonValue = round((float) ($base['won_value'] ?? 0), 2);
         $taxValue = round($spend * $tax / 100, 2);
         $per = fn (float $amount, int $count) => $count > 0 ? round($amount / $count, 2) : null;
         $pct = fn (int $part, int $whole) => $whole > 0 ? round($part / $whole * 100, 1) : null;
@@ -368,6 +386,10 @@ final class AdsOverview
             'scheduled'          => $scheduled,
             'lead_to_scheduled'  => $pct($scheduled, $crmLeads),
             'cost_per_scheduled' => $per($spend, $scheduled),
+            'won'                => $won,
+            'won_value'          => $wonValue,
+            'cac'                => $per($spend, $won),
+            'roas'               => $spend > 0 && $won > 0 ? round($wonValue / $spend, 2) : null,
         ];
     }
 
@@ -381,6 +403,35 @@ final class AdsOverview
             in_array($source, ['fb', 'facebook', 'face'], true), str_contains($source, 'facebook') => 'Facebook',
             default => mb_convert_case($source, MB_CASE_TITLE),
         };
+    }
+
+    /**
+     * Campaign name made comparable: a duplicated campaign ("... — Cópia") and a renumbered one
+     * ("13 - [X]" vs "11 - [X]") are the same campaign for matching leads to ads.
+     */
+    private function campaignKey(?string $name): string
+    {
+        $key = $this->normalize($name);
+        $key = preg_replace('/\s*[—–-]\s*c[óo]pia(\s*\d+)?$/iu', '', $key);
+        $key = preg_replace('/^\d+\s*[-–—.]\s*/u', '', $key);
+
+        return trim($key);
+    }
+
+    /**
+     * UTM written into the lead description by automations ("UTM campaign: ..."). "-" means empty.
+     */
+    private function fromDescription(?string $description, string $role): ?string
+    {
+        $label = $role === 'source' ? 'UTM source' : 'UTM campaign';
+
+        if (! $description || ! preg_match('/'.$label.':[ \t]*([^\r\n]*)/iu', $description, $match)) {
+            return null;
+        }
+
+        $value = trim($match[1]);
+
+        return $value === '' || $value === '-' ? null : $value;
     }
 
     private function normalize(?string $text): string

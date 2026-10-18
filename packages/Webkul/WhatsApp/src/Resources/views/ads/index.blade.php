@@ -37,6 +37,8 @@
             .ads-kpi strong{display:block;margin-top:3px;font-size:20px;font-weight:700}
             .ads-kpi strong.is-accent{color:var(--d-accent)}
             .ads-kpi small{display:block;font-size:11px;color:var(--d-muted)}
+            .ads-kpi strong small{display:inline;font-size:12px;font-weight:400}
+            .ads-kpi small b{font-weight:600}
             .ads-part{margin-top:18px;padding-top:14px;border-top:1px solid var(--d-border)}
             .ads-part h3{margin:0 0 10px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--d-muted);font-weight:600}
             .ads-chart{position:relative;height:300px}
@@ -106,10 +108,28 @@
                             <div class="ads-kpi"><span>@{{ labels.cpl_crm }}</span><strong class="is-accent">@{{ money(s.cpl_crm) }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.cost_scheduled }}</span><strong class="is-accent">@{{ money(s.cost_per_scheduled) }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.lead_to_scheduled }}</span><strong>@{{ percent(s.lead_to_scheduled) }}</strong></div>
+                            <div class="ads-kpi"><span>@{{ labels.sales }}</span><strong>@{{ s.won }}</strong></div>
+                            <div class="ads-kpi"><span>@{{ labels.cac }}</span><strong class="is-accent">@{{ money(s.cac) }}</strong></div>
+                            <div class="ads-kpi"><span>@{{ labels.revenue }}</span><strong>@{{ money(s.won_value) }}</strong></div>
+                            <div class="ads-kpi"><span>@{{ labels.roas }}</span><strong>@{{ ratio(s.roas) }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.no_utm }}</span><strong>@{{ s.no_utm }}</strong></div>
+                            <div class="ads-kpi" v-if="s.unmatched"><span>@{{ labels.unmatched }}</span><strong>@{{ s.unmatched }}</strong></div>
                         </div>
 
-                        <div class="ads-part" v-if="funnelsWithData.length > 1">
+                        <!-- Leads and cost per lead of each funnel -->
+                        <div class="ads-part" v-if="report.funnels.length">
+                            <h3>@{{ labels.funnel_leads }}</h3>
+
+                            <div class="ads-kpis">
+                                <div class="ads-kpi" v-for="funnel in report.funnels" :key="'k' + funnel.name">
+                                    <span>@{{ funnelName(funnel) }}</span>
+                                    <strong>@{{ funnel.leads_meta }} <small>leads</small></strong>
+                                    <small>CPL <b class="is-accent">@{{ money(funnel.cpl_meta) }}</b> · @{{ money(funnel.spend) }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ads-part" v-if="report.funnels.length">
                             <h3>@{{ labels.by_funnel }}</h3>
 
                             <div class="ads-wrap">
@@ -117,19 +137,29 @@
                                     <thead>
                                         <tr>
                                             <th>@{{ labels.funnel }}</th>
+                                            <th>@{{ labels.spend }}</th>
+                                            <th>@{{ labels.leads_meta }}</th>
+                                            <th>@{{ labels.cpl_meta }}</th>
+                                            <th>@{{ labels.leads_crm }}</th>
                                             <th>MQL</th>
-                                            <th>@{{ labels.qualification_rate }}</th>
                                             <th>@{{ labels.scheduled }}</th>
                                             <th>@{{ labels.cost_scheduled }}</th>
+                                            <th>@{{ labels.sales }}</th>
+                                            <th>@{{ labels.cac }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="funnel in funnelsWithData" :key="funnel.name">
+                                        <tr v-for="funnel in report.funnels" :key="funnel.name">
                                             <td>@{{ funnelName(funnel) }}</td>
+                                            <td>@{{ money(funnel.spend) }}</td>
+                                            <td>@{{ funnel.leads_meta }}</td>
+                                            <td class="is-accent">@{{ money(funnel.cpl_meta) }}</td>
+                                            <td>@{{ funnel.leads_crm }}</td>
                                             <td>@{{ funnel.mql }}</td>
-                                            <td>@{{ percent(funnel.qualification_rate) }}</td>
                                             <td>@{{ funnel.scheduled }}</td>
                                             <td class="is-accent">@{{ money(funnel.cost_per_scheduled) }}</td>
+                                            <td>@{{ funnel.won }}</td>
+                                            <td class="is-accent">@{{ money(funnel.cac) }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -163,6 +193,8 @@
                                         <th>MQL</th>
                                         <th>@{{ labels.scheduled }}</th>
                                         <th>@{{ labels.cost_scheduled }}</th>
+                                        <th>@{{ labels.sales }}</th>
+                                        <th>@{{ labels.cac }}</th>
                                         <th>@{{ labels.disqualified }}</th>
                                     </tr>
                                 </thead>
@@ -179,6 +211,8 @@
                                         <td>@{{ row.mql }}</td>
                                         <td>@{{ row.scheduled }}</td>
                                         <td class="is-accent">@{{ money(row.cost_per_scheduled) }}</td>
+                                        <td>@{{ row.won }}</td>
+                                        <td class="is-accent">@{{ money(row.cac) }}</td>
                                         <td>@{{ row.disqualified }}</td>
                                     </tr>
                                     <tr class="is-total">
@@ -193,6 +227,8 @@
                                         <td>@{{ trendTotal.mql }}</td>
                                         <td>@{{ trendTotal.scheduled }}</td>
                                         <td class="is-accent">@{{ money(trendTotal.cost_per_scheduled) }}</td>
+                                        <td>@{{ trendTotal.won }}</td>
+                                        <td class="is-accent">@{{ money(trendTotal.cac) }}</td>
                                         <td>@{{ trendTotal.disqualified }}</td>
                                     </tr>
                                 </tbody>
@@ -208,39 +244,6 @@
                         </header>
 
                         <div class="ads-chart"><canvas ref="dailyChart"></canvas></div>
-                    </section>
-
-                    <!-- By funnel -->
-                    <section class="ads-box" v-if="report.funnels.length">
-                        <header>
-                            <h2>@{{ labels.by_funnel }}</h2>
-                            <p class="ads-sub">@{{ labels.by_funnel_hint }}</p>
-                        </header>
-
-                        <div class="ads-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>@{{ labels.funnel }}</th>
-                                        <th>@{{ labels.spend }}</th>
-                                        <th>@{{ labels.leads_meta }}</th>
-                                        <th>@{{ labels.cpl_meta }}</th>
-                                        <th>@{{ labels.leads_crm }}</th>
-                                        <th>@{{ labels.cpl_crm }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="funnel in report.funnels" :key="funnel.name">
-                                        <td>@{{ funnelName(funnel) }}</td>
-                                        <td>@{{ money(funnel.spend) }}</td>
-                                        <td>@{{ funnel.leads_meta }}</td>
-                                        <td class="is-accent">@{{ money(funnel.cpl_meta) }}</td>
-                                        <td>@{{ funnel.leads_crm }}</td>
-                                        <td class="is-accent">@{{ money(funnel.cpl_crm) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                     </section>
 
                     <div class="ads-two">
@@ -356,10 +359,6 @@
                         return this.report.summary;
                     },
 
-                    funnelsWithData() {
-                        return this.report.funnels.filter(funnel => funnel.leads_crm > 0);
-                    },
-
                     // Newest month first, like the table of the cockpit this screen follows.
                     trendRows() {
                         return [...this.report.trend].reverse();
@@ -372,6 +371,7 @@
                         const leadsMeta = sum('leads_meta');
                         const leadsCrm = sum('leads_crm');
                         const scheduled = sum('scheduled');
+                        const won = sum('won');
                         const per = (amount, count) => count > 0 ? amount / count : null;
 
                         return {
@@ -382,7 +382,9 @@
                             leads_crm: leadsCrm,
                             mql: sum('mql'),
                             scheduled,
+                            won,
                             disqualified: sum('disqualified'),
+                            cac: per(spend, won),
                             cpl_meta: per(spend, leadsMeta),
                             cpl_crm: per(spend, leadsCrm),
                             cost_per_scheduled: per(spend, scheduled),
@@ -409,6 +411,10 @@
 
                     number(value) {
                         return Number(value || 0).toLocaleString('pt-BR');
+                    },
+
+                    ratio(value) {
+                        return value === null || value === undefined ? '—' : Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'x';
                     },
 
                     percent(value) {
