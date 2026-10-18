@@ -79,6 +79,7 @@
             "Webkul\\Warehouse\\": "packages/Webkul/Warehouse/src",
             "Webkul\\WhatsApp\\": "packages/Webkul/WhatsApp/src",
             "Webkul\\Goals\\": "packages/Webkul/Goals/src",
+            "Webkul\\Notifications\\": "packages/Webkul/Notifications/src",
             "Webkul\\WebForm\\": "packages/Webkul/WebForm/src",
             "Webkul\\Automation\\": "packages/Webkul/Automation/src"
         }

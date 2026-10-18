@@ -43,6 +43,9 @@
             @include('admin::components.layouts.header.mobile.mega-search')
         </div>
         
+        <!-- Notification center (module Notifications) -->
+        @includeIf('notifications::bell')
+
         <!-- Dark mode -->
         <v-dark>
             <div class="flex">

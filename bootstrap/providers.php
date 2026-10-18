@@ -23,6 +23,7 @@ use Webkul\Tag\Providers\TagServiceProvider;
 use Webkul\User\Providers\UserServiceProvider;
 use Webkul\Warehouse\Providers\WarehouseServiceProvider;
 use Webkul\Goals\Providers\GoalsServiceProvider;
+use Webkul\Notifications\Providers\NotificationsServiceProvider;
 use Webkul\WhatsApp\Providers\WhatsAppServiceProvider;
 use Webkul\WebForm\Providers\WebFormServiceProvider;
 
@@ -62,5 +63,6 @@ return [
     WarehouseServiceProvider::class,
     WhatsAppServiceProvider::class,
     GoalsServiceProvider::class,
+    NotificationsServiceProvider::class,
     WebFormServiceProvider::class,
 ];
