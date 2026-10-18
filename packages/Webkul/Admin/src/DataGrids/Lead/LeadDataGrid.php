@@ -102,7 +102,6 @@ class LeadDataGrid extends DataGrid
         $this->addFilter('tag_name', 'tags.name');
         $this->addFilter('expected_close_date', 'leads.expected_close_date');
         $this->addFilter('created_at', 'leads.created_at');
-        $this->addFilter('rotten_lead', DB::raw('DATEDIFF(NOW(), '.$tablePrefix.'leads.created_at) >= '.$tablePrefix.'lead_pipelines.rotten_days'));
 
         // Custom fields: filter-only columns, read by sub-query.
         foreach (LeadCustomFieldFilters::attributes() as $attribute) {
@@ -240,25 +239,6 @@ class LeadDataGrid extends DataGrid
                 })
                 ->values()
                 ->all(),
-        ]);
-
-        $this->addColumn([
-            'index' => 'rotten_lead',
-            'label' => trans('admin::app.leads.index.datagrid.rotten-lead'),
-            'type' => 'string',
-            'sortable' => true,
-            'searchable' => false,
-            'closure' => function ($row) {
-                if (! $row->rotten_lead) {
-                    return trans('admin::app.leads.index.datagrid.no');
-                }
-
-                if (in_array($row->stage_code, ['won', 'lost'])) {
-                    return trans('admin::app.leads.index.datagrid.no');
-                }
-
-                return trans('admin::app.leads.index.datagrid.yes');
-            },
         ]);
 
         $this->addColumn([

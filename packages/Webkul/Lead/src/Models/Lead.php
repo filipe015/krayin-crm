@@ -152,25 +152,13 @@ class Lead extends Model implements LeadContract
     }
 
     /**
-     * Returns the rotten days
+     * Always 0: the "stagnant for N days" sign (a flat limit per funnel, counted from creation) is off.
+     * What replaces it is the per-stage alert (days in the current stage, with its own limits).
+     * Kept as an attribute because the kanban, the lead page and the e-mail view read it.
      */
     public function getRottenDaysAttribute()
     {
-        if (! $this->stage) {
-            return 0;
-        }
-
-        if (in_array($this->stage->code, ['won', 'lost'])) {
-            return 0;
-        }
-
-        if (! $this->created_at) {
-            return 0;
-        }
-
-        $rottenDate = $this->created_at->addDays($this->pipeline->rotten_days);
-
-        return $rottenDate->diffInDays(Carbon::now(), false);
+        return 0;
     }
 
     /**
