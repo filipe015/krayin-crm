@@ -38,6 +38,7 @@
                     ::id="attribute.code"
                     ::name="`${attribute['code']}[${index}][value]`"
                     class="rounded-r-none"
+                    autocomplete="off"
                     ::rules="getValidation"
                     ::label="attribute.name"
                     v-model="contactNumber['value']"

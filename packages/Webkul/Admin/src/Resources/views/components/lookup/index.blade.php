@@ -66,6 +66,8 @@
                         :placeholder="placeholder ?? '@lang('admin::app.components.lookup.search')'"
                         ref="searchInput"
                         @keyup="search"
+                        @input="typed = $event.target.value"
+                        @keydown.enter.prevent="addTypedTerm($event)"
                     />
 
                     <!-- Search Icon (absolute positioned) -->
@@ -105,6 +107,13 @@
                         <i class="icon-add text-md ltr:mr-2 rtl:ml-2"></i>
 
                         @lang('admin::app.components.lookup.add-as-new')
+
+                        <span
+                            class="font-semibold"
+                            v-if="typed.trim()"
+                        >
+                            “@{{ typed.trim() }}”
+                        </span>
                     </li>
                 </ul>
             </div>
@@ -174,6 +183,9 @@
                     showPopup: false,
 
                     searchTerm: '',
+
+                    // What is in the search box right now (searchTerm only follows it when the box loses focus).
+                    typed: '',
 
                     selectedItem: {},
 
@@ -259,10 +271,34 @@
                     this.showPopup = false;
 
                     this.searchTerm = '';
+                    this.typed = '';
 
                     this.selectedItem = item;
 
                     this.$emit('on-selected', item);
+                },
+
+                /**
+                 * Enter on a name nobody matches adds it as a new one, so a name that was typed is not
+                 * lost when the "add as new" row is not clicked. With matches, Enter leaves the choice to the user.
+                 *
+                 * @param {KeyboardEvent} event
+                 * @return {void}
+                 */
+                addTypedTerm(event) {
+                    const term = event.target.value.trim();
+
+                    if (! term || ! this.canAddNew || this.isSearching) {
+                        return;
+                    }
+
+                    this.searchTerm = term;
+
+                    this.$nextTick(() => {
+                        if (! this.filteredResults.length) {
+                            this.selectItem({ id: '', name: term });
+                        }
+                    });
                 },
 
                 /**

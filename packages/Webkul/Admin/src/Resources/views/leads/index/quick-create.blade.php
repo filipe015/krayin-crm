@@ -7,12 +7,19 @@
     $quickAttributes = app('Webkul\Attribute\Repositories\AttributeRepository')
         ->findWhere(['entity_type' => 'leads', 'quick_add' => 1])
         ->reject(fn ($attribute) => in_array($attribute->code, ['lead_pipeline_id', 'lead_pipeline_stage_id']));
+
+    // A field of the deal that repeats the contact's name ("Nome do contato"): the card fills it from the contact.
+    $contactNameField = $quickAttributes->first(fn ($attribute) => in_array(
+        preg_replace('/[^a-z]+/', '_', mb_strtolower(\Illuminate\Support\Str::ascii($attribute->name))),
+        ['nome_do_contato', 'nome_contato', 'contact_name'],
+    ) || in_array($attribute->code, ['nome_do_contato', 'nome_contato', 'contact_name']));
 @endphp
 
 <v-lead-quick-create
     :pipeline-id="{{ (int) $pipeline->id }}"
     :stages="{{ Illuminate\Support\Js::from($pipeline->stages->map(fn ($stage) => ['id' => $stage->id, 'name' => $stage->name, 'code' => $stage->code])->values()) }}"
     view-type="{{ request()->view_type ?? 'kanban' }}"
+    contact-name-field="{{ $contactNameField?->code }}"
 ></v-lead-quick-create>
 
 {{-- Registers the contact component (person lookup, e-mail, phone, organization). --}}
@@ -68,6 +75,7 @@
                         <form
                             @submit="handleSubmit($event, create)"
                             ref="form"
+                            autocomplete="off"
                         >
                             <input type="hidden" name="quick_add" value="lead" />
                             <input type="hidden" name="lead_pipeline_id" :value="pipelineId" />
@@ -131,11 +139,13 @@
                 pipelineId: { type: Number, required: true },
                 stages: { type: Array, default: () => [] },
                 viewType: { type: String, default: 'kanban' },
+                contactNameField: { type: String, default: '' },
             },
 
             data() {
                 return {
                     isStoring: false,
+                    autoContactName: '',
                     person: { name: '' },
                     stageId: this.firstStageId(),
                 };
@@ -144,9 +154,29 @@
             mounted() {
                 // The "+" of a stage column opens this same card with that stage chosen.
                 this.$emitter.on('open-lead-quick-create', stageId => this.open(stageId));
+
+                this.$emitter.on('lead-contact-picked', person => this.fillContactName(person));
             },
 
             methods: {
+                /**
+                 * The deal's "contact name" field follows the contact that is picked, unless someone wrote
+                 * something else in it.
+                 */
+                fillContactName(person) {
+                    if (! this.contactNameField || ! person?.name) {
+                        return;
+                    }
+
+                    const current = this.$refs.form?.elements?.[this.contactNameField]?.value ?? '';
+
+                    if (current === '' || current === this.autoContactName) {
+                        this.$refs.formWrapper?.setFieldValue(this.contactNameField, person.name);
+
+                        this.autoContactName = person.name;
+                    }
+                },
+
                 firstStageId() {
                     const open = this.stages.find(stage => ! ['won', 'lost'].includes(stage.code));
 
@@ -155,6 +185,7 @@
 
                 open(stageId) {
                     this.stageId = stageId || this.firstStageId();
+                    this.autoContactName = '';
                     this.person = { name: '' };
                     this.$refs.modal.open();
                 },

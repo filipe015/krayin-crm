@@ -133,6 +133,8 @@
             methods: {
                 addPerson (person) {
                     this.person = person;
+
+                    this.$emitter.emit('lead-contact-picked', person);
                 },
             }
         });
