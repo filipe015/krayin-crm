@@ -103,6 +103,8 @@
                             group="leads"
                             @scroll="handleScroll(stage, $event)"
                             @change="handleUpdate(stage, $event)"
+                            @start="cardDragging = true"
+                            @end="cardDragging = false"
                         >
                             <template #header>
                                 <div
@@ -302,6 +304,32 @@
                     ></div>
                 </div>
 
+                <!-- Won / Lost: the hidden columns become drop areas while a card is dragged -->
+                <div
+                    class="fixed bottom-6 left-1/2 z-[1100] flex -translate-x-1/2 gap-4"
+                    v-if="cardDragging && ! applied.showClosed"
+                >
+                    <draggable
+                        v-for="zone in closedZones"
+                        :key="zone.stage.id"
+                        class="flex h-16 w-56 items-center justify-center rounded-lg border-2 border-dashed text-sm font-semibold shadow-lg"
+                        :class="zone.stage.code === 'won' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700'"
+                        ghost-class="hidden"
+                        item-key="id"
+                        group="leads"
+                        :list="zone.list"
+                        @change="dropOnClosedZone(zone, $event)"
+                    >
+                        <template #header>
+                            <span>@{{ zone.stage.name }}</span>
+                        </template>
+
+                        <template #item="{ element }">
+                            <span class="hidden"></span>
+                        </template>
+                    </draggable>
+                </div>
+
                 {!! view_render_event('admin.leads.index.kanban.content.after') !!}
             </div>
 
@@ -405,7 +433,10 @@
                     applied: {
                         filters: {
                             columns: [],
-                        }
+                        },
+
+                        // Won and lost deals are off the board unless this is on (the filter's checkbox).
+                        showClosed: false,
                     },
 
                     finalized: {
@@ -421,6 +452,11 @@
                     isLoading: true,
 
                     isKanbanDragging: false,
+
+                    // A card is being dragged: the hidden won/lost columns show up as drop areas.
+                    cardDragging: false,
+
+                    closedZones: [],
 
                     kanbanDrag: {
                         pointerId: null,
@@ -491,6 +527,10 @@
             },
 
             mounted () {
+                this.closedZones = this.stages
+                    .filter(stage => ['won', 'lost'].includes(stage.code))
+                    .map(stage => ({ stage, list: [] }));
+
                 this.boot();
 
                 this.getCardPreferences();
@@ -647,6 +687,7 @@
 
                         if (currentKanban) {
                             this.applied.filters = currentKanban.applied.filters;
+                            this.applied.showClosed = !! currentKanban.applied.showClosed;
 
                             this.get()
                                 .then(response => {
@@ -679,6 +720,7 @@
                         searchFields: '',
                         pipeline_id: "{{ request('pipeline_id') }}",
                         limit: 50,
+                        show_closed: this.applied.showClosed ? 1 : 0,
                     };
 
                     let customFields = [];
@@ -727,6 +769,13 @@
                         .then(response => {
                             this.isLoading = false;
 
+                            // A full reload drops the stages that are no longer on the board (e.g. won/lost turned off).
+                            if (! requestedParams.pipeline_stage_id) {
+                                Object.keys(this.stageLeads)
+                                    .filter(sortOrder => ! (sortOrder in response.data))
+                                    .forEach(sortOrder => delete this.stageLeads[sortOrder]);
+                            }
+
                             this.updateKanbans();
 
                             return response;
@@ -743,6 +792,8 @@
                  * @returns {void}
                  */
                 filter(filters) {
+                    this.applied.showClosed = !! filters.showClosed;
+
                     this.applied.filters.columns = [
                         ...(this.applied.filters.columns.filter((column) => column.index === 'all')),
                         ...filters.columns,
@@ -784,6 +835,7 @@
                  */
                 clearAllFilters() {
                     this.applied.filters.columns = [];
+                    this.applied.showClosed = false;
 
                     this.$refs.kanbanSearch?.clearSearch(false);
                     this.$refs.kanbanFilter?.clearAllFilters(false);
@@ -814,6 +866,20 @@
                                 }
                             }
                         });
+                },
+
+                /**
+                 * A card dropped on the Won / Lost area follows the same path as a drop on the column.
+                 *
+                 * @param {object} zone - The drop area ({ stage, list }).
+                 * @param {object} event - The event object.
+                 * @returns {void}
+                 */
+                dropOnClosedZone(zone, event) {
+                    this.handleUpdate(zone.stage, event);
+
+                    // The area only receives the card for the move; it never keeps it.
+                    this.$nextTick(() => zone.list.splice(0));
                 },
 
                 /**

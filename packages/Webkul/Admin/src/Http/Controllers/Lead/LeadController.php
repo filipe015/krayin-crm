@@ -97,6 +97,11 @@ class LeadController extends Controller
             $stages = $pipeline->stages->where('id', request()->query('pipeline_stage_id'));
         } else {
             $stages = $pipeline->stages;
+
+            // Won and lost deals leave the board; "show_closed" brings those columns back.
+            if (! request()->boolean('show_closed')) {
+                $stages = $stages->reject(fn ($stage) => in_array($stage->code, ['won', 'lost']));
+            }
         }
 
         $createdAtRange = $this->extractCreatedAtRange();

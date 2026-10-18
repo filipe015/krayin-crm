@@ -61,6 +61,17 @@
                 {!! view_render_event('admin.leads.index.kanban.filter.drawer.content.before') !!}
 
                 <div>
+                    <!-- Won and lost deals are off the board unless this is on -->
+                    <label class="mb-4 flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800 dark:text-white">
+                        <input
+                            type="checkbox"
+                            class="h-4 w-4 cursor-pointer"
+                            v-model="filters.showClosed"
+                        >
+
+                        @lang('admin::app.leads.index.kanban.toolbar.filters.show-closed')
+                    </label>
+
                     <!-- Custom fields: pick the field first, then its options appear below -->
                     <div class="mb-4" v-if="customColumns.length">
                         <p class="mb-1.5 text-xs font-medium text-gray-800 dark:text-white">
@@ -691,6 +702,8 @@
                 return {
                     filters: {
                         columns: [],
+
+                        showClosed: false,
                     },
 
                     customIndex: '',
@@ -730,6 +743,7 @@
 
             mounted() {
                 this.filters.columns = this.getAppliedColumns();
+                this.filters.showClosed = !! this.applied.showClosed;
             },
 
             methods: {
@@ -742,6 +756,7 @@
                  */
                 clearAllFilters(emit = true) {
                     this.filters.columns = [];
+                    this.filters.showClosed = false;
 
                     if (emit) {
                         this.$emit('applyFilters', this.filters);
@@ -763,7 +778,7 @@
                  * @returns {boolean}
                  */
                 hasAnyAppliedColumn() {
-                    return this.getAppliedColumns().length > 0;
+                    return this.getAppliedColumns().length > 0 || !! this.applied.showClosed;
                 },
 
                 /**

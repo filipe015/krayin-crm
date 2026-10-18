@@ -1828,6 +1828,7 @@ return [
                         'title' => 'Buscar por título',
                     ],
                     'filters' => [
+                        'show-closed' => 'Mostrar ganhos e perdidos',
                         'custom-field' => 'Campo personalizado',
                         'custom-field-select' => 'Escolher campo...',
                         'apply-filters' => 'Aplicar Filtros',
@@ -1840,6 +1841,7 @@ return [
                     ],
                     'clear-filters' => 'Limpar filtros',
                     'total'         => 'oportunidades no funil',
+                    'total-open'    => 'oportunidades em aberto',
                 ],
                 'stages' => [
                     'won' => 'Ganho',

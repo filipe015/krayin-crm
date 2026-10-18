@@ -1829,6 +1829,7 @@ return [
                         'title' => 'Search by Title',
                     ],
                     'filters' => [
+                        'show-closed' => 'Show won and lost',
                         'custom-field' => 'Custom field',
                         'custom-field-select' => 'Choose a field...',
                         'apply-filters' => 'Apply Filters',
@@ -1841,6 +1842,7 @@ return [
                     ],
                     'clear-filters' => 'Clear filters',
                     'total'         => 'deals in the pipeline',
+                    'total-open'    => 'open deals',
                 ],
                 'stages' => [
                     'won' => 'Won',
