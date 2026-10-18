@@ -44,6 +44,8 @@ Route::controller(LeadController::class)->prefix('leads')->group(function () {
 
     Route::get('kanban/look-up', [LeadController::class, 'kanbanLookup'])->name('admin.leads.kanban.look_up');
 
+    Route::get('custom-field-values', [LeadController::class, 'customFieldValues'])->name('admin.leads.custom_field_values');
+
     Route::controller(ActivityController::class)->prefix('{id}/activities')->group(function () {
         Route::get('', 'index')->name('admin.leads.activities.index');
     });

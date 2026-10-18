@@ -1,3 +1,5 @@
+@include('admin::components.filters.helpers')
+
 <v-datagrid-filter
     :src="src"
     :is-loading="isLoading"
@@ -219,7 +221,7 @@
                                                                 v-for="appliedColumnValue in getAppliedColumnValues(column.index)"
                                                             >
                                                                 <!-- Retrieving the label from the options based on the applied column value. -->
-                                                                <span v-text="column.filterable_options.find((option => option.value == appliedColumnValue)).label"></span>
+                                                                <span v-text="column.filterable_options.find((option => option.value == appliedColumnValue))?.label ?? appliedColumnValue"></span>
 
                                                                 <span
                                                                     class="icon-cross-large-large cursor-pointer text-lg text-white ltr:ml-1.5 rtl:mr-1.5"
@@ -591,7 +593,7 @@
                                                                 v-for="appliedColumnValue in getAppliedColumnValues(column.index)"
                                                             >
                                                                 <!-- Retrieving the label from the options based on the applied column value. -->
-                                                                <span v-text="column.filterable_options.find((option => option.value == appliedColumnValue)).label"></span>
+                                                                <span v-text="column.filterable_options.find((option => option.value == appliedColumnValue))?.label ?? appliedColumnValue"></span>
 
                                                                 <span
                                                                     class="icon-cross-large cursor-pointer text-lg text-white ltr:ml-1.5 rtl:mr-1.5"
@@ -956,6 +958,17 @@
 
                     customIndex: '',
                 };
+            },
+
+            watch: {
+                // The custom fields on show (the one being picked and the ones already applied) bring their existing values.
+                drawerColumns: {
+                    immediate: true,
+
+                    handler(columns) {
+                        columns.forEach(column => window.loadCustomFieldOptions(this.$axios, column));
+                    },
+                },
             },
 
             mounted() {
@@ -1334,7 +1347,7 @@
                         return '';
                     }
 
-                    return appliedColumn.value[0].join(' to ');
+                    return appliedColumn.value[0].map(window.formatFilterDate).join(' – ');
                 },
 
                 /**

@@ -562,6 +562,16 @@ class LeadController extends Controller
     }
 
     /**
+     * Existing values of a custom field (cf_<id>), for the filter drawer.
+     */
+    public function customFieldValues(): JsonResponse
+    {
+        $data = request()->validate(['field' => ['required', 'regex:/^cf_\d+$/']]);
+
+        return response()->json(LeadCustomFieldFilters::values($data['field']));
+    }
+
+    /**
      * Kanban lookup.
      */
     public function kanbanLookup()

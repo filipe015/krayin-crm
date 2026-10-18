@@ -28,6 +28,15 @@ class LeadCustomFieldFilters
         'datetime' => 'datetime_value',
     ];
 
+    /**
+     * A text field with at most this many distinct values is filtered by picking one of them
+     * (no typos); one with more keeps the free text box.
+     */
+    public const OPTIONS_LIMIT = 100;
+
+    /** @var array<int, int>|null attribute id => distinct values, per request */
+    private static ?array $distinct = null;
+
     public static function index(object $attribute): string
     {
         return 'cf_'.$attribute->id;
@@ -44,6 +53,56 @@ class LeadCustomFieldFilters
             ->whereIn('type', array_keys(self::STORED_IN))
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'type']);
+    }
+
+    /**
+     * Whether the field is filtered by choosing among its existing values.
+     */
+    public static function usesOptions(object $attribute): bool
+    {
+        if ($attribute->type !== 'text') {
+            return false;
+        }
+
+        self::$distinct ??= DB::table('attribute_values')
+            ->where('entity_type', 'leads')
+            ->whereNotNull('text_value')
+            ->where('text_value', '!=', '')
+            ->groupBy('attribute_id')
+            ->selectRaw('attribute_id, count(distinct text_value) as total')
+            ->pluck('total', 'attribute_id')
+            ->all();
+
+        $total = (int) (self::$distinct[$attribute->id] ?? 0);
+
+        return $total > 0 && $total <= self::OPTIONS_LIMIT;
+    }
+
+    /**
+     * The existing values of a text field, most used first, for the filter drawer.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function values(string $index): array
+    {
+        $attribute = self::attributes()->first(fn ($attribute) => self::index($attribute) === $index);
+
+        if (! $attribute || ! self::usesOptions($attribute)) {
+            return [];
+        }
+
+        return DB::table('attribute_values')
+            ->where('entity_type', 'leads')
+            ->where('attribute_id', $attribute->id)
+            ->whereNotNull('text_value')
+            ->where('text_value', '!=', '')
+            ->groupBy('text_value')
+            ->orderByRaw('count(*) desc')
+            ->orderBy('text_value')
+            ->selectRaw('text_value, count(*) as total')
+            ->get()
+            ->map(fn ($row) => ['value' => $row->text_value, 'label' => $row->text_value.' ('.$row->total.')'])
+            ->all();
     }
 
     /**
@@ -116,7 +175,10 @@ class LeadCustomFieldFilters
                 'search_field'          => 'between',
             ]),
 
-            default => array_merge($base, ['type' => 'string', 'filterable_type' => null]),
+            // Options are fetched when the field is picked (see values()); until then the list is empty.
+            default => self::usesOptions($attribute)
+                ? array_merge($base, ['type' => 'string', 'filterable_type' => 'dropdown', 'search_field' => 'in'])
+                : array_merge($base, ['type' => 'string', 'filterable_type' => null]),
         };
     }
 
@@ -198,6 +260,11 @@ class LeadCustomFieldFilters
                 return $parts ? ['('.implode(' and ', $parts).')', $bindings] : [null, []];
 
             default:
+                // Picked from the existing values: exact match. Typed text: contains.
+                if (self::usesOptions($attribute)) {
+                    return ["{$expression} in (".implode(',', array_fill(0, count($values), '?')).')', array_map(fn ($item) => is_array($item) ? '' : $item, $values)];
+                }
+
                 return [
                     '('.implode(' or ', array_fill(0, count($values), "{$expression} like ?")).')',
                     array_map(fn ($item) => '%'.(is_array($item) ? '' : $item).'%', $values),
