@@ -3,6 +3,7 @@
 namespace Webkul\Goals\Support;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 
 /**
  * The days of a goal month: which ones count as working days, and how they fall into weeks.
@@ -71,7 +72,7 @@ final class GoalCalendar
             $day = CarbonImmutable::parse($date);
             $key = $day->isoWeekYear().'-W'.str_pad((string) $day->isoWeek(), 2, '0', STR_PAD_LEFT);
 
-            $weeks[$key] ??= ['week' => $key, 'start' => $day->startOfWeek()->toDateString(), 'end' => $day->endOfWeek()->toDateString(), 'days' => []];
+            $weeks[$key] ??= ['week' => $key, 'start' => $day->startOfWeek(CarbonInterface::MONDAY)->toDateString(), 'end' => $day->endOfWeek(CarbonInterface::SUNDAY)->toDateString(), 'days' => []];
             $weeks[$key]['days'][] = $date;
         }
 

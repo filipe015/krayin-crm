@@ -54,3 +54,18 @@ it('groups the days into ISO weeks, Monday to Sunday', function () {
         ->and(end($weeks)['days'])->toBe(['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31'])
         ->and(array_sum(array_map(fn ($week) => count($week['days']), $weeks)))->toBe(31);
 });
+
+it('starts the week on Monday whatever the language of the app (pt_BR starts it on Sunday)', function () {
+    $before = \Carbon\Carbon::getLocale();
+    \Carbon\Carbon::setLocale('pt_BR');
+
+    try {
+        $weeks = GoalCalendar::weeks('2026-10');
+    } finally {
+        \Carbon\Carbon::setLocale($before);
+    }
+
+    expect($weeks[0]['start'])->toBe('2026-09-28')
+        ->and($weeks[0]['end'])->toBe('2026-10-04')
+        ->and($weeks[1]['start'])->toBe('2026-10-05');
+});

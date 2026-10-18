@@ -36,21 +36,8 @@ final class GoalPlanService
         self::assertMonth($month);
 
         $funnel = mb_substr(trim($funnel), 0, 120);
-        $values = self::clean($input);
 
-        // Only a step that was given a number can be fixed.
-        $fixed = array_values(array_filter(
-            array_intersect($fixed, GoalPlanner::STEPS),
-            fn (string $step) => isset($input[$step.'_target']) && $input[$step.'_target'] !== '' && $input[$step.'_target'] !== null,
-        ));
-
-        $given = [];
-
-        foreach ($fixed as $step) {
-            $given[$step.'_target'] = self::wholeNumber($input[$step.'_target'], $step.'_target');
-        }
-
-        $planned = GoalPlanner::plan($values + $given, $fixed);
+        ['values' => $values, 'fixed' => $fixed, 'planned' => $planned] = self::work($input, $fixed);
 
         $attributes = $values + array_intersect_key($planned, array_flip(self::TARGETS)) + ['overrides' => $fixed];
 
@@ -62,6 +49,19 @@ final class GoalPlanService
             ['year_month' => $month, 'funnel' => $funnel],
             $attributes + ['updated_by' => $userId],
         );
+    }
+
+    /**
+     * What the funnel would need for these numbers, without saving anything (the screen shows it as the
+     * person types). Same rules and checks as save().
+     *
+     * @param  array<string, mixed>  $input
+     * @param  list<string>  $fixed
+     * @return array<string, int|null> <step>_target for each step, revenue_implied, budget_needed
+     */
+    public static function preview(array $input, array $fixed = []): array
+    {
+        return self::work($input, $fixed)['planned'];
     }
 
     public static function delete(string $month, string $funnel, ?int $userId = null): bool
@@ -234,6 +234,30 @@ final class GoalPlanService
         }
 
         return $gaps;
+    }
+
+    /**
+     * Checks the numbers and works the funnel out.
+     *
+     * @return array{values: array<string, int|null>, fixed: list<string>, planned: array<string, int|null>}
+     */
+    private static function work(array $input, array $fixed): array
+    {
+        $values = self::clean($input);
+
+        // Only a step that was given a number can be fixed.
+        $fixed = array_values(array_filter(
+            array_intersect($fixed, GoalPlanner::STEPS),
+            fn (string $step) => isset($input[$step.'_target']) && $input[$step.'_target'] !== '' && $input[$step.'_target'] !== null,
+        ));
+
+        $given = [];
+
+        foreach ($fixed as $step) {
+            $given[$step.'_target'] = self::wholeNumber($input[$step.'_target'], $step.'_target');
+        }
+
+        return ['values' => $values, 'fixed' => $fixed, 'planned' => GoalPlanner::plan($values + $given, $fixed)];
     }
 
     /**
