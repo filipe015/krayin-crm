@@ -125,7 +125,7 @@ return [
     [
         'key'   => 'ads',
         'name'  => 'whatsapp::app.acl.ads',
-        'route' => ['admin.ads.index', 'admin.ads.data'],
+        'route' => ['admin.ads.index', 'admin.ads.data', 'admin.ads.overview', 'admin.ads.settings'],
         'sort'  => 8,
     ],
 ];

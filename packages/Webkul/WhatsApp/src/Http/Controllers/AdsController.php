@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
+use Webkul\WhatsApp\Api\Support\AdsOverview;
 use Webkul\WhatsApp\Api\Support\AdsPerformance;
 
 /**
@@ -17,10 +18,37 @@ class AdsController extends Controller
     public function index(): View
     {
         return view('whatsapp::ads.index', [
-            'urls' => ['data' => route('admin.ads.data')],
-            'start' => now()->subDays(29)->toDateString(),
-            'end' => now()->toDateString(),
+            'urls' => [
+                'overview' => route('admin.ads.overview'),
+                'settings' => route('admin.ads.settings'),
+            ],
+            'month' => now()->format('Y-m'),
+            'canEdit' => bouncer()->hasPermission('ads'),
         ]);
+    }
+
+    /**
+     * The dashboard for one month (default: this month).
+     */
+    public function overview(Request $request): JsonResponse
+    {
+        $data = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+
+        $month = Carbon::createFromFormat('Y-m-d', ($data['month'] ?? now()->format('Y-m')).'-01', config('app.timezone'))->startOfDay();
+
+        return response()->json(app(AdsOverview::class)->month($month));
+    }
+
+    /**
+     * Percentage of tax added on top of the investment.
+     */
+    public function saveSettings(Request $request): JsonResponse
+    {
+        $data = $request->validate(['tax_percent' => ['required', 'numeric', 'min:0', 'max:100']]);
+
+        AdsOverview::saveTaxPercent((float) $data['tax_percent']);
+
+        return response()->json(['tax_percent' => AdsOverview::taxPercent()]);
     }
 
     public function data(Request $request): JsonResponse

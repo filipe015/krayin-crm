@@ -24,6 +24,8 @@ class AdsApiController extends ApiController
             'rows.*.date'           => ['required', 'date_format:Y-m-d'],
             'rows.*.ad_id'          => ['required', 'string', 'max:40'],
             'rows.*.ad_name'        => ['nullable', 'string', 'max:255'],
+            'rows.*.platform'       => ['nullable', 'string', 'max:30'],
+            'rows.*.funnel'         => ['nullable', 'string', 'max:120'],
             'rows.*.adset_id'       => ['nullable', 'string', 'max:40'],
             'rows.*.adset_name'     => ['nullable', 'string', 'max:255'],
             'rows.*.campaign_id'    => ['nullable', 'string', 'max:40'],
@@ -40,6 +42,8 @@ class AdsApiController extends ApiController
             'account_id'    => preg_replace('/^act_/', '', $row['account_id']),
             'date'          => $row['date'],
             'ad_id'         => $row['ad_id'],
+            'platform'      => mb_strtolower(trim((string) ($row['platform'] ?? ''))),
+            'funnel'        => isset($row['funnel']) && trim((string) $row['funnel']) !== '' ? trim($row['funnel']) : null,
             'ad_name'       => $row['ad_name'] ?? null,
             'adset_id'      => $row['adset_id'] ?? null,
             'adset_name'    => $row['adset_name'] ?? null,
@@ -53,10 +57,23 @@ class AdsApiController extends ApiController
             'updated_at'    => $now,
         ], $data['rows']);
 
+        // Rows sent before the platform breakdown existed (platform '') are replaced by the broken-down
+        // ones for the same ad and day, so spend is not counted twice.
+        foreach ($rows as $row) {
+            if ($row['platform'] !== '') {
+                DB::table('ad_insights_daily')
+                    ->where('account_id', $row['account_id'])
+                    ->where('date', $row['date'])
+                    ->where('ad_id', $row['ad_id'])
+                    ->where('platform', '')
+                    ->delete();
+            }
+        }
+
         DB::table('ad_insights_daily')->upsert(
             $rows,
-            ['account_id', 'date', 'ad_id'],
-            ['ad_name', 'adset_id', 'adset_name', 'campaign_id', 'campaign_name', 'spend', 'impressions', 'clicks', 'results', 'updated_at'],
+            ['account_id', 'date', 'ad_id', 'platform'],
+            ['funnel', 'ad_name', 'adset_id', 'adset_name', 'campaign_id', 'campaign_name', 'spend', 'impressions', 'clicks', 'results', 'updated_at'],
         );
 
         return $this->ok(['received' => count($rows)], [], 201);
