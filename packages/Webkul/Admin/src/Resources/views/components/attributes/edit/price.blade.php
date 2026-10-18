@@ -12,8 +12,9 @@
         type="text/x-template"
         id="v-price-component-template"
     >
+        {{-- Money field: "280,00" or "1.500,50" are fine; the form receives a plain number. --}}
         <x-admin::form.control-group.control
-            type="text"
+            type="price"
             ::id="attribute.code"
             ::value="value"
             ::name="attribute.code"

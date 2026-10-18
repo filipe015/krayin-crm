@@ -15,12 +15,14 @@
         >
             <span class="py-2.5 text-gray-500 ltr:pl-4 rtl:pr-4">@{{ symbol }}</span>
 
+            {{-- The plain number is what a form that is posted as it is (FormData) receives; the visible text is only for the eyes. --}}
+            <input type="hidden" :name="name" :value="plain">
+
             <input
                 type="text"
                 inputmode="decimal"
                 autocomplete="off"
                 class="w-full p-2.5 text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300"
-                :name="name"
                 :placeholder="placeholder"
                 :value="text"
                 @focus="onFocus"
@@ -51,6 +53,15 @@
             },
 
             computed: {
+                /**
+                 * The amount as a plain number ("1500.5"), or empty when there is none.
+                 */
+                plain() {
+                    const value = this.modelValue;
+
+                    return value === '' || value === null || value === undefined ? '' : String(this.toNumber(value));
+                },
+
                 symbol() {
                     const currency = JSON.parse(document.querySelector('meta[name="currency"]').content);
 

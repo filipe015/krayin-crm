@@ -34,9 +34,6 @@
         >
             {{ $label }}
 
-            @if ($attribute->type == 'price')
-                <span class="currency-code">({{ core()->currencySymbol(config('app.currency')) }})</span>
-            @endif
         </x-admin::form.control-group.label>
 
         @if (isset($attribute))
