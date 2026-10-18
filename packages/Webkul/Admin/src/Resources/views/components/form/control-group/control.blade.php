@@ -26,32 +26,21 @@
         @break
 
     @case('price')
+        {{-- Amount with the currency symbol, formatted for the locale: see components/form/money-input. --}}
+        @include('admin::components.form.money-input')
+
         <v-field
             v-slot="{ field, errors }"
             {{ $attributes->only(['name', ':name', 'value', ':value', 'v-model', 'rules', ':rules', 'label', ':label']) }}
             name="{{ $name }}"
         >
-            <div
-                class="flex w-full items-center overflow-hidden rounded-md border text-sm text-gray-600 transition-all focus-within:border-gray-400 hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400 dark:focus:border-gray-400"
-                :class="[errors.length ? 'border !border-red-600 hover:border-red-600' : '']"
-            >
-                @if (isset($currency))
-                    <span {{ $currency->attributes->merge(['class' => 'py-2.5 text-gray-500 ltr:pl-4 rtl:pr-4']) }}>
-                        {{ $currency }}
-                    </span>
-                @else
-                    <span class="py-2.5 text-gray-500 ltr:pl-4 rtl:pr-4">
-                        {{ config('app.currency') }}
-                    </span>
-                @endif
-
-                <input
-                    type="text"
-                    name="{{ $name }}"
-                    v-bind="field"
-                    {{ $attributes->except(['value', ':value', 'v-model', 'rules', ':rules', 'label', ':label'])->merge(['class' => 'w-full p-2.5 text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300']) }}
-                />
-            </div>
+            <v-money-input
+                :name="field.name"
+                :model-value="field.value"
+                :error="errors.length > 0"
+                @update:model-value="field.onChange"
+                @blur="field.onBlur"
+            ></v-money-input>
         </v-field>
 
         @break
