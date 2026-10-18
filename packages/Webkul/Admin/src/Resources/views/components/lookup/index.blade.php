@@ -187,6 +187,9 @@
                     // What is in the search box right now (searchTerm only follows it when the box loses focus).
                     typed: '',
 
+                    // A name Enter was pressed on while the search was still running.
+                    pendingAdd: '',
+
                     selectedItem: {},
 
                     searchedResults: [],
@@ -216,6 +219,12 @@
             watch: {
                 searchTerm(newVal, oldVal) {
                     this.search();
+                },
+
+                isSearching(searching) {
+                    if (! searching && this.pendingAdd) {
+                        this.addIfNoMatch(this.pendingAdd);
+                    }
                 },
             },
 
@@ -288,11 +297,24 @@
                 addTypedTerm(event) {
                     const term = event.target.value.trim();
 
-                    if (! term || ! this.canAddNew || this.isSearching) {
+                    if (! term || ! this.canAddNew) {
                         return;
                     }
 
                     this.searchTerm = term;
+
+                    // Still searching: decide when the search ends (see the isSearching watcher).
+                    if (this.isSearching) {
+                        this.pendingAdd = term;
+
+                        return;
+                    }
+
+                    this.addIfNoMatch(term);
+                },
+
+                addIfNoMatch(term) {
+                    this.pendingAdd = '';
 
                     this.$nextTick(() => {
                         if (! this.filteredResults.length) {

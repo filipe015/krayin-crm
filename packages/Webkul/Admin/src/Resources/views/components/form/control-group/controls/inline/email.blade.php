@@ -279,7 +279,7 @@
                         const emailOccurrences = emails.filter(email => email.value === value).length;
 
                         if (emailOccurrences > 1) {
-                            return 'This email is already used';
+                            return @json(trans('admin::app.common.custom-attributes.email-in-use'));
                         }
 
                         return true;

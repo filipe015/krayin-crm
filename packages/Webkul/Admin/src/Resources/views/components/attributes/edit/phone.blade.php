@@ -38,7 +38,7 @@
                     ::id="attribute.code"
                     ::name="`${attribute['code']}[${index}][value]`"
                     class="rounded-r-none"
-                    autocomplete="off"
+                    autocomplete="nope"
                     ::rules="getValidation"
                     ::label="attribute.name"
                     v-model="contactNumber['value']"
@@ -149,7 +149,7 @@
                         const phoneOccurrences = contactNumbers.filter(contactNumber => contactNumber.value === value).length;
 
                         if (phoneOccurrences > 1) {
-                            return 'This phone number is already in use.';
+                            return @json(trans('admin::app.common.custom-attributes.phone-in-use'));
                         }
 
                         /**
@@ -167,7 +167,7 @@
                                 });
 
                                 if (! data.validated) {
-                                    return 'This phone number is already in use.';
+                                    return @json(trans('admin::app.common.custom-attributes.phone-in-use'));
                                 }
 
                                 return true;

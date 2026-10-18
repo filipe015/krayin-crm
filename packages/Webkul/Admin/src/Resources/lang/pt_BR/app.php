@@ -1739,6 +1739,8 @@ return [
     ],
     'common' => [
         'custom-attributes' => [
+            'email-in-use' => 'Este e-mail já está em uso.',
+            'phone-in-use' => 'Este número de telefone já está em uso.',
             'add-more' => 'Adicionar Mais',
             'address' => 'Endereço',
             'city' => 'Cidade',

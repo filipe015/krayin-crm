@@ -25,6 +25,15 @@
 {{-- Registers the contact component (person lookup, e-mail, phone, organization). --}}
 @include('admin::leads.common.contact-component')
 
+{{-- The "contact name" field of the deal is not asked here: it is filled from the contact (see fillContactName). --}}
+@if ($contactNameField)
+    @push('scripts')
+        <style>
+            .lqc-grid > :has([name="{{ $contactNameField->code }}"]) { display: none; }
+        </style>
+    @endpush
+@endif
+
 @pushOnce('scripts')
     <style>
         /* Compact two-column card: fields side by side, tighter spacing. */

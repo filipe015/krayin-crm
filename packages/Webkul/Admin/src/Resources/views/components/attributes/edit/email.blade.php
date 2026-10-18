@@ -38,7 +38,7 @@
                     ::id="attribute.code"
                     ::name="`${attribute['code']}[${index}][value]`"
                     class="rounded-r-none"
-                    autocomplete="off"
+                    autocomplete="nope"
                     ::rules="getValidation"
                     ::label="attribute.name"
                     v-model="email['value']"
@@ -142,7 +142,7 @@
                         const foundEmails = emails.filter(email => email.value === value).length;
 
                         if (foundEmails > 1) {
-                            return 'This email is already in use.';
+                            return @json(trans('admin::app.common.custom-attributes.email-in-use'));
                         }
 
                         /**
@@ -160,7 +160,7 @@
                                 });
 
                                 if (! data.validated) {
-                                    return 'This email is already in use.';
+                                    return @json(trans('admin::app.common.custom-attributes.email-in-use'));
                                 }
 
                                 return true;

@@ -280,7 +280,7 @@
                         const phoneOccurrences = contactNumbers.filter(contactNumber => contactNumber.value === value).length;
 
                         if (phoneOccurrences > 1) {
-                            return 'This phone number is already used';
+                            return @json(trans('admin::app.common.custom-attributes.phone-in-use'));
                         }
 
                         return true;

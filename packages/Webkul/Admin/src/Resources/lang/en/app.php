@@ -1740,6 +1740,8 @@ return [
     ],
     'common' => [
         'custom-attributes' => [
+            'email-in-use' => 'This email is already in use.',
+            'phone-in-use' => 'This phone number is already in use.',
             'add-more' => 'Add More',
             'address' => 'Address',
             'city' => 'City',
