@@ -88,7 +88,7 @@ class LeadDataGrid extends DataGrid
         }
 
         if (! is_null(request()->input('rotten_lead.in'))) {
-            $queryBuilder->havingRaw($tablePrefix.'rotten_lead = '.request()->input('rotten_lead.in'));
+            $queryBuilder->havingRaw($tablePrefix.'rotten_lead = ?', [(int) (bool) request()->input('rotten_lead.in')]);
         }
 
         $this->addFilter('id', 'leads.id');

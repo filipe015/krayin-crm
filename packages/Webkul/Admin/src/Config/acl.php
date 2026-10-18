@@ -9,7 +9,7 @@ return [
     ], [
         'key' => 'leads',
         'name' => 'admin::app.acl.leads',
-        'route' => 'admin.leads.index',
+        'route' => ['admin.leads.index', 'admin.leads.custom_field_values'],
         'sort' => 2,
     ], [
         'key' => 'leads.create',
@@ -24,7 +24,7 @@ return [
     ], [
         'key' => 'leads.view',
         'name' => 'admin::app.acl.view',
-        'route' => 'admin.leads.view',
+        'route' => ['admin.leads.view', 'admin.leads.whatsapp.messages.index'],
         'sort' => 2,
     ], [
         'key' => 'leads.edit',

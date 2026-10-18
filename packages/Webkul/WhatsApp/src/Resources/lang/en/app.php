@@ -29,6 +29,7 @@ return [
         'agenda_create' => 'Book and complete bookings in the agenda',
         'agenda_settings' => 'Agenda settings',
         'ads' => 'View ads (Meta Ads vs leads)',
+        'ads_settings' => 'Edit ads settings',
         'api_settings' => 'Integration (API) and webhooks',
         'api_settings_edit' => 'Create API keys and webhooks',
         'agenda_settings_edit' => 'Change the agenda settings',

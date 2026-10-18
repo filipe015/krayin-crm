@@ -13,7 +13,11 @@ class LeadMessageController extends Controller
 
     public function index(int $leadId): JsonResponse
     {
-        $this->leadRepository->findOrFail($leadId);
+        $lead = $this->leadRepository->findOrFail($leadId);
+
+        if (($userIds = bouncer()->getAuthorizedUserIds()) && ! in_array($lead->user_id, $userIds)) {
+            abort(404);
+        }
 
         $messages = Message::query()
             ->whereHas('conversation', fn ($query) => $query->where('lead_id', $leadId))

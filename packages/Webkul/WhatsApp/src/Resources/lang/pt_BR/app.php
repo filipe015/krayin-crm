@@ -29,6 +29,7 @@ return [
         'agenda_create' => 'Marcar e concluir agendamentos na agenda',
         'agenda_settings' => 'Configurações da agenda',
         'ads' => 'Ver anúncios (Meta Ads x leads)',
+        'ads_settings' => 'Editar configurações de anúncios',
         'api_settings' => 'Integração (API) e webhooks',
         'api_settings_edit' => 'Criar chaves e webhooks da API',
         'agenda_settings_edit' => 'Alterar as configurações da agenda',
