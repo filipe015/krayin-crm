@@ -174,9 +174,21 @@ class PersonRepository extends Repository
         $data['unique_id'] = implode('|', $uniqueIdParts);
 
         if (isset($data['contact_numbers'])) {
-            $data['contact_numbers'] = collect($data['contact_numbers'])->filter(fn ($number) => ! is_null($number['value']))->toArray();
+            // An empty phone box arrives as null: drop it, and only key on a number that is there.
+            $data['contact_numbers'] = collect($data['contact_numbers'])
+                ->filter(fn ($number) => ! empty($number['value']))
+                ->values()
+                ->toArray();
 
-            $data['unique_id'] .= '|'.$data['contact_numbers'][0]['value'];
+            if ($data['contact_numbers']) {
+                $data['unique_id'] .= '|'.$data['contact_numbers'][0]['value'];
+            }
+        }
+
+        // The key is unique in the table: a person with neither e-mail nor phone (only a name) must
+        // not collide with the next one that also has none.
+        if (empty($data['emails'][0]['value']) && empty($data['contact_numbers'])) {
+            $data['unique_id'] = implode('|', array_filter([$data['unique_id'], uniqid('', true)]));
         }
 
         return $data;
