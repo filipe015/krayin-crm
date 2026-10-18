@@ -2363,6 +2363,7 @@ return [
     'validations' => [
         'message' => [
             'decimal' => 'The :attribute must be a decimal.',
+            'unique' => 'The :attribute value has already been taken.',
         ],
     ],
     'errors' => [

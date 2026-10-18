@@ -3,6 +3,7 @@
 namespace Webkul\Admin\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Webkul\Admin\Support\AttributeLabel;
 use Webkul\Attribute\Repositories\AttributeRepository;
 use Webkul\Attribute\Repositories\AttributeValueRepository;
 use Webkul\Core\Contracts\Validations\Decimal;
@@ -13,6 +14,13 @@ class LeadForm extends FormRequest
      * @var array
      */
     protected $rules = [];
+
+    /**
+     * Field names as people read them, for the validation messages.
+     *
+     * @var array<string, string>
+     */
+    protected $labels = [];
 
     /**
      * Create a new form request instance.
@@ -58,11 +66,18 @@ class LeadForm extends FormRequest
             })->get();
 
             foreach ($attributes as $attribute) {
+                // Before the code gets its "person." prefix: the translation is looked up by the plain code.
+                $label = AttributeLabel::for($attribute);
+
                 if ($entityType == 'persons') {
                     $attribute->code = 'person.'.$attribute->code;
                 }
 
                 $validations = [];
+
+                $this->labels[$attribute->code] = $label;
+                $this->labels[$attribute->code.'.*.value'] = $label;
+                $this->labels[$attribute->code.'.*.label'] = $label;
 
                 if ($attribute->type == 'boolean') {
                     continue;
@@ -118,7 +133,7 @@ class LeadForm extends FormRequest
                             request($field)
                         )
                         ) {
-                            $fail('The value has already been taken.');
+                            $fail(trans('admin::app.validations.message.unique'));
                         }
                     });
                 }
@@ -135,6 +150,15 @@ class LeadForm extends FormRequest
             'products.*.price' => 'required_with:products.*.product_id',
             'products.*.quantity' => 'required_with:products.*.product_id',
         ];
+    }
+
+    /**
+     * Names of the fields in the validation messages (instead of the internal codes).
+     */
+    public function attributes(): array
+    {
+        // rules() builds the labels; it runs before the messages are made.
+        return $this->labels;
     }
 
     /**

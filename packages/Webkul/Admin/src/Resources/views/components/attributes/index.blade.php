@@ -20,11 +20,11 @@
 
         $validations = implode('|', array_filter($validations));
 
-        $key = 'installer::app.seeders.attributes.'.$attribute->entity_type.'.'.str_replace('_', '-', $attribute->code);
-        $label = trans($key);
-        if ($label === $key) {
-            $label = $attribute->name;
-        }
+        $label = \Webkul\Admin\Support\AttributeLabel::for($attribute);
+
+        // The edit components use the attribute's name as the field label in validation messages.
+        $translated = clone $attribute;
+        $translated->name = $label;
     @endphp
 
     <x-admin::form.control-group class="mb-2.5 w-full">
@@ -38,7 +38,7 @@
 
         @if (isset($attribute))
             <x-admin::attributes.edit.index
-                :attribute="$attribute"
+                :attribute="$translated"
                 :validations="$validations"
                 :value="isset($entity) ? $entity[$attribute->code] : null"
                 :can-add-new="$canAddNew"

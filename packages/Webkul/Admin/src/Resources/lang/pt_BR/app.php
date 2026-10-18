@@ -2362,7 +2362,8 @@ return [
     ],
     'validations' => [
         'message' => [
-            'decimal' => 'The :attribute must be a decimal.',
+            'decimal' => 'O campo :attribute deve ser um número válido.',
+            'unique' => 'O valor de :attribute já está em uso.',
         ],
     ],
     'errors' => [
