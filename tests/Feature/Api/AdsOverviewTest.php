@@ -138,5 +138,12 @@ it('matches CRM leads to campaigns ignoring copies and numbering, reads UTMs fro
         ->and($funnels['Lead - Online']['leads_crm'])->toBe(3)
         ->and($funnels['Lead - Online']['cpl_meta'])->toBe(30.0)
         ->and($funnels['Lead - Bari']['leads_crm'])->toBe(1)
-        ->and($funnels['Lead - Bari']['leads_meta'])->toBe(4);
+        ->and($funnels['Lead - Bari']['leads_meta'])->toBe(4)
+        // Sales value is carried to the funnel, the campaign and the average ticket.
+        ->and($report['summary']['ticket'])->toBe(1500.0)
+        ->and($report['summary']['roas'])->toBe(3.75)
+        ->and($funnels['Lead - Online']['won_value'])->toBe(1500.0)
+        ->and($funnels['Lead - Online']['roas'])->toBe(5.0)
+        ->and($funnels['Lead - Bari']['won_value'])->toBe(0.0)
+        ->and(collect($report['campaigns'])->firstWhere('campaign', '02 - [LEADS ONLINE] - [ESCALA]')['won_value'])->toBe(1500.0);
 });

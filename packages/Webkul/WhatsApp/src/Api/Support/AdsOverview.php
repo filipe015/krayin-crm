@@ -130,7 +130,7 @@ final class AdsOverview
             unset($p);
 
             $c = &$campaigns[$campaignKey];
-            $c ??= ['campaign' => $row->campaign_name, 'funnel' => $funnel, 'spend' => 0.0, 'clicks' => 0, 'impressions' => 0, 'leads_meta' => 0.0, 'leads_crm' => 0];
+            $c ??= ['campaign' => $row->campaign_name, 'funnel' => $funnel, 'spend' => 0.0, 'clicks' => 0, 'impressions' => 0, 'leads_meta' => 0.0, 'leads_crm' => 0, 'won' => 0, 'won_value' => 0.0];
             $c['spend'] += $spend;
             $c['clicks'] += (int) $row->clicks;
             $c['impressions'] += (int) $row->impressions;
@@ -187,6 +187,8 @@ final class AdsOverview
 
             if ($exact !== null) {
                 $campaigns[$exact]['leads_crm']++;
+                $campaigns[$exact]['won'] += $won ? 1 : 0;
+                $campaigns[$exact]['won_value'] += $wonValue;
             }
 
             $crm['leads']++;
@@ -222,6 +224,8 @@ final class AdsOverview
 
         $campaignRows = array_values(array_map(function ($c) {
             $c['spend'] = round($c['spend'], 2);
+            $c['won_value'] = round($c['won_value'], 2);
+            $c['roas'] = $c['spend'] > 0 && $c['won'] > 0 ? round($c['won_value'] / $c['spend'], 2) : null;
             $c['cpl'] = $c['leads_meta'] > 0 ? round($c['spend'] / $c['leads_meta'], 2) : null;
             $c['leads_meta'] = (int) round($c['leads_meta']);
 
@@ -389,6 +393,7 @@ final class AdsOverview
             'won'                => $won,
             'won_value'          => $wonValue,
             'cac'                => $per($spend, $won),
+            'ticket'             => $per($wonValue, $won),
             'roas'               => $spend > 0 && $won > 0 ? round($wonValue / $spend, 2) : null,
         ];
     }

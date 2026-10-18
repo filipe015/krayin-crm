@@ -111,6 +111,7 @@
                             <div class="ads-kpi"><span>@{{ labels.sales }}</span><strong>@{{ s.won }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.cac }}</span><strong class="is-accent">@{{ money(s.cac) }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.revenue }}</span><strong>@{{ money(s.won_value) }}</strong></div>
+                            <div class="ads-kpi"><span>@{{ labels.ticket }}</span><strong>@{{ money(s.ticket) }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.roas }}</span><strong>@{{ ratio(s.roas) }}</strong></div>
                             <div class="ads-kpi"><span>@{{ labels.no_utm }}</span><strong>@{{ s.no_utm }}</strong></div>
                             <div class="ads-kpi" v-if="s.unmatched"><span>@{{ labels.unmatched }}</span><strong>@{{ s.unmatched }}</strong></div>
@@ -146,6 +147,8 @@
                                             <th>@{{ labels.cost_scheduled }}</th>
                                             <th>@{{ labels.sales }}</th>
                                             <th>@{{ labels.cac }}</th>
+                                            <th>@{{ labels.revenue }}</th>
+                                            <th>@{{ labels.roas }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -160,6 +163,8 @@
                                             <td class="is-accent">@{{ money(funnel.cost_per_scheduled) }}</td>
                                             <td>@{{ funnel.won }}</td>
                                             <td class="is-accent">@{{ money(funnel.cac) }}</td>
+                                            <td>@{{ money(funnel.won_value) }}</td>
+                                            <td>@{{ ratio(funnel.roas) }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -195,6 +200,8 @@
                                         <th>@{{ labels.cost_scheduled }}</th>
                                         <th>@{{ labels.sales }}</th>
                                         <th>@{{ labels.cac }}</th>
+                                        <th>@{{ labels.revenue }}</th>
+                                        <th>@{{ labels.roas }}</th>
                                         <th>@{{ labels.disqualified }}</th>
                                     </tr>
                                 </thead>
@@ -213,6 +220,8 @@
                                         <td class="is-accent">@{{ money(row.cost_per_scheduled) }}</td>
                                         <td>@{{ row.won }}</td>
                                         <td class="is-accent">@{{ money(row.cac) }}</td>
+                                        <td>@{{ money(row.won_value) }}</td>
+                                        <td>@{{ ratio(row.roas) }}</td>
                                         <td>@{{ row.disqualified }}</td>
                                     </tr>
                                     <tr class="is-total">
@@ -229,6 +238,8 @@
                                         <td class="is-accent">@{{ money(trendTotal.cost_per_scheduled) }}</td>
                                         <td>@{{ trendTotal.won }}</td>
                                         <td class="is-accent">@{{ money(trendTotal.cac) }}</td>
+                                        <td>@{{ money(trendTotal.won_value) }}</td>
+                                        <td>@{{ ratio(trendTotal.roas) }}</td>
                                         <td>@{{ trendTotal.disqualified }}</td>
                                     </tr>
                                 </tbody>
@@ -311,6 +322,9 @@
                                         <th>@{{ labels.leads_meta }}</th>
                                         <th>@{{ labels.cpl_meta }}</th>
                                         <th>@{{ labels.leads_crm }}</th>
+                                        <th>@{{ labels.sales }}</th>
+                                        <th>@{{ labels.revenue }}</th>
+                                        <th>@{{ labels.roas }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -322,6 +336,9 @@
                                         <td>@{{ campaign.leads_meta }}</td>
                                         <td class="is-accent">@{{ money(campaign.cpl) }}</td>
                                         <td>@{{ campaign.leads_crm }}</td>
+                                        <td>@{{ campaign.won }}</td>
+                                        <td>@{{ money(campaign.won_value) }}</td>
+                                        <td>@{{ ratio(campaign.roas) }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -385,6 +402,8 @@
                             won,
                             disqualified: sum('disqualified'),
                             cac: per(spend, won),
+                            won_value: sum('won_value'),
+                            roas: spend > 0 && won > 0 ? sum('won_value') / spend : null,
                             cpl_meta: per(spend, leadsMeta),
                             cpl_crm: per(spend, leadsCrm),
                             cost_per_scheduled: per(spend, scheduled),
@@ -489,7 +508,8 @@
                             data: {
                                 labels: months.map(row => row.label),
                                 datasets: [
-                                    { type: 'bar', label: this.labels.spend, data: months.map(row => row.spend), backgroundColor: PALETTE[0], yAxisID: 'y', order: 2 },
+                                    { type: 'bar', label: this.labels.spend, data: months.map(row => row.spend), backgroundColor: PALETTE[0], yAxisID: 'y', order: 3 },
+                                    { type: 'bar', label: this.labels.revenue, data: months.map(row => row.won_value), backgroundColor: PALETTE[2], yAxisID: 'y', order: 2 },
                                     { type: 'line', label: this.labels.cpl_meta, data: months.map(row => row.cpl_meta), borderColor: PALETTE[1], backgroundColor: PALETTE[1], yAxisID: 'y1', tension: 0.3, spanGaps: true, order: 1 },
                                 ],
                             },
