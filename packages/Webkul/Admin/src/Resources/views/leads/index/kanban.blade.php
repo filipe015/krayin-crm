@@ -104,7 +104,7 @@
                             @scroll="handleScroll(stage, $event)"
                             @change="handleUpdate(stage, $event)"
                             @start="cardDragging = true"
-                            @end="cardDragging = false"
+                            @end="cardDragging = false; activeZone = null"
                         >
                             <template #header>
                                 <div
@@ -312,12 +312,14 @@
                     <draggable
                         v-for="zone in closedZones"
                         :key="zone.stage.id"
-                        class="flex h-20 flex-1 items-center justify-center border-t-4 bg-white/95 text-sm font-semibold uppercase tracking-widest shadow-2xl dark:bg-gray-900/95"
-                        :class="zone.stage.code === 'won' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-slate-500 text-slate-700 dark:text-slate-300'"
+                        class="flex h-20 flex-1 origin-bottom items-center justify-center border-t-4 font-semibold uppercase tracking-widest shadow-2xl transition-all duration-150"
+                        :class="closedZoneClasses(zone)"
                         ghost-class="hidden"
                         item-key="id"
                         group="leads"
                         :list="zone.list"
+                        @dragover="activeZone = zone.stage.id"
+                        @dragleave="leaveClosedZone($event)"
                         @change="dropOnClosedZone(zone, $event)"
                     >
                         <template #header>
@@ -462,6 +464,9 @@
                     loadingMore: {},
 
                     closedZones: [],
+
+                    // The Won / Lost area the dragged card is over (stage id), for the highlight.
+                    activeZone: null,
 
                     kanbanDrag: {
                         pointerId: null,
@@ -876,6 +881,39 @@
                 },
 
                 /**
+                 * Look of a Won / Lost area: calm while idle, filled and larger while the card is over it.
+                 *
+                 * @param {object} zone - The drop area ({ stage, list }).
+                 * @returns {string}
+                 */
+                closedZoneClasses(zone) {
+                    const won = zone.stage.code === 'won';
+                    const over = this.activeZone === zone.stage.id;
+
+                    if (won) {
+                        return over
+                            ? 'border-emerald-500 !border-t-[10px] bg-emerald-100 text-base text-emerald-800 scale-y-110 dark:bg-emerald-900 dark:text-emerald-200'
+                            : 'border-emerald-500 bg-white/95 text-sm text-emerald-700 dark:bg-gray-900/95 dark:text-emerald-400';
+                    }
+
+                    return over
+                        ? 'border-slate-500 !border-t-[10px] bg-slate-200 text-base text-slate-900 scale-y-110 dark:bg-slate-700 dark:text-slate-100'
+                        : 'border-slate-500 bg-white/95 text-sm text-slate-700 dark:bg-gray-900/95 dark:text-slate-300';
+                },
+
+                /**
+                 * Leaving the area (not just moving onto its label) removes the highlight.
+                 *
+                 * @param {DragEvent} event
+                 * @returns {void}
+                 */
+                leaveClosedZone(event) {
+                    if (! event.currentTarget.contains(event.relatedTarget)) {
+                        this.activeZone = null;
+                    }
+                },
+
+                /**
                  * A card dropped on the Won / Lost area follows the same path as a drop on the column.
                  *
                  * @param {object} zone - The drop area ({ stage, list }).
@@ -883,6 +921,8 @@
                  * @returns {void}
                  */
                 dropOnClosedZone(zone, event) {
+                    this.activeZone = null;
+
                     this.handleUpdate(zone.stage, event);
 
                     // The area only receives the card for the move; it never keeps it.
