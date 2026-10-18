@@ -106,6 +106,9 @@ class LeadController extends Controller
 
         $createdAtRange = $this->extractCreatedAtRange();
 
+        // Cards per column and per request: the board asks for a few and loads more while scrolling.
+        $perPage = min(max((int) request()->query('limit', 50), 1), 100);
+
         foreach ($stages as $stage) {
             /**
              * We have to create a new instance of the lead repository every time, which is
@@ -144,7 +147,7 @@ class LeadController extends Controller
                     'pipeline.stages',
                     'stage',
                     'attribute_values',
-                ])->orderBy('updated_at', 'desc')->paginate(50)),
+                ])->orderBy('updated_at', 'desc')->paginate($perPage)),
 
                 'meta' => [
                     'current_page' => $paginator->currentPage(),

@@ -456,6 +456,11 @@
                     // A card is being dragged: the hidden won/lost columns show up as drop areas.
                     cardDragging: false,
 
+                    // Cards loaded per column at a time; more come as the column is scrolled.
+                    pageSize: 20,
+
+                    loadingMore: {},
+
                     closedZones: [],
 
                     kanbanDrag: {
@@ -719,7 +724,7 @@
                         search: '',
                         searchFields: '',
                         pipeline_id: "{{ request('pipeline_id') }}",
-                        limit: 50,
+                        limit: this.pageSize,
                         show_closed: this.applied.showClosed ? 1 : 0,
                     };
 
@@ -1027,21 +1032,25 @@
                  * @returns {void}
                  */
                 handleScroll(stage, event) {
-                    const bottom = event.target.scrollHeight - event.target.scrollTop === event.target.clientHeight;
+                    const target = event.target;
+                    const meta = this.stageLeads[stage.sort_order].leads.meta;
 
-                    if (! bottom) {
+                    // Starts loading a little before the end, so the next cards are there when the user arrives.
+                    const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 200;
+
+                    if (! nearBottom || meta.current_page >= meta.last_page || this.loadingMore[stage.id]) {
                         return;
                     }
 
-                    if (this.stageLeads[stage.sort_order].leads.meta.current_page == this.stageLeads[stage.sort_order].leads.meta.last_page) {
-                        return;
-                    }
+                    this.loadingMore[stage.id] = true;
 
                     this.append({
                         pipeline_stage_id: stage.id,
                         pipeline_id: stage.lead_pipeline_id,
-                        page: this.stageLeads[stage.sort_order].leads.meta.current_page + 1,
-                        limit: 50,
+                        page: meta.current_page + 1,
+                        limit: this.pageSize,
+                    }).finally(() => {
+                        this.loadingMore[stage.id] = false;
                     });
                 },
 
