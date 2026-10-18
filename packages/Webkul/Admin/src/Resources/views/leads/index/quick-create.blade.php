@@ -22,12 +22,14 @@
     <style>
         /* Compact two-column card: fields side by side, tighter spacing. */
         .lqc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; grid-auto-flow: row dense; }
-        .lqc-grid > * { margin-bottom: 8px; min-width: 0; }
+        .lqc-grid > * { margin-bottom: 6px; min-width: 0; }
         .lqc-grid > :has([name="title"]),
         .lqc-grid > :last-child:nth-child(odd),
         .lqc-grid > :has(textarea) { grid-column: span 2; }
         .lqc-grid textarea { min-height: 56px; height: 56px; }
-        .lqc-grid label { font-size: 12px; }
+        .lqc-grid label { font-size: 12px; margin-bottom: 2px; }
+        /* Tighter fields so the card is shorter: every control a little lower than the default. */
+        .lqc-grid input:not([type="checkbox"]):not([type="radio"]), .lqc-grid select, .lqc-grid .custom-select { padding-top: 6px; padding-bottom: 6px; font-size: 13px; }
         @media (max-width: 640px) {
             .lqc-grid { grid-template-columns: minmax(0, 1fr); }
             .lqc-grid > * { grid-column: auto !important; }
@@ -49,7 +51,7 @@
         <Teleport to="body">
             <x-admin::modal
                 ref="modal"
-                size="medium"
+                size="compact"
             >
                 <x-slot:header>
                     <p class="text-xl font-semibold text-gray-800 dark:text-white">

@@ -167,6 +167,7 @@
                 sizeClass() {
                     return {
                         'normal': 'max-w-[525px]',
+                        'compact': 'max-w-[640px]',
                         'medium': 'max-w-[768px]',
                         'large': 'max-w-[950px]',
                     }[this.size] || 'max-w-[525px]';
