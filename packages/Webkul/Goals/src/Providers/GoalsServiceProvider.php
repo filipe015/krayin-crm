@@ -27,6 +27,10 @@ class GoalsServiceProvider extends ServiceProvider
             ->prefix(config('app.admin_path').'/settings/goals')
             ->group(__DIR__.'/../Routes/settings.php');
 
+        Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/goals')
+            ->group(__DIR__.'/../Routes/tracking.php');
+
         // What happens to a deal is recorded as it happens (see lead_events).
         Lead::observe(LeadObserver::class);
 

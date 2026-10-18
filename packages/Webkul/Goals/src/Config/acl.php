@@ -2,6 +2,12 @@
 
 return [
     [
+        'key'   => 'goals',
+        'name'  => 'goals::app.acl.tracking',
+        'route' => ['admin.goals.index', 'admin.goals.data'],
+        'sort'  => 5,
+    ],
+    [
         'key'   => 'settings.other_settings.goals',
         'name'  => 'goals::app.acl.settings',
         'route' => ['admin.goals.settings.index', 'admin.goals.settings.data', 'admin.goals.settings.history'],

@@ -293,6 +293,45 @@ final class AdsOverview
         return ['days' => $out, 'funnels' => $names];
     }
 
+    /**
+     * The funnel each deal belongs to, by the campaign its UTM names (same matching as the overview).
+     * Deals whose campaign matches no ad are left out.
+     *
+     * @param  list<int>  $leadIds
+     * @return array<int, string> lead id => funnel
+     */
+    public function funnelsOfLeads(array $leadIds): array
+    {
+        if (! $leadIds || ! isset($this->attributes['campaign'])) {
+            return [];
+        }
+
+        $this->loadCampaignFunnels(null);
+
+        $found = [];
+
+        foreach (array_chunk($leadIds, 1000) as $chunk) {
+            $rows = DB::table('leads')
+                ->leftJoin('attribute_values as av_campaign', function ($join) {
+                    $join->on('av_campaign.entity_id', '=', 'leads.id')
+                        ->where('av_campaign.entity_type', 'leads')
+                        ->where('av_campaign.attribute_id', $this->attributes['campaign']);
+                })
+                ->whereIn('leads.id', $chunk)
+                ->get(['leads.id', 'leads.description', 'av_campaign.text_value as utm_campaign']);
+
+            foreach ($rows as $row) {
+                $key = $this->campaignKey($row->utm_campaign ?: $this->fromDescription($row->description, 'campaign'));
+
+                if ($key !== '' && ($this->campaignFunnel[$key] ?? null)) {
+                    $found[(int) $row->id] = $this->campaignFunnel[$key];
+                }
+            }
+        }
+
+        return $found;
+    }
+
     private function spendRows(Carbon $from, Carbon $to, ?string $accountId): Collection
     {
         return DB::table('ad_insights_daily')
