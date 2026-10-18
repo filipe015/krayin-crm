@@ -304,16 +304,16 @@
                     ></div>
                 </div>
 
-                <!-- Won / Lost: the hidden columns become drop areas while a card is dragged -->
+                <!-- Won / Lost: the hidden columns become a bar along the bottom while a card is dragged -->
                 <div
-                    class="fixed bottom-6 left-1/2 z-[1100] flex -translate-x-1/2 gap-4"
+                    class="fixed inset-x-0 bottom-0 z-[1100] flex"
                     v-if="cardDragging && ! applied.showClosed"
                 >
                     <draggable
                         v-for="zone in closedZones"
                         :key="zone.stage.id"
-                        class="flex h-16 w-56 items-center justify-center rounded-lg border-2 border-dashed text-sm font-semibold shadow-lg"
-                        :class="zone.stage.code === 'won' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700'"
+                        class="flex h-20 flex-1 items-center justify-center border-t-4 bg-white/95 text-sm font-semibold uppercase tracking-widest shadow-2xl dark:bg-gray-900/95"
+                        :class="zone.stage.code === 'won' ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'border-slate-500 text-slate-700 dark:text-slate-300'"
                         ghost-class="hidden"
                         item-key="id"
                         group="leads"
@@ -532,8 +532,10 @@
             },
 
             mounted () {
-                this.closedZones = this.stages
-                    .filter(stage => ['won', 'lost'].includes(stage.code))
+                // Lost first, then won, left to right along the bar.
+                this.closedZones = ['lost', 'won']
+                    .map(code => this.stages.find(stage => stage.code === code))
+                    .filter(Boolean)
                     .map(stage => ({ stage, list: [] }));
 
                 this.boot();
