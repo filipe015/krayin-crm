@@ -10,5 +10,5 @@ class GoalSetting extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['step_rules' => 'array', 'default_weekdays' => 'array'];
+    protected $casts = ['step_rules' => 'array', 'default_weekdays' => 'array', 'alert_rules' => 'array', 'alerts_enabled' => 'boolean'];
 }

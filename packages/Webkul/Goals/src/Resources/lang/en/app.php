@@ -24,6 +24,8 @@ return [
     'weekdays_short' => [1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'],
 
     'fields' => [
+        'alert_rules' => 'Alert rules',
+        'alerts_enabled' => 'Automatic alerts',
         'revenue_target'            => 'Revenue goal',
         'ticket'                    => 'Average ticket',
         'qualification_rate'        => 'Lead → qualified rate',
@@ -47,6 +49,12 @@ return [
     ],
 
     'history' => [
+        'alerts_on' => 'on',
+        'alerts_off' => 'off',
+        'alert_pace' => ':metric pace below :percent%',
+        'alert_rate' => 'Rate into :metric below :percent%',
+        'alert_cpl' => 'CPL above :percent% of target',
+        'alert_budget' => 'Investment at :percent% or more',
         'removed'          => 'Removed',
         'none'             => 'none',
         'no_rules'         => 'no rules',
@@ -82,9 +90,28 @@ return [
     ],
 
     'ui' => [
+        'al_title' => 'Automatic alerts',
+        'al_hint' => 'The CRM warns every user (bell and pop-up) when something is off the plan. Each alert fires once a day, on working days only.',
+        'al_enabled' => 'Alerts on',
+        'al_kind' => 'Alert',
+        'al_metric' => 'Item',
+        'al_percent' => 'Percent',
+        'al_pace' => 'Pace below expected',
+        'al_rate' => 'Conversion rate below plan',
+        'al_cpl' => 'CPL above target',
+        'al_budget' => 'Investment used',
+        'al_pace_hint' => 'Warns when the actual falls below this % of what was expected by today.',
+        'al_rate_hint' => 'Warns when the real rate falls below this % of the planned rate.',
+        'al_cpl_hint' => 'Warns when CPL goes over this % of the target CPL.',
+        'al_budget_hint' => 'Warns when spending reaches this % of the plan.',
+        'al_add' => '+ Alert',
+        'al_none' => 'No alerts set up.',
+        'al_save' => 'Save alerts',
+        'al_saved' => 'Alerts saved.',
+        'al_revenue' => 'Revenue',
         'title'     => 'Goals',
         'subtitle'  => 'Plan the month and see what the funnel has to deliver. Whole numbers only.',
-        'tabs'      => ['plan' => 'Month plan', 'steps' => 'Funnel steps', 'history' => 'History'],
+        'tabs'      => ['plan' => 'Month plan', 'steps' => 'Funnel steps', 'alerts' => 'Alerts', 'history' => 'History'],
         'month'     => 'Month',
         'loading'   => 'Loading…',
         'error'     => 'Could not load.',
@@ -237,5 +264,16 @@ return [
             'attended' => 'Attended',
             'sales' => 'Sales',
         ],
+    ],
+
+    'alerts' => [
+        'pace_title' => ':metric pace below expected',
+        'pace_body' => ':actual against :expected expected by today (:percent%). Month goal: :target; :per_day needed per working day.',
+        'rate_title' => 'Rate :from → :to below plan',
+        'rate_body' => 'The real rate is :actual% and the plan was :planned%.',
+        'cpl_title' => 'CPL above target',
+        'cpl_body' => 'CPL is :actual and the target is :target.',
+        'budget_title' => 'Investment at :percent% of plan',
+        'budget_body' => ':spent of the :budget planned is spent, with :elapsed of :total working days passed.',
     ],
 ];

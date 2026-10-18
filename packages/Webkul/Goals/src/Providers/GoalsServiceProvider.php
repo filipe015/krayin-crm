@@ -2,9 +2,11 @@
 
 namespace Webkul\Goals\Providers;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Webkul\Goals\Console\CheckGoalAlerts;
 use Webkul\Goals\Observers\LeadObserver;
 use Webkul\Goals\Support\LeadEventRecorder;
 use Webkul\Lead\Models\Lead;
@@ -36,5 +38,13 @@ class GoalsServiceProvider extends ServiceProvider
 
         Event::listen('lead.tag.attached', fn (int $leadId, int $tagId) => LeadEventRecorder::tagAdded($leadId, $tagId));
         Event::listen('lead.activity.attached', fn (int $leadId, int $activityId) => LeadEventRecorder::activityAttached($leadId, $activityId));
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([CheckGoalAlerts::class]);
+        }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('goals:alerts')->hourly()->between('8:00', '20:00')->withoutOverlapping();
+        });
     }
 }

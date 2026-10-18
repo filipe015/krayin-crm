@@ -24,6 +24,8 @@ return [
     'weekdays_short' => [1 => 'Seg', 2 => 'Ter', 3 => 'Qua', 4 => 'Qui', 5 => 'Sex', 6 => 'Sáb', 7 => 'Dom'],
 
     'fields' => [
+        'alert_rules' => 'Regras de alerta',
+        'alerts_enabled' => 'Alertas automáticos',
         'revenue_target'            => 'Meta de faturamento',
         'ticket'                    => 'Ticket médio',
         'qualification_rate'        => 'Taxa lead → qualificado',
@@ -47,6 +49,12 @@ return [
     ],
 
     'history' => [
+        'alerts_on' => 'ligados',
+        'alerts_off' => 'desligados',
+        'alert_pace' => 'Ritmo de :metric abaixo de :percent%',
+        'alert_rate' => 'Taxa para :metric abaixo de :percent%',
+        'alert_cpl' => 'CPL acima de :percent% do alvo',
+        'alert_budget' => 'Investimento em :percent% ou mais',
         'removed'          => 'Removido',
         'none'             => 'nenhuma',
         'no_rules'         => 'nenhuma regra',
@@ -82,9 +90,28 @@ return [
     ],
 
     'ui' => [
+        'al_title' => 'Alertas automáticos',
+        'al_hint' => 'O CRM avisa todos os usuários (sino e popup) quando algo foge do plano. Cada alerta vale uma vez por dia e só em dia útil.',
+        'al_enabled' => 'Alertas ligados',
+        'al_kind' => 'Aviso',
+        'al_metric' => 'Item',
+        'al_percent' => 'Percentual',
+        'al_pace' => 'Ritmo abaixo do esperado',
+        'al_rate' => 'Taxa de conversão abaixo do planejado',
+        'al_cpl' => 'CPL acima do alvo',
+        'al_budget' => 'Investimento consumido',
+        'al_pace_hint' => 'Avisa quando o realizado fica abaixo deste % do esperado até hoje.',
+        'al_rate_hint' => 'Avisa quando a taxa real fica abaixo deste % da taxa planejada.',
+        'al_cpl_hint' => 'Avisa quando o CPL passa deste % do CPL alvo.',
+        'al_budget_hint' => 'Avisa quando o investido chega a este % do planejado.',
+        'al_add' => '+ Alerta',
+        'al_none' => 'Nenhum alerta configurado.',
+        'al_save' => 'Salvar alertas',
+        'al_saved' => 'Alertas salvos.',
+        'al_revenue' => 'Faturamento',
         'title'     => 'Metas',
         'subtitle'  => 'Planeje o mês e veja o que o funil precisa entregar. Tudo em números inteiros.',
-        'tabs'      => ['plan' => 'Plano do mês', 'steps' => 'Etapas do funil', 'history' => 'Histórico'],
+        'tabs'      => ['plan' => 'Plano do mês', 'steps' => 'Etapas do funil', 'alerts' => 'Alertas', 'history' => 'Histórico'],
         'month'     => 'Mês',
         'loading'   => 'Carregando…',
         'error'     => 'Não foi possível carregar.',
@@ -237,5 +264,16 @@ return [
             'attended' => 'Comparecimentos',
             'sales' => 'Vendas',
         ],
+    ],
+
+    'alerts' => [
+        'pace_title' => 'Ritmo de :metric abaixo do esperado',
+        'pace_body' => 'Foram :actual contra :expected esperados até hoje (:percent%). Meta do mês: :target; faltam :per_day por dia útil.',
+        'rate_title' => 'Taxa :from → :to abaixo do planejado',
+        'rate_body' => 'A taxa real está em :actual% e o planejado era :planned%.',
+        'cpl_title' => 'CPL acima do alvo',
+        'cpl_body' => 'O CPL está em :actual e o alvo é :target.',
+        'budget_title' => 'Investimento em :percent% do planejado',
+        'budget_body' => 'Já foram :spent dos :budget planejados, com :elapsed de :total dias úteis passados.',
     ],
 ];

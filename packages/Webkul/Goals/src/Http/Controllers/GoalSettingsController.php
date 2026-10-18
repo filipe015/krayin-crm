@@ -7,8 +7,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use InvalidArgumentException;
+use Webkul\Goals\Http\Requests\AlertsRequest;
 use Webkul\Goals\Http\Requests\PlanRequest;
 use Webkul\Goals\Http\Requests\SettingsRequest;
+use Webkul\Goals\Support\GoalAlertSettings;
 use Webkul\Goals\Support\GoalPlanService;
 use Webkul\Goals\Support\GoalScreenData;
 use Webkul\Goals\Support\GoalSettingsService;
@@ -28,6 +30,7 @@ class GoalSettingsController extends Controller
                 'copy'          => route('admin.goals.settings.copy'),
                 'workingDays'   => route('admin.goals.settings.working_days'),
                 'settings'      => route('admin.goals.settings.save'),
+                'alerts'        => route('admin.goals.settings.alerts'),
                 'history'       => route('admin.goals.settings.history'),
             ],
             'month'   => now()->format('Y-m'),
@@ -98,6 +101,15 @@ class GoalSettingsController extends Controller
             GoalSettingsService::save($request->input('step_rules', []), $request->input('weekdays', []), $this->userId());
 
             return response()->json(['settings' => GoalSettingsService::get()]);
+        });
+    }
+
+    public function saveAlerts(AlertsRequest $request): JsonResponse
+    {
+        return $this->guard(function () use ($request) {
+            GoalAlertSettings::save($request->input('rules', []), $request->boolean('enabled'), $this->userId());
+
+            return response()->json(['alerts' => GoalAlertSettings::get()]);
         });
     }
 

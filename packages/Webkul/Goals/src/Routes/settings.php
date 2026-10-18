@@ -14,3 +14,4 @@ Route::delete('plan', [GoalSettingsController::class, 'deletePlan'])->name('admi
 Route::post('copy', [GoalSettingsController::class, 'copyMonth'])->name('admin.goals.settings.copy');
 Route::post('working-days', [GoalSettingsController::class, 'saveWorkingDays'])->name('admin.goals.settings.working_days');
 Route::post('settings', [GoalSettingsController::class, 'saveSettings'])->name('admin.goals.settings.save');
+Route::post('alerts', [GoalSettingsController::class, 'saveAlerts'])->name('admin.goals.settings.alerts');

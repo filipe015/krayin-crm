@@ -75,6 +75,16 @@ final class GoalChangeFormatter
             return $steps ? implode(', ', array_map(fn ($step) => trans('goals::app.steps.'.$step), $steps)) : trans('goals::app.history.none');
         }
 
+        if ($field === 'alerts_enabled') {
+            return trans($value === '1' ? 'goals::app.history.alerts_on' : 'goals::app.history.alerts_off');
+        }
+
+        if ($field === 'alert_rules') {
+            $rules = (array) json_decode($value, true);
+
+            return $rules ? implode('; ', array_map(fn ($rule) => self::alertRule($rule), $rules)) : trans('goals::app.history.no_rules');
+        }
+
         if ($field === 'default_weekdays') {
             return implode(', ', array_map(fn ($day) => trans('goals::app.weekdays_short.'.$day), (array) json_decode($value, true)));
         }
@@ -128,6 +138,20 @@ final class GoalChangeFormatter
                 default       => '?',
             };
         }, $rules));
+    }
+
+    /**
+     * @param  array<string, mixed>  $rule
+     */
+    private static function alertRule(array $rule): string
+    {
+        $metric = match ($rule['kind'] ?? '') {
+            'pace'  => trans('goals::app.tracking.'.($rule['metric'] === 'revenue' ? 'revenue' : 'steps.'.$rule['metric'])),
+            'rate'  => trans('goals::app.tracking.steps.'.$rule['metric']),
+            default => '',
+        };
+
+        return trim(trans('goals::app.history.alert_'.$rule['kind'], ['metric' => $metric, 'percent' => $rule['percent']]));
     }
 
     private static function fieldLabel(string $field): string

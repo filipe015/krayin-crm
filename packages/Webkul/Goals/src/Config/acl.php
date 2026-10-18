@@ -22,6 +22,7 @@ return [
             'admin.goals.settings.copy',
             'admin.goals.settings.working_days',
             'admin.goals.settings.save',
+            'admin.goals.settings.alerts',
         ],
         'sort'  => 1,
     ],

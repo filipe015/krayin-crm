@@ -32,6 +32,7 @@ final class GoalScreenData
             'days'              => self::days($month, $workingDays),
             'gap'               => GoalPlanService::funnelGap($month),
             'settings'          => GoalSettingsService::get(),
+            'alerts'            => GoalAlertSettings::get(),
             'suggested_funnels' => self::suggestedFunnels(),
             'options'           => self::options(),
         ];

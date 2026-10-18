@@ -16,6 +16,7 @@
 
     @include('goals::settings._plan')
     @include('goals::settings._steps')
+    @include('goals::settings._alerts')
     @include('goals::settings._history')
 
     @pushOnce('scripts')
@@ -90,7 +91,7 @@
                     </div>
 
                     <div class="gl-row">
-                        <label class="gl-field" style="min-width:160px;flex:none" v-if="tab !== 'steps'">
+                        <label class="gl-field" style="min-width:160px;flex:none" v-if="tab === 'plan' || tab === 'history'">
                             @{{ labels.month }}
                             <input type="month" v-model="month" @change="load">
                         </label>
@@ -108,6 +109,8 @@
                     <v-goals-plan v-if="tab === 'plan'" :data="data" :urls="urls" :labels="labels" :step-names="stepNames" :weekday-names="weekdayNames" :can-edit="canEdit" @update="data = $event"></v-goals-plan>
 
                     <v-goals-steps v-else-if="tab === 'steps'" :data="data" :urls="urls" :labels="labels" :weekday-names="weekdayNames" :can-edit="canEdit" @saved="load"></v-goals-steps>
+
+                    <v-goals-alerts v-else-if="tab === 'alerts'" :data="data" :urls="urls" :labels="labels" :step-names="stepNames" :can-edit="canEdit" @saved="load"></v-goals-alerts>
 
                     <v-goals-history v-else :urls="urls" :labels="labels" :month="month"></v-goals-history>
                 </template>
