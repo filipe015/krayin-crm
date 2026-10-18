@@ -37,6 +37,9 @@
             .gt-table td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--g-soft);white-space:nowrap}
             .gt-table th:first-child,.gt-table td:first-child{text-align:left}
             .gt-wrap{overflow-x:auto}
+            .gt-box{min-width:0}
+            .gt-table.is-compact td:first-child{white-space:normal}
+            .gt-table.is-compact th,.gt-table.is-compact td{padding:8px 6px}
             .gt-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--g-border)}
             .gt-dot.is-good{background:var(--g-good)}.gt-dot.is-warn{background:var(--g-warn)}.gt-dot.is-bad{background:var(--g-bad)}
             .gt-text-good{color:var(--g-good)}.gt-text-warn{color:var(--g-warn)}.gt-text-bad{color:var(--g-bad)}
@@ -139,7 +142,7 @@
                             <h2>@{{ labels.rates }}</h2>
                             <p class="gt-sub">@{{ labels.rates_hint }}</p>
 
-                            <div class="gt-wrap"><table class="gt-table">
+                            <div class="gt-wrap"><table class="gt-table is-compact">
                                 <thead>
                                     <tr><th></th><th>@{{ labels.col_real }}</th><th>@{{ labels.col_planned }}</th></tr>
                                 </thead>
