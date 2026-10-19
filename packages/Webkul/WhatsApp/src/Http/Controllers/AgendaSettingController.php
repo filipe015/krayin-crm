@@ -30,8 +30,10 @@ class AgendaSettingController extends Controller
                 'distribution_mode'   => $setting->distribution_mode,
                 'distribution_user_ids' => array_map('intval', (array) ($setting->distribution_user_ids ?? [])),
                 'stage_triggers'      => array_values((array) ($setting->stage_triggers ?? [])),
+                'stage_colors'        => (object) AgendaSetting::stageColors(),
             ],
             'pipelines' => self::pipelines(),
+            'colorPipelines' => self::pipelines(withClosed: true),
             'users'     => User::query()->where('status', 1)->orderBy('name')->get(['id', 'name']),
             'durations' => AgendaController::DURATIONS,
             'urls'      => ['save' => route('admin.agenda.settings.update')],
@@ -56,7 +58,11 @@ class AgendaSettingController extends Controller
             'stage_triggers.*.pipeline_id' => ['required', 'integer'],
             'stage_triggers.*.stage_id'    => ['required', 'integer'],
             'stage_triggers.*.kind'        => ['required', Rule::in(['appointment', 'followup'])],
+            'stage_colors'                 => ['nullable', 'array', 'max:300'],
+            'stage_colors.*'               => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ]);
+
+        $data['stage_colors'] = $this->validColors($data['stage_colors'] ?? []);
 
         $data['stage_triggers'] = $this->validTriggers($data['stage_triggers'] ?? []);
 
@@ -105,10 +111,10 @@ class AgendaSettingController extends Controller
     /**
      * @return list<array{id: int, name: string, stages: list<array{id: int, name: string}>}>
      */
-    private static function pipelines(): array
+    private static function pipelines(bool $withClosed = false): array
     {
         $stages = DB::table('lead_pipeline_stages')
-            ->whereNotIn('code', ['won', 'lost'])
+            ->when(! $withClosed, fn ($query) => $query->whereNotIn('code', ['won', 'lost']))
             ->orderBy('sort_order')
             ->get(['id', 'name', 'lead_pipeline_id'])
             ->groupBy('lead_pipeline_id');
@@ -118,5 +124,25 @@ class AgendaSettingController extends Controller
             'name'   => $pipeline->name,
             'stages' => ($stages[$pipeline->id] ?? collect())->map(fn ($stage) => ['id' => (int) $stage->id, 'name' => $stage->name])->values()->all(),
         ])->all();
+    }
+
+    /**
+     * Only real stages keep a color, and always as #rrggbb in lower case.
+     *
+     * @param  array<int|string, string|null>  $colors
+     * @return array<string, string>
+     */
+    private function validColors(array $colors): array
+    {
+        $stageIds = DB::table('lead_pipeline_stages')->pluck('id')->flip();
+        $valid = [];
+
+        foreach ($colors as $stageId => $color) {
+            if ($color && $stageIds->has((int) $stageId)) {
+                $valid[(string) (int) $stageId] = strtolower($color);
+            }
+        }
+
+        return $valid;
     }
 }

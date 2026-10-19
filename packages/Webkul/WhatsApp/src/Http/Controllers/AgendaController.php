@@ -30,6 +30,7 @@ class AgendaController extends Controller
         return view('whatsapp::agenda.index', self::bookingProps() + [
             'canCreate' => bouncer()->hasPermission('agenda.create'),
             'canOpenInbox' => bouncer()->hasPermission('whatsapp') && bouncer()->hasPermission('whatsapp.send'),
+            'stageColors' => (object) AgendaSetting::stageColors(),
             'dayStart' => (int) AgendaSetting::current()->day_start,
             'dayEnd' => (int) AgendaSetting::current()->day_end,
             'urls' => [

@@ -28,10 +28,10 @@ class AgendaSetting extends Model
 
     protected $fillable = [
         'singular', 'plural', 'gender', 'responsible', 'responsible_plural', 'default_duration',
-        'day_start', 'day_end', 'distribution_mode', 'distribution_user_ids', 'last_assigned_user_id', 'stage_triggers',
+        'day_start', 'day_end', 'distribution_mode', 'distribution_user_ids', 'last_assigned_user_id', 'stage_triggers', 'stage_colors',
     ];
 
-    protected $casts = ['distribution_user_ids' => 'array', 'stage_triggers' => 'array'];
+    protected $casts = ['distribution_user_ids' => 'array', 'stage_triggers' => 'array', 'stage_colors' => 'array'];
 
     /**
      * The saved settings, or the neutral defaults while nothing was saved.
@@ -58,5 +58,24 @@ class AgendaSetting extends Model
         }
 
         return $triggers;
+    }
+
+    /**
+     * The color chosen for the cards of each stage: stage id => "#rrggbb". Stages without one use the
+     * Agenda's built-in palette.
+     *
+     * @return array<int, string>
+     */
+    public static function stageColors(): array
+    {
+        $colors = [];
+
+        foreach ((array) (static::current()->stage_colors ?? []) as $stageId => $color) {
+            if (is_string($color) && preg_match('/^#[0-9a-f]{6}$/i', $color)) {
+                $colors[(int) $stageId] = strtolower($color);
+            }
+        }
+
+        return $colors;
     }
 }

@@ -10,6 +10,7 @@
         :users="{{ Illuminate\Support\Js::from($users) }}"
         :durations="{{ Illuminate\Support\Js::from($durations) }}"
         :pipelines="{{ Illuminate\Support\Js::from($pipelines) }}"
+        :color-pipelines="{{ Illuminate\Support\Js::from($colorPipelines) }}"
     >
         <div class="p-6 text-sm text-gray-500">@lang('whatsapp::app.agenda.loading')</div>
     </v-agenda-settings>
@@ -41,6 +42,10 @@
             .as-pill.is-soft{background:var(--as-soft);color:var(--as-fg)}
             .as-alert{padding:10px 12px;border-radius:6px;background:#fee2e2;color:#991b1b;font-size:13px}
             .as-ok{padding:10px 12px;border-radius:6px;background:#dcfce7;color:#14532d;font-size:13px}
+            .as-colors h3{margin:8px 0 6px;font-size:13px;font-weight:600}
+            .as-color{display:flex;align-items:center;gap:10px;padding:4px 0}
+            .as-color input[type=color]{width:36px;height:28px;padding:0;border:1px solid var(--as-border);border-radius:6px;background:none;cursor:pointer}
+            .as-color span:first-of-type{flex:1}
         </style>
 
         <script type="text/x-template" id="v-agenda-settings-template">
@@ -172,6 +177,22 @@
                     </div>
                 </div>
 
+                <div class="as-card">
+                    <h2>@{{ labels.colors_title }}</h2>
+                    <p class="as-muted">@{{ labels.colors_hint }}</p>
+
+                    <div v-for="pipeline in colorPipelines" :key="pipeline.id" class="as-colors">
+                        <h3>@{{ pipeline.name }}</h3>
+
+                        <div class="as-color" v-for="stage in pipeline.stages" :key="stage.id">
+                            <input type="color" :value="colorOf(stage.id)" @input="setColor(stage.id, $event.target.value)">
+                            <span>@{{ stage.name }}</span>
+                            <button type="button" class="as-btn" v-if="form.stage_colors[stage.id]" @click="resetColor(stage.id)">@{{ labels.colors_reset }}</button>
+                            <span class="as-muted" v-else>@{{ labels.colors_default }}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="as-ok" v-if="saved">@{{ labels.saved }}</div>
                 <div class="as-alert" v-if="problem">@{{ problem }}</div>
 
@@ -192,6 +213,7 @@
                     users: { type: Array, default: () => [] },
                     durations: { type: Array, default: () => [30] },
                     pipelines: { type: Array, default: () => [] },
+                    colorPipelines: { type: Array, default: () => [] },
                 },
 
                 data() {
@@ -210,6 +232,25 @@
                 },
 
                 methods: {
+                    // What a stage looks like now: the chosen color, or the Agenda's built-in one.
+                    colorOf(stageId) {
+                        const borders = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#0891b2', '#ea580c'];
+
+                        return this.form.stage_colors[stageId] || borders[Number(stageId) % borders.length];
+                    },
+
+                    setColor(stageId, color) {
+                        this.form.stage_colors = { ...this.form.stage_colors, [stageId]: color };
+                    },
+
+                    resetColor(stageId) {
+                        const colors = { ...this.form.stage_colors };
+
+                        delete colors[stageId];
+
+                        this.form.stage_colors = colors;
+                    },
+
                     stagesOf(pipelineId) {
                         return this.pipelines.find(pipeline => pipeline.id === pipelineId)?.stages ?? [];
                     },

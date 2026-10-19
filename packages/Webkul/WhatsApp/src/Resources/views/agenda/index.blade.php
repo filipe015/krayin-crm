@@ -15,6 +15,7 @@
         :auto-assign="{{ $autoAssign ? 'true' : 'false' }}"
         :can-create="{{ $canCreate ? 'true' : 'false' }}"
         :can-open-inbox="{{ $canOpenInbox ? 'true' : 'false' }}"
+        :stage-colors="{{ Illuminate\Support\Js::from($stageColors) }}"
         locale="{{ strtolower(str_replace('_', '-', app()->getLocale())) }}"
     >
         <div class="p-6 text-sm text-gray-500">
@@ -196,6 +197,7 @@
                     autoAssign: { type: Boolean, default: false },
                     canCreate: { type: Boolean, default: false },
                     canOpenInbox: { type: Boolean, default: false },
+                    stageColors: { type: Object, default: () => ({}) },
                     locale: { type: String, default: 'pt-br' },
                 },
 
@@ -278,9 +280,24 @@
                         return day + '/' + month + '/' + year;
                     },
 
+                    // The installation's own color for the stage (Configurações → Agenda): the card gets a light tint of it
+                    // and its strong color on the edge. Stages without one use the built-in palette.
+                    tint(hex) {
+                        const channel = start => parseInt(hex.slice(start, start + 2), 16);
+                        const mix = value => Math.round(value + (255 - value) * 0.72);
+
+                        return 'rgb(' + mix(channel(1)) + ', ' + mix(channel(3)) + ', ' + mix(channel(5)) + ')';
+                    },
+
                     colorFor(stageId, strong = false) {
                         if (stageId === null || stageId === undefined) {
                             return strong ? '#6b7280' : '#e5e7eb';
+                        }
+
+                        const custom = this.stageColors[stageId];
+
+                        if (custom) {
+                            return strong ? custom : this.tint(custom);
                         }
 
                         const index = Number(stageId) % this.palette.length;
