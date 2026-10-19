@@ -276,4 +276,10 @@ return [
         'budget_title' => 'Investment at :percent% of plan',
         'budget_body' => ':spent of the :budget planned is spent, with :elapsed of :total working days passed.',
     ],
+
+    'strip' => [
+        'title' => 'Goals for :month',
+        'days' => ':elapsed of :total working days',
+        'open' => 'See tracking →',
+    ],
 ];

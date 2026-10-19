@@ -3,6 +3,8 @@
         @lang('whatsapp::app.ads_page.title')
     </x-slot>
 
+    @include('goals::components.strip')
+
     <v-ads
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.ads_page')) }}"
@@ -85,6 +87,10 @@
                 </div>
 
                 <p class="ads-note" v-if="problem">@{{ problem }}</p>
+
+                @if (bouncer()->hasPermission('goals'))
+                    <v-goals-strip :month="current" style="margin-bottom:16px;display:block"></v-goals-strip>
+                @endif
 
                 <template v-if="report">
                     <!-- Consolidated view -->

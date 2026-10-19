@@ -276,4 +276,10 @@ return [
         'budget_title' => 'Investimento em :percent% do planejado',
         'budget_body' => 'Já foram :spent dos :budget planejados, com :elapsed de :total dias úteis passados.',
     ],
+
+    'strip' => [
+        'title' => 'Metas de :month',
+        'days' => ':elapsed de :total dias úteis',
+        'open' => 'Ver acompanhamento →',
+    ],
 ];

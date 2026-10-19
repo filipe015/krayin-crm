@@ -41,6 +41,13 @@
         {!! view_render_event('admin.dashboard.index.content.left.before') !!}
 
         <div class="flex flex-1 flex-col gap-4 max-xl:flex-auto">
+            <!-- Goals of the month (hides itself without a plan) -->
+            @if (bouncer()->hasPermission('goals'))
+                @includeIf('goals::components.strip')
+
+                <v-goals-strip></v-goals-strip>
+            @endif
+
             <!-- Revenue Stats -->
             @include('admin::dashboard.index.revenue')
 
