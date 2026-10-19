@@ -4,6 +4,7 @@ namespace Webkul\Admin\Helpers\Reporting;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Webkul\Lead\Repositories\LeadRepository;
 use Webkul\Lead\Repositories\StageRepository;
 
@@ -278,6 +279,36 @@ class Lead extends AbstractReporting
             ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
             ->whereBetween('closed_at', [$startDate, $endDate])
             ->sum('lead_value');
+    }
+
+    /**
+     * Retrieves the money invested in ads (Meta, from the Anúncios sync) and its progress.
+     */
+    public function getAdSpendProgress(): array
+    {
+        return [
+            'previous' => $previous = $this->getAdSpend($this->lastStartDate, $this->lastEndDate),
+            'current' => $current = $this->getAdSpend($this->startDate, $this->endDate),
+            'formatted_total' => core()->formatBasePrice($current),
+            'progress' => $this->getPercentageChange($previous, $current),
+        ];
+    }
+
+    /**
+     * Ad spend of the days in the period (0 where the instance has no ads data).
+     *
+     * @param  Carbon  $startDate
+     * @param  Carbon  $endDate
+     */
+    public function getAdSpend($startDate, $endDate): float
+    {
+        if (! Schema::hasTable('ad_insights_daily')) {
+            return 0;
+        }
+
+        return (float) DB::table('ad_insights_daily')
+            ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->sum('spend');
     }
 
     /**

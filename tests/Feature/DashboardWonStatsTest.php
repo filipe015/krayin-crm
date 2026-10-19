@@ -40,3 +40,14 @@ it('averages only the deals won in the period', function () {
         ->and($report->getAverageLeadValue($from, $to))->toBe(2000.0)
         ->and($report->getAverageLeadValue(Carbon::parse('2031-04-01'), Carbon::parse('2031-04-30')))->toBe(0.0);
 });
+
+it('sums the ad spend of the days in the period', function () {
+    foreach ([['2032-03-05', 100.5], ['2032-03-20', 400], ['2032-04-02', 999]] as $i => [$date, $spend]) {
+        DB::table('ad_insights_daily')->insert(['account_id' => 'test', 'date' => $date, 'ad_id' => 'ad-'.$i, 'platform' => 'facebook', 'spend' => $spend, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    $report = app(LeadReporting::class);
+
+    expect($report->getAdSpend(Carbon::parse('2032-03-01'), Carbon::parse('2032-03-31')->endOfDay()))->toBe(500.5)
+        ->and($report->getAdSpend(Carbon::parse('2032-05-01'), Carbon::parse('2032-05-31')))->toBe(0.0);
+});

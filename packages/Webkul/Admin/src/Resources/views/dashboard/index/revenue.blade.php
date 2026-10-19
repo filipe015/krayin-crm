@@ -71,6 +71,30 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Ad Spend Card -->
+                        <div class="flex flex-col gap-2 rounded-lg border border-gray-300 px-4 py-5 dark:border-gray-800 max-sm:w-full">
+                            <p class="text-xs font-medium text-gray-600 dark:text-gray-300">
+                                @lang('admin::app.dashboard.index.revenue.ad-spend')
+                            </p>
+
+                            <div class="flex gap-2">
+                                <p class="text-xl font-bold text-blue-600">
+                                    @{{ report.statistics.total_ad_spend.formatted_total }}
+                                </p>
+
+                                <div class="flex items-center gap-0.5">
+                                    <span
+                                        class="text-base !font-semibold text-gray-500"
+                                        :class="[report.statistics.total_ad_spend.progress < 0 ? 'icon-stats-down' : 'icon-stats-up']"
+                                    ></span>
+
+                                    <p class="text-xs font-semibold text-gray-500">
+                                        @{{ Math.abs(report.statistics.total_ad_spend.progress.toFixed(2)) }}%
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Bar Chart -->
@@ -94,6 +118,14 @@
 
                                 <p class="text-xs dark:text-gray-300">
                                     @lang('admin::app.dashboard.index.revenue.lost-revenue')
+                                </p>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <span class="h-3.5 w-3.5 rounded-sm" style="background: rgba(59, 130, 246, 0.8)"></span>
+
+                                <p class="text-xs dark:text-gray-300">
+                                    @lang('admin::app.dashboard.index.revenue.ad-spend')
                                 </p>
                             </div>
                         </div>
@@ -157,19 +189,22 @@
                         data: {
                             labels: [
                             "@lang('admin::app.dashboard.index.revenue.won-revenue')",
-                            "@lang('admin::app.dashboard.index.revenue.lost-revenue')"
+                            "@lang('admin::app.dashboard.index.revenue.lost-revenue')",
+                            "@lang('admin::app.dashboard.index.revenue.ad-spend')"
                         ],
 
                             datasets: [{
                                 axis: 'y',
                                 data: [
                                     this.report.statistics.total_won_revenue.current,
-                                    this.report.statistics.total_lost_revenue.current
+                                    this.report.statistics.total_lost_revenue.current,
+                                    this.report.statistics.total_ad_spend.current
                                 ],
 
                                 backgroundColor: [
                                     'rgba(34, 197, 94, 0.8)',
                                     'rgba(239, 68, 68, 0.8)',
+                                    'rgba(59, 130, 246, 0.8)',
                                 ],
 
                                 barPercentage: 0.8,

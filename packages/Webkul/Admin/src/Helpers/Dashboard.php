@@ -35,6 +35,7 @@ class Dashboard
         return [
             'total_won_revenue' => $this->leadReporting->getTotalWonLeadValueProgress(),
             'total_lost_revenue' => $this->leadReporting->getTotalLostLeadValueProgress(),
+            'total_ad_spend' => $this->leadReporting->getAdSpendProgress(),
         ];
     }
 
