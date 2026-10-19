@@ -179,7 +179,10 @@ class AgendaController extends Controller
 
         $result = AppointmentBooking::book($data);
 
-        abort_if($result['status'] === 422, 422, $result['body']['message']);
+        // Only a refusal carries a message: reading it on success would be an error after the booking was saved.
+        if ($result['status'] === 422) {
+            abort(422, $result['body']['message']);
+        }
 
         return response()->json($result['body'], $result['status']);
     }
