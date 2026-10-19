@@ -54,8 +54,19 @@ final class AdsOverview
      */
     public function month(Carbon $month, ?string $accountId = null): array
     {
-        $from = $month->copy()->startOfMonth();
-        $to = $month->copy()->endOfMonth();
+        return $this->range($month->copy()->startOfMonth(), $month->copy()->endOfMonth(), $accountId);
+    }
+
+    /**
+     * The dashboard for any period (from the first to the last day, both included). The month-by-month
+     * trend always shows the six months ending at the month the period ends in.
+     *
+     * @return array<string, mixed>
+     */
+    public function range(Carbon $from, Carbon $to, ?string $accountId = null): array
+    {
+        $from = $from->copy()->startOfDay();
+        $to = $to->copy()->endOfDay();
         $tax = self::taxPercent();
 
         $this->loadCampaignFunnels($accountId);
@@ -65,15 +76,24 @@ final class AdsOverview
         $trend = [];
 
         for ($i = self::TREND_MONTHS - 1; $i >= 0; $i--) {
-            $start = $month->copy()->subMonthsNoOverflow($i)->startOfMonth();
-            $data = $i === 0 ? $current : $this->period($start, $start->copy()->endOfMonth(), $accountId, $tax);
+            $start = $to->copy()->subMonthsNoOverflow($i)->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+
+            // The month the period covers from its first day to now is the period itself.
+            $isPeriod = $from->isSameDay($start) && $to->format('Y-m') === $start->format('Y-m') && ($to->isSameDay($end) || $to->gte(now()->startOfDay()));
+            $data = $isPeriod ? $current : $this->period($start, $end, $accountId, $tax);
 
             $trend[] = ['month' => $start->format('Y-m'), 'label' => $start->locale('pt_BR')->translatedFormat('M/y')] + $data['summary'];
         }
 
+        $wholeMonth = $from->isSameDay($from->copy()->startOfMonth()) && $to->format('Y-m') === $from->format('Y-m')
+            && ($to->isSameDay($to->copy()->endOfMonth()) || $to->gte(now()->startOfDay()));
+
         return [
-            'month'       => $from->format('Y-m'),
-            'label'       => $from->locale('pt_BR')->translatedFormat('F \d\e Y'),
+            'month'       => $to->format('Y-m'),
+            'start'       => $from->format('Y-m-d'),
+            'end'         => $to->format('Y-m-d'),
+            'label'       => $wholeMonth ? $from->locale('pt_BR')->translatedFormat('F \d\e Y') : $from->format('d/m/Y').' – '.$to->format('d/m/Y'),
             'tax_percent' => $tax,
             'summary'     => $current['summary'],
             'funnels'     => $current['funnels'],

@@ -48,6 +48,7 @@
         .drp-nav{width:28px;height:28px;border:0;border-radius:50%;background:none;color:inherit;font-size:18px;line-height:1;cursor:pointer}
         .drp-nav:hover{background:var(--drp-soft)}
         .drp-nav[hidden]{visibility:hidden;display:block}
+        .drp-next-m{visibility:hidden}
         .drp-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px;text-align:center}
         .drp-dow{padding:6px 0;color:var(--drp-muted);font-size:12px}
         .drp-day{position:relative;height:34px;border:0;background:none;color:inherit;font:inherit;font-size:13px;cursor:pointer}
@@ -76,6 +77,7 @@
             .drp-months{justify-content:center}
             .drp-month{width:100%;max-width:320px}
             .drp-second{display:none}
+            .drp-next-m{visibility:visible}
         }
     </style>
 
@@ -130,7 +132,8 @@
                                 </span>
 
                                 <button type="button" class="drp-nav" v-if="offset === 1" @click="shift(1)" aria-label="›">›</button>
-                                <button type="button" class="drp-nav" v-else hidden></button>
+                                <!-- Only one month shows on a phone: its own "next" arrow -->
+                                <button type="button" class="drp-nav drp-next-m" v-else @click="shift(1)" aria-label="›">›</button>
                             </div>
 
                             <div class="drp-grid">

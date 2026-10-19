@@ -4,11 +4,13 @@
     </x-slot>
 
     @include('goals::components.strip')
+    @include('admin::components.date-range-picker')
 
     <v-ads
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.ads_page')) }}"
-        month="{{ $month }}"
+        start="{{ $start }}"
+        end="{{ $end }}"
         :can-edit="{{ $canEdit ? 'true' : 'false' }}"
     >
         <div class="p-6 text-sm text-gray-500">@lang('whatsapp::app.agenda.loading')</div>
@@ -77,10 +79,16 @@
                             <input class="is-narrow" type="number" min="0" max="100" step="0.1" v-model="tax" @change="saveTax">
                         </label>
 
-                        <label class="ads-field">
-                            @{{ labels.month }}
-                            <input type="month" v-model="current" @change="load">
-                        </label>
+                        <div class="ads-field">
+                            @{{ labels.period }}
+
+                            <v-date-range-picker
+                                align="right"
+                                :start="from"
+                                :end="until"
+                                @apply="onPeriod"
+                            ></v-date-range-picker>
+                        </div>
 
                         <button type="button" class="ads-btn" :disabled="loading" @click="load">@{{ labels.refresh }}</button>
                     </div>
@@ -89,7 +97,7 @@
                 <p class="ads-note" v-if="problem">@{{ problem }}</p>
 
                 @if (bouncer()->hasPermission('goals'))
-                    <v-goals-strip :month="current" style="margin-bottom:16px;display:block"></v-goals-strip>
+                    <v-goals-strip :month="until.slice(0, 7)" style="margin-bottom:16px;display:block"></v-goals-strip>
                 @endif
 
                 <template v-if="report">
@@ -369,12 +377,13 @@
                 props: {
                     urls: { type: Object, required: true },
                     labels: { type: Object, required: true },
-                    month: { type: String, required: true },
+                    start: { type: String, required: true },
+                    end: { type: String, required: true },
                     canEdit: { type: Boolean, default: false },
                 },
 
                 data() {
-                    return { report: null, current: this.month, tax: 0, problem: '', loading: false, charts: {} };
+                    return { report: null, from: this.start, until: this.end, tax: 0, problem: '', loading: false, charts: {} };
                 },
 
                 computed: {
@@ -456,12 +465,19 @@
                         return platform ? (names[platform] || platform) : this.labels.unknown_platform;
                     },
 
+                    onPeriod({ start, end }) {
+                        this.from = start;
+                        this.until = end;
+
+                        this.load();
+                    },
+
                     async load() {
                         this.problem = '';
                         this.loading = true;
 
                         try {
-                            const { data } = await this.$axios.get(this.urls.overview, { params: { month: this.current } });
+                            const { data } = await this.$axios.get(this.urls.overview, { params: { start: this.from, end: this.until } });
 
                             this.report = data;
                             this.tax = data.tax_percent;

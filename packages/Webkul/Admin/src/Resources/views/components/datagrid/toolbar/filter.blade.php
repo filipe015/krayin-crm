@@ -1,3 +1,5 @@
+@include('admin::components.date-range-picker')
+
 @include('admin::components.filters.helpers')
 
 <v-datagrid-filter
@@ -262,49 +264,17 @@
                                                     </div>
 
                                                     <div class="mt-1.5 grid grid-cols-2 gap-1.5">
-                                                        <p
-                                                            class="cursor-pointer rounded-md border px-3 py-2 text-center text-sm font-medium leading-6 text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:text-gray-300 dark:hover:border-gray-400"
-                                                            v-for="option in column.filterable_options"
-                                                            v-text="option.label"
-                                                            @click="addFilter(
-                                                                $event,
-                                                                column,
-                                                                { quickFilter: { isActive: true, selectedFilter: option } }
-                                                            )"
-                                                        >
-                                                        </p>
+                                                        <div class="col-span-2">
+                                    <!-- Period: ready-made ranges + two months, in a window over the drawer -->
+                                    <v-date-range-picker
+                                        modal
+                                        block
+                                        :start="appliedRange(column).start"
+                                        :end="appliedRange(column).end"
+                                        @apply="({ start, end }) => applyRange(column, start, end)"
+                                    ></v-date-range-picker>
+                                </div>
 
-                                                        <x-admin::flat-picker.date ::allow-input="false">
-                                                            <input
-                                                                type="date"
-                                                                :name="`${column.index}[from]`"
-                                                                value=""
-                                                                class="flex min-h-[39px] w-full rounded-md border px-3 py-2 text-sm text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400 ltr:pr-8 rtl:pl-8"
-                                                                :placeholder="column.label"
-                                                                :ref="`${column.index}[from]`"
-                                                                @change="addFilter(
-                                                                    $event,
-                                                                    column,
-                                                                    { range: { name: 'from' }, quickFilter: { isActive: false } }
-                                                                )"
-                                                            />
-                                                        </x-admin::flat-picker.date>
-
-                                                        <x-admin::flat-picker.date ::allow-input="false">
-                                                            <input
-                                                                type="date"
-                                                                :name="`${column.index}[to]`"
-                                                                value=""
-                                                                class="flex min-h-[39px] w-full rounded-md border px-3 py-2 text-sm text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400 ltr:pr-8 rtl:pl-8"
-                                                                :placeholder="column.label"
-                                                                :ref="`${column.index}[from]`"
-                                                                @change="addFilter(
-                                                                    $event,
-                                                                    column,
-                                                                    { range: { name: 'to' }, quickFilter: { isActive: false } }
-                                                                )"
-                                                            />
-                                                        </x-admin::flat-picker.date>
 
                                                         <div class="mb-4 flex flex-wrap gap-2">
                                                             <p
@@ -405,49 +375,17 @@
                                                     </div>
 
                                                     <div class="my-4 grid grid-cols-2 gap-1.5">
-                                                        <p
-                                                            class="cursor-pointer rounded-md border px-3 py-2 text-center text-sm font-medium leading-6 text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:text-gray-300 dark:hover:border-gray-400"
-                                                            v-for="option in column.filterable_options"
-                                                            v-text="option.label"
-                                                            @click="addFilter(
-                                                                $event,
-                                                                column,
-                                                                { quickFilter: { isActive: true, selectedFilter: option } }
-                                                            )"
-                                                        >
-                                                        </p>
+                                                        <div class="col-span-2">
+                                    <!-- Period: ready-made ranges + two months, in a window over the drawer -->
+                                    <v-date-range-picker
+                                        modal
+                                        block
+                                        :start="appliedRange(column).start"
+                                        :end="appliedRange(column).end"
+                                        @apply="({ start, end }) => applyRange(column, start, end)"
+                                    ></v-date-range-picker>
+                                </div>
 
-                                                        <x-admin::flat-picker.datetime ::allow-input="false">
-                                                            <input
-                                                                type="datetime-local"
-                                                                :name="`${column.index}[from]`"
-                                                                value=""
-                                                                class="flex min-h-[39px] w-full rounded-md border px-3 py-2 text-sm text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400"
-                                                                :placeholder="column.label"
-                                                                :ref="`${column.index}[from]`"
-                                                                @change="addFilter(
-                                                                    $event,
-                                                                    column,
-                                                                    { range: { name: 'from' }, quickFilter: { isActive: false } }
-                                                                )"
-                                                            />
-                                                        </x-admin::flat-picker.datetime>
-
-                                                        <x-admin::flat-picker.datetime ::allow-input="false">
-                                                            <input
-                                                                type="datetime-local"
-                                                                :name="`${column.index}[to]`"
-                                                                value=""
-                                                                class="flex min-h-[39px] w-full rounded-md border px-3 py-2 text-sm text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400"
-                                                                :placeholder="column.label"
-                                                                :ref="`${column.index}[from]`"
-                                                                @change="addFilter(
-                                                                    $event,
-                                                                    column,
-                                                                    { range: { name: 'to' }, quickFilter: { isActive: false } }
-                                                                )"
-                                                            />
-                                                        </x-admin::flat-picker.datetime>
 
                                                         <div class="mb-4 flex flex-wrap gap-2">
                                                             <p
@@ -1174,6 +1112,32 @@
                     this.$emit('applyFilters', this.filters);
 
                     this.$refs.filterDrawer.close();
+                },
+
+                /**
+                 * The period applied to a date column (Y-m-d), or empty while none (or a named quick filter) is.
+                 */
+                appliedRange(column) {
+                    const applied = this.findAppliedColumn(column.index);
+
+                    if (! applied || typeof applied.value === 'string' || ! applied.value.length) {
+                        return { start: '', end: '' };
+                    }
+
+                    const [from, to] = applied.value[0];
+
+                    return { start: String(from || '').slice(0, 10), end: String(to || '').slice(0, 10) };
+                },
+
+                /**
+                 * A period chosen on the range picker: the same values the two date fields used to send
+                 * (datetime columns get the whole first and last day).
+                 */
+                applyRange(column, start, end) {
+                    const datetime = column.type === 'datetime';
+
+                    this.addFilter(datetime ? start + ' 00:00:00' : start, column, { range: { name: 'from' }, quickFilter: { isActive: false } });
+                    this.addFilter(datetime ? end + ' 23:59:59' : end, column, { range: { name: 'to' }, quickFilter: { isActive: false } });
                 },
 
                 /**

@@ -22,19 +22,36 @@ class AdsController extends Controller
                 'overview' => route('admin.ads.overview'),
                 'settings' => route('admin.ads.settings'),
             ],
-            'month' => now()->format('Y-m'),
+            'start' => now()->startOfMonth()->format('Y-m-d'),
+            'end' => now()->format('Y-m-d'),
             'canEdit' => bouncer()->hasPermission('ads'),
         ]);
     }
 
     /**
-     * The dashboard for one month (default: this month).
+     * The dashboard for a period (start and end, both included) or for one month; this month by default.
      */
     public function overview(Request $request): JsonResponse
     {
-        $data = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $data = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'start' => ['nullable', 'date_format:Y-m-d', 'required_with:end'],
+            'end'   => ['nullable', 'date_format:Y-m-d', 'required_with:start', 'after_or_equal:start'],
+        ]);
 
-        $month = Carbon::createFromFormat('Y-m-d', ($data['month'] ?? now()->format('Y-m')).'-01', config('app.timezone'))->startOfDay();
+        $zone = config('app.timezone');
+
+        if (isset($data['start'])) {
+            $from = Carbon::createFromFormat('Y-m-d', $data['start'], $zone)->startOfDay();
+            $to = Carbon::createFromFormat('Y-m-d', $data['end'], $zone)->startOfDay();
+
+            // A year of days is already a long chart; beyond that it is not a dashboard.
+            abort_if($from->diffInDays($to) > 366, 422);
+
+            return response()->json(app(AdsOverview::class)->range($from, $to));
+        }
+
+        $month = Carbon::createFromFormat('Y-m-d', ($data['month'] ?? now()->format('Y-m')).'-01', $zone)->startOfDay();
 
         return response()->json(app(AdsOverview::class)->month($month));
     }
