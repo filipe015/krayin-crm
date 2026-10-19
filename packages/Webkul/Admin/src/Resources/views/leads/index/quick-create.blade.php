@@ -13,6 +13,12 @@
         preg_replace('/[^a-z]+/', '_', mb_strtolower(\Illuminate\Support\Str::ascii($attribute->name))),
         ['nome_do_contato', 'nome_contato', 'contact_name'],
     ) || in_array($attribute->code, ['nome_do_contato', 'nome_contato', 'contact_name']));
+
+    // Serviços (the products of the installation) the deal can be tied to; none for people without access to them.
+    $quickServices = bouncer()->hasPermission('products')
+        ? \Webkul\Product\Models\Product::query()->orderBy('name')->limit(300)->get(['id', 'name', 'price'])
+            ->map(fn ($service) => ['id' => $service->id, 'name' => $service->name, 'price' => (float) $service->price])->values()
+        : collect();
 @endphp
 
 <v-lead-quick-create
@@ -20,6 +26,7 @@
     :stages="{{ Illuminate\Support\Js::from($pipeline->stages->map(fn ($stage) => ['id' => $stage->id, 'name' => $stage->name, 'code' => $stage->code])->values()) }}"
     view-type="{{ request()->view_type ?? 'kanban' }}"
     contact-name-field="{{ $contactNameField?->code }}"
+    :services="{{ Illuminate\Support\Js::from($quickServices) }}"
 ></v-lead-quick-create>
 
 {{-- Registers the contact component (person lookup, e-mail, phone, organization). --}}
@@ -36,16 +43,24 @@
 
 @pushOnce('scripts')
     <style>
-        /* Compact two-column card: fields side by side, tighter spacing. */
+        /* Compact two-column card: fields side by side, tighter spacing. The details are laid out by position:
+           title (full row), stage | service, then the rest in pairs, the description last. */
         .lqc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; grid-auto-flow: row dense; }
-        .lqc-grid > * { margin-bottom: 6px; min-width: 0; }
-        .lqc-grid > :has([name="title"]),
-        .lqc-grid > :last-child:nth-child(odd),
-        .lqc-grid > :has(textarea) { grid-column: span 2; }
-        .lqc-grid textarea { min-height: 56px; height: 56px; }
-        .lqc-grid label { font-size: 12px; margin-bottom: 2px; }
+        .lqc-grid > * { margin-bottom: 4px; min-width: 0; }
+        .lqc-grid > :has([name="title"]) { grid-column: span 2; order: -3; }
+        .lqc-grid > .lqc-stage { order: -2; }
+        .lqc-grid > .lqc-service { order: -1; }
+        .lqc-grid > :has(textarea) { grid-column: span 2; order: 50; }
+        .lqc-grid textarea { min-height: 44px; height: 44px; }
+        .lqc-grid label { font-size: 12px; margin-bottom: 1px; }
         /* Tighter fields so the card is shorter: every control a little lower than the default. */
-        .lqc-grid input:not([type="checkbox"]):not([type="radio"]), .lqc-grid select, .lqc-grid .custom-select { padding-top: 6px; padding-bottom: 6px; font-size: 13px; }
+        .lqc-grid input:not([type="checkbox"]):not([type="radio"]), .lqc-grid select, .lqc-grid .custom-select { padding-top: 5px; padding-bottom: 5px; font-size: 13px; }
+        .lqc-divider { margin: 4px 0 6px; border-top: 1px solid #e5e7eb; }
+        .dark .lqc-divider { border-color: #1f2937; }
+        @media (max-height: 820px) {
+            .lqc-grid > * { margin-bottom: 2px; }
+            .lqc-grid input:not([type="checkbox"]):not([type="radio"]), .lqc-grid select, .lqc-grid .custom-select { padding-top: 4px; padding-bottom: 4px; }
+        }
         @media (max-width: 640px) {
             .lqc-grid { grid-template-columns: minmax(0, 1fr); }
             .lqc-grid > * { grid-column: auto !important; }
@@ -90,8 +105,16 @@
                             <input type="hidden" name="lead_pipeline_id" :value="pipelineId" />
 
                             <div class="lqc-grid">
+                                <!-- Contact (name, e-mail, phone, organization) -->
+                                <v-contact-component :data="person"></v-contact-component>
+                            </div>
+
+                            <div class="lqc-divider"></div>
+
+                            <!-- Deal -->
+                            <div class="lqc-grid lqc-details">
                                 <!-- Stage -->
-                                <x-admin::form.control-group>
+                                <x-admin::form.control-group class="lqc-stage">
                                     <x-admin::form.control-group.label>
                                         @lang('admin::app.lead-quick-create.stage')
                                     </x-admin::form.control-group.label>
@@ -111,16 +134,36 @@
                                     </select>
                                 </x-admin::form.control-group>
 
-                                <!-- Contact (name, e-mail, phone, organization) -->
-                                <v-contact-component :data="person"></v-contact-component>
-                            </div>
+                                <!-- Service (what the deal is about) -->
+                                <x-admin::form.control-group class="lqc-service" v-if="services.length">
+                                    <x-admin::form.control-group.label>
+                                        @lang('admin::app.lead-quick-create.service')
+                                    </x-admin::form.control-group.label>
 
-                            <!-- Deal -->
-                            <p class="mb-2 mt-2 font-semibold text-gray-800 dark:text-white">
-                                @lang('admin::app.leads.create.details')
-                            </p>
+                                    <select
+                                        v-model="serviceId"
+                                        @change="serviceChanged"
+                                        class="custom-select w-full rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                                    >
+                                        <option value="">@lang('admin::app.lead-quick-create.service-none')</option>
 
-                            <div class="lqc-grid lqc-details">
+                                        <option
+                                            v-for="service in services"
+                                            :key="service.id"
+                                            :value="service.id"
+                                        >
+                                            @{{ service.name }}
+                                        </option>
+                                    </select>
+
+                                    <template v-if="chosenService">
+                                        <input type="hidden" name="products[0][product_id]" :value="chosenService.id" />
+                                        <input type="hidden" name="products[0][name]" :value="chosenService.name" />
+                                        <input type="hidden" name="products[0][price]" :value="chosenService.price" />
+                                        <input type="hidden" name="products[0][quantity]" value="1" />
+                                    </template>
+                                </x-admin::form.control-group>
+
                                 <x-admin::attributes :custom-attributes="$quickAttributes" />
                             </div>
                         </form>
@@ -149,6 +192,7 @@
                 stages: { type: Array, default: () => [] },
                 viewType: { type: String, default: 'kanban' },
                 contactNameField: { type: String, default: '' },
+                services: { type: Array, default: () => [] },
             },
 
             data() {
@@ -157,7 +201,15 @@
                     autoContactName: '',
                     person: { name: '' },
                     stageId: this.firstStageId(),
+                    serviceId: '',
+                    autoValue: '',
                 };
+            },
+
+            computed: {
+                chosenService() {
+                    return this.services.find(service => String(service.id) === String(this.serviceId)) || null;
+                },
             },
 
             mounted() {
@@ -186,6 +238,20 @@
                     }
                 },
 
+                /**
+                 * The deal's value starts as the service's price (when nobody typed another value).
+                 */
+                serviceChanged() {
+                    const price = this.chosenService ? String(this.chosenService.price) : '';
+                    const current = String(this.$refs.form?.elements?.lead_value?.value ?? '');
+
+                    if (price !== '' && (current === '' || current === '0' || current === this.autoValue)) {
+                        this.$refs.formWrapper?.setFieldValue('lead_value', price);
+
+                        this.autoValue = price;
+                    }
+                },
+
                 firstStageId() {
                     const open = this.stages.find(stage => ! ['won', 'lost'].includes(stage.code));
 
@@ -195,6 +261,8 @@
                 open(stageId) {
                     this.stageId = stageId || this.firstStageId();
                     this.autoContactName = '';
+                    this.serviceId = '';
+                    this.autoValue = '';
                     this.person = { name: '' };
                     this.$refs.modal.open();
                 },

@@ -2237,6 +2237,8 @@ return [
     'lead-quick-create' => [
         'title' => 'Novo negócio',
         'stage' => 'Etapa',
+        'service' => 'Serviço',
+        'service-none' => 'Nenhum serviço',
     ],
 
     'activity-calendar' => [
