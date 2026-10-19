@@ -28,7 +28,9 @@
         .dark .drp-trigger{border-color:#1f2937}
         .drp-trigger:hover{border-color:#9ca3af}
         .drp-trigger b{font-weight:600}
+        .drp.is-block{display:block}
         .drp-trigger.is-block{width:100%}
+        .drp-trigger.is-block > span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
         .drp-panel{position:absolute;top:calc(100% + 6px);z-index:10010;display:flex;max-width:calc(100vw - 16px);border:1px solid var(--drp-line);border-radius:8px;background:var(--drp-bg);box-shadow:0 12px 32px rgba(0,0,0,.18);overflow:hidden}
         .drp-panel.is-left{left:0}
         .drp-panel.is-right{right:0}
@@ -82,7 +84,7 @@
     </style>
 
     <script type="text/x-template" id="v-date-range-picker-template">
-        <div class="drp" ref="root">
+        <div class="drp" :class="{ 'is-block': block }" ref="root">
             <button type="button" class="drp-trigger" :class="{ 'is-block': block }" @click="toggle">
                 <span class="icon-calendar text-xl"></span>
 
@@ -190,6 +192,7 @@
                 modal: { type: Boolean, default: false },
                 block: { type: Boolean, default: false },
                 allowFuture: { type: Boolean, default: false },
+                placeholder: { type: String, default: '' },
                 timezoneLabel: { type: String, default: @json($drpTimezoneLabel) },
             },
 
@@ -250,7 +253,7 @@
                 },
 
                 triggerDates() {
-                    return this.start && this.end ? this.dmy(this.start) + ' – ' + this.dmy(this.end) : this.labels.select;
+                    return this.start && this.end ? this.dmy(this.start) + ' – ' + this.dmy(this.end) : (this.placeholder || this.labels.select);
                 },
 
                 years() {

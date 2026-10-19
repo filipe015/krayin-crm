@@ -41,14 +41,14 @@ abstract class AbstractReporting
     }
 
     /**
-     * Set the start date or default to 30 days ago if not provided.
+     * Set the start date or default to the first day of this month if not provided.
      *
      * @param  \Carbon\Carbon|null  $startDate
      * @return void
      */
     public function setStartDate(?Carbon $startDate = null): self
     {
-        $this->startDate = $startDate ? $startDate->startOfDay() : now()->subDays(30)->startOfDay();
+        $this->startDate = $startDate ? $startDate->startOfDay() : now()->startOfMonth();
 
         $this->setLastStartDate();
 

@@ -275,23 +275,6 @@
                                     ></v-date-range-picker>
                                 </div>
 
-
-                                                        <div class="mb-4 flex flex-wrap gap-2">
-                                                            <p
-                                                                class="flex items-center rounded bg-gray-600 px-2 py-1 font-semibold text-white"
-                                                                v-if="findAppliedColumn(column.index)"
-                                                            >
-                                                                <span>
-                                                                    @{{ getFormattedDates(findAppliedColumn(column.index)) }}
-                                                                </span>
-
-                                                                <span
-                                                                    class="icon-cross-large cursor-pointer text-lg text-white ltr:ml-1.5 rtl:mr-1.5"
-                                                                    @click="removeAppliedColumnValue(column.index)"
-                                                                >
-                                                                </span>
-                                                            </p>
-                                                        </div>
                                                     </div>
                                                 </template>
 
@@ -386,23 +369,6 @@
                                     ></v-date-range-picker>
                                 </div>
 
-
-                                                        <div class="mb-4 flex flex-wrap gap-2">
-                                                            <p
-                                                                class="flex items-center rounded bg-gray-600 px-2 py-1 font-semibold text-white"
-                                                                v-if="findAppliedColumn(column.index)"
-                                                            >
-                                                                <span>
-                                                                    @{{ getFormattedDates(findAppliedColumn(column.index)) }}
-                                                                </span>
-
-                                                                <span
-                                                                    class="icon-cross-large cursor-pointer text-lg text-white ltr:ml-1.5 rtl:mr-1.5"
-                                                                    @click="removeAppliedColumnValue(column.index)"
-                                                                >
-                                                                </span>
-                                                            </p>
-                                                        </div>
                                                     </div>
                                                 </template>
 

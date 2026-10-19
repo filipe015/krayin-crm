@@ -1864,6 +1864,8 @@ return [
                         'to' => 'To',
                     ],
                     'clear-filters' => 'Clear filters',
+                    'period-placeholder' => 'Created: all time',
+                    'period-clear' => 'Clear period',
                     'total'         => 'deals in the pipeline',
                     'total-open'    => 'open deals',
                 ],

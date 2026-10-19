@@ -1863,6 +1863,8 @@ return [
                         'to' => 'Para',
                     ],
                     'clear-filters' => 'Limpar filtros',
+                    'period-placeholder' => 'Criado em: todo o período',
+                    'period-clear' => 'Limpar período',
                     'total'         => 'oportunidades no funil',
                     'total-open'    => 'oportunidades em aberto',
                 ],

@@ -16,6 +16,26 @@
 
         {!! view_render_event('admin.leads.index.kanban.toolbar.filter.after') !!}
 
+        <!-- Creation period: outside the filter drawer -->
+        <div class="flex items-center gap-1">
+            <v-date-range-picker
+                :start="applied.period.start"
+                :end="applied.period.end"
+                placeholder="@lang('admin::app.leads.index.kanban.toolbar.period-placeholder')"
+                @apply="setPeriod"
+            ></v-date-range-picker>
+
+            <button
+                type="button"
+                class="cursor-pointer rounded-md px-2 py-[9px] text-sm font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-950 dark:hover:text-gray-200"
+                v-if="applied.period.start"
+                title="@lang('admin::app.leads.index.kanban.toolbar.period-clear')"
+                @click="setPeriod({ start: '', end: '' })"
+            >
+                ✕
+            </button>
+        </div>
+
         <!-- Clear Filters -->
         <button
             type="button"

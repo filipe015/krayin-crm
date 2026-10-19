@@ -439,6 +439,9 @@
 
                         // Won and lost deals are off the board unless this is on (the filter's checkbox).
                         showClosed: false,
+
+                        // The creation period chosen on the toolbar (Y-m-d); empty = all.
+                        period: { start: '', end: '' },
                     },
 
                     finalized: {
@@ -700,6 +703,7 @@
                         if (currentKanban) {
                             this.applied.filters = currentKanban.applied.filters;
                             this.applied.showClosed = !! currentKanban.applied.showClosed;
+                            this.applied.period = currentKanban.applied.period || { start: '', end: '' };
 
                             this.get()
                                 .then(response => {
@@ -768,6 +772,12 @@
 
                     if (customFields.length) {
                         params['cf'] = JSON.stringify(customFields);
+                    }
+
+                    // The period of the toolbar: deals created between the two days.
+                    if (this.applied.period?.start) {
+                        params['search'] += `created_at:${this.applied.period.start},${this.applied.period.end};`;
+                        params['searchFields'] += 'created_at:between;';
                     }
 
                     return this.$axios
@@ -845,9 +855,23 @@
                  *
                  * @returns {void}
                  */
+                /**
+                 * The creation period picked on the toolbar ("" and "" = all time).
+                 */
+                setPeriod({ start, end }) {
+                    this.applied.period = { start, end };
+
+                    this.get().then(response => {
+                        for (let [sortOrder, data] of Object.entries(response.data)) {
+                            this.stageLeads[sortOrder] = data;
+                        }
+                    });
+                },
+
                 clearAllFilters() {
                     this.applied.filters.columns = [];
                     this.applied.showClosed = false;
+                    this.applied.period = { start: '', end: '' };
 
                     this.$refs.kanbanSearch?.clearSearch(false);
                     this.$refs.kanbanFilter?.clearAllFilters(false);
