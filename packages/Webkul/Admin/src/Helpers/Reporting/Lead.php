@@ -198,7 +198,7 @@ class Lead extends AbstractReporting
     }
 
     /**
-     * Retrieves average lead value and their progress.
+     * Retrieves the average ticket (won revenue / won deals) and its progress.
      */
     public function getAverageLeadValueProgress(): array
     {
@@ -211,17 +211,44 @@ class Lead extends AbstractReporting
     }
 
     /**
-     * Retrieves average lead value
+     * Average ticket: the value of the deals won in the period (by closing date) divided by how many were won.
+     * Open and lost deals do not count, they have not sold anything.
      *
      * @param  Carbon  $startDate
      * @param  Carbon  $endDate
      */
     public function getAverageLeadValue($startDate, $endDate): float
     {
+        $won = $this->getWonLeads($startDate, $endDate);
+
+        return $won > 0 ? $this->getTotalWonLeadValue($startDate, $endDate) / $won : 0;
+    }
+
+    /**
+     * Retrieves the number of won deals and its progress.
+     */
+    public function getWonLeadsProgress(): array
+    {
+        return [
+            'previous' => $previous = $this->getWonLeads($this->lastStartDate, $this->lastEndDate),
+            'current' => $current = $this->getWonLeads($this->startDate, $this->endDate),
+            'progress' => $this->getPercentageChange($previous, $current),
+        ];
+    }
+
+    /**
+     * Deals won in the period, by closing date.
+     *
+     * @param  Carbon  $startDate
+     * @param  Carbon  $endDate
+     */
+    public function getWonLeads($startDate, $endDate): int
+    {
         return $this->leadRepository
             ->resetModel()
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->avg('lead_value') ?? 0;
+            ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
+            ->whereBetween('closed_at', [$startDate, $endDate])
+            ->count();
     }
 
     /**

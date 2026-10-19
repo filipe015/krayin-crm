@@ -2099,7 +2099,8 @@ return [
                 'won-revenue' => 'Won Revenue',
             ],
             'over-all' => [
-                'average-lead-value' => 'Average Lead Value',
+                'average-lead-value' => 'Average ticket',
+                'won-leads' => 'Won deals',
                 'total-leads' => 'Total Leads',
                 'average-leads-per-day' => 'Average Leads Per Day',
                 'total-quotations' => 'Total Quotations',

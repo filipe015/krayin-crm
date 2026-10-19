@@ -2099,6 +2099,7 @@ return [
             ],
             'over-all' => [
                 'average-lead-value' => 'Ticket médio',
+                'won-leads' => 'Negócios ganhos',
                 'total-leads' => 'Total de negócios',
                 'average-leads-per-day' => 'Média de negócios por dia',
                 'total-quotations' => 'Total de cotações',
