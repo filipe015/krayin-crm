@@ -99,6 +99,27 @@ return [
         ],
     ],
     'components' => [
+        'date-range-picker' => [
+            'recent_title'    => 'Periods',
+            'today'           => 'Today',
+            'yesterday'       => 'Yesterday',
+            'today_yesterday' => 'Today and yesterday',
+            'last_7'          => 'Last 7 days',
+            'last_14'         => 'Last 14 days',
+            'last_28'         => 'Last 28 days',
+            'last_30'         => 'Last 30 days',
+            'this_week'       => 'This week',
+            'last_week'       => 'Last week',
+            'this_month'      => 'This month',
+            'last_month'      => 'Last month',
+            'custom'          => 'Custom',
+            'select'          => 'Select period',
+            'cancel'          => 'Cancel',
+            'update'          => 'Update',
+            'timezone'        => 'Time zone of the dates:',
+            'months'          => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            'weekdays'        => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        ],
         'activities' => [
             'actions' => [
                 'mail' => [

@@ -83,6 +83,8 @@
 
     {!! view_render_event('admin.dashboard.index.content.after') !!}
 
+    @include('admin::components.date-range-picker')
+
     @pushOnce('scripts')
 
         <script
@@ -103,31 +105,12 @@
         >
             {!! view_render_event('admin.dashboard.index.date_filters.before') !!}
 
-            <div class="flex gap-1.5">
-                <x-admin::flat-picker.date
-                    class="!w-[140px]"
-                    ::allow-input="false"
-                    ::max-date="filters.end"
-                >
-                    <input
-                        class="flex min-h-[39px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400"
-                        v-model="filters.start"
-                        placeholder="@lang('admin::app.dashboard.index.start-date')"
-                    />
-                </x-admin::flat-picker.date>
-
-                <x-admin::flat-picker.date
-                    class="!w-[140px]"
-                    ::allow-input="false"
-                    ::max-date="filters.end"
-                >
-                    <input
-                        class="flex min-h-[39px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 transition-all hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-400"
-                        v-model="filters.end"
-                        placeholder="@lang('admin::app.dashboard.index.end-date')"
-                    />
-                </x-admin::flat-picker.date>
-            </div>
+            <v-date-range-picker
+                align="right"
+                :start="filters.start"
+                :end="filters.end"
+                @apply="({ start, end }) => { filters.start = start; filters.end = end; }"
+            ></v-date-range-picker>
 
             {!! view_render_event('admin.dashboard.index.date_filters.after') !!}
         </script>

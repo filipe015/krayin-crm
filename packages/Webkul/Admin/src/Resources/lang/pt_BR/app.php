@@ -99,6 +99,27 @@ return [
         ],
     ],
     'components' => [
+        'date-range-picker' => [
+            'recent_title'    => 'Períodos',
+            'today'           => 'Hoje',
+            'yesterday'       => 'Ontem',
+            'today_yesterday' => 'Hoje e ontem',
+            'last_7'          => 'Últimos 7 dias',
+            'last_14'         => 'Últimos 14 dias',
+            'last_28'         => 'Últimos 28 dias',
+            'last_30'         => 'Últimos 30 dias',
+            'this_week'       => 'Esta semana',
+            'last_week'       => 'Semana passada',
+            'this_month'      => 'Este mês',
+            'last_month'      => 'Mês passado',
+            'custom'          => 'Personalizado',
+            'select'          => 'Selecionar período',
+            'cancel'          => 'Cancelar',
+            'update'          => 'Atualizar',
+            'timezone'        => 'Fuso horário das datas:',
+            'months'          => ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+            'weekdays'        => ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+        ],
         'activities' => [
             'actions' => [
                 'mail' => [
