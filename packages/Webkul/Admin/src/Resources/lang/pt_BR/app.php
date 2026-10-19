@@ -2097,6 +2097,7 @@ return [
                 'lost-revenue' => 'Negócios Perdidos',
                 'won-revenue' => 'Negócios Ganhos',
                 'ad-spend' => 'Investido em anúncios',
+                'ad-spend-tax' => 'Inclui imposto de :percent',
             ],
             'over-all' => [
                 'average-lead-value' => 'Ticket médio',

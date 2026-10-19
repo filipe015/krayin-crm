@@ -94,6 +94,10 @@
                                     </p>
                                 </div>
                             </div>
+
+                            <p class="text-xs text-gray-500 dark:text-gray-400" v-if="report.statistics.total_ad_spend.tax_percent > 0">
+                                @lang('admin::app.dashboard.index.revenue.ad-spend-tax', ['percent' => ''])@{{ report.statistics.total_ad_spend.tax_percent }}%
+                            </p>
                         </div>
                     </div>
 

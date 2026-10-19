@@ -51,3 +51,20 @@ it('sums the ad spend of the days in the period', function () {
     expect($report->getAdSpend(Carbon::parse('2032-03-01'), Carbon::parse('2032-03-31')->endOfDay()))->toBe(500.5)
         ->and($report->getAdSpend(Carbon::parse('2032-05-01'), Carbon::parse('2032-05-31')))->toBe(0.0);
 });
+
+it('adds the tax set in Anúncios to the ad spend', function () {
+    DB::table('ad_insights_daily')->insert(['account_id' => 'test', 'date' => '2033-03-05', 'ad_id' => 'ad-tax', 'platform' => 'facebook', 'spend' => 1000, 'created_at' => now(), 'updated_at' => now()]);
+
+    $report = app(LeadReporting::class);
+    $from = Carbon::parse('2033-03-01');
+    $to = Carbon::parse('2033-03-31')->endOfDay();
+
+    DB::table('ad_settings')->delete();
+
+    expect($report->getAdSpend($from, $to))->toBe(1000.0);
+
+    DB::table('ad_settings')->insert(['tax_percent' => 13.5, 'created_at' => now(), 'updated_at' => now()]);
+
+    expect($report->getAdSpend($from, $to))->toBe(1135.0)
+        ->and($report->getAdTaxPercent())->toBe(13.5);
+});

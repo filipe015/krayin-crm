@@ -2098,6 +2098,7 @@ return [
                 'lost-revenue' => 'Lost Revenue',
                 'won-revenue' => 'Won Revenue',
                 'ad-spend' => 'Ad spend',
+                'ad-spend-tax' => 'Includes tax of :percent',
             ],
             'over-all' => [
                 'average-lead-value' => 'Average ticket',

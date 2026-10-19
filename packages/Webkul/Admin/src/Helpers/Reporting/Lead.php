@@ -282,7 +282,8 @@ class Lead extends AbstractReporting
     }
 
     /**
-     * Retrieves the money invested in ads (Meta, from the Anúncios sync) and its progress.
+     * Retrieves the money invested in ads (Meta, from the Anúncios sync), with the tax set in
+     * Anúncios, and its progress.
      */
     public function getAdSpendProgress(): array
     {
@@ -290,12 +291,14 @@ class Lead extends AbstractReporting
             'previous' => $previous = $this->getAdSpend($this->lastStartDate, $this->lastEndDate),
             'current' => $current = $this->getAdSpend($this->startDate, $this->endDate),
             'formatted_total' => core()->formatBasePrice($current),
+            'tax_percent' => $this->getAdTaxPercent(),
             'progress' => $this->getPercentageChange($previous, $current),
         ];
     }
 
     /**
-     * Ad spend of the days in the period (0 where the instance has no ads data).
+     * Ad spend of the days in the period plus the tax (Anúncios → imposto %), the same cost the
+     * Anúncios screen calls "custo total". 0 where the instance has no ads data.
      *
      * @param  Carbon  $startDate
      * @param  Carbon  $endDate
@@ -306,9 +309,19 @@ class Lead extends AbstractReporting
             return 0;
         }
 
-        return (float) DB::table('ad_insights_daily')
+        $spend = (float) DB::table('ad_insights_daily')
             ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
             ->sum('spend');
+
+        return round($spend * (1 + $this->getAdTaxPercent() / 100), 2);
+    }
+
+    /**
+     * The tax the installation set on the Anúncios screen (0 when none).
+     */
+    public function getAdTaxPercent(): float
+    {
+        return Schema::hasTable('ad_settings') ? (float) (DB::table('ad_settings')->value('tax_percent') ?? 0) : 0;
     }
 
     /**
