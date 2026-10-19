@@ -161,7 +161,7 @@ return [
         'gap_less'      => ':metric: funnels add up to :funnels and the general goal is :general (:gap short).',
         'gap_more'      => ':metric: funnels add up to :funnels and the general goal is :general (:gap over).',
 
-        'schedule'      => 'Goals per week and per day',
+        'schedule'      => 'Goals per week',
         'by_week'       => 'By week',
         'by_day'        => 'By day',
         'week'          => 'Week',

@@ -1,6 +1,6 @@
 {{--
     Plano do mês: the numbers of a month (general or one funnel), the funnel they need worked out as the
-    person types (the server does the arithmetic: preview), what that means per week and per day, and the
+    person types (the server does the arithmetic: preview), what that means per week, and the
     month's working days.
 --}}
 @pushOnce('scripts')
@@ -123,7 +123,7 @@
                 <div v-for="line in gapLines" :key="line">@{{ line }}</div>
             </div>
 
-            <!-- What it means per week and per day -->
+            <!-- What it means per week -->
             <section class="gl-box" v-if="plan">
                 <header><h2>@{{ labels.schedule }}</h2></header>
 
@@ -147,27 +147,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <details style="margin-top:14px">
-                    <summary style="cursor:pointer" class="gl-link">@{{ labels.by_day }}</summary>
-
-                    <div class="gl-wrap" style="margin-top:8px">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>@{{ labels.day }}</th>
-                                    <th v-for="column in columns" :key="column.key">@{{ column.label }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="day in plan.days" :key="day.date" :class="{ 'is-off': ! isWorking(day.date) }">
-                                    <td>@{{ weekdayName(day.date) }} @{{ day.date.slice(8, 10) }}</td>
-                                    <td v-for="column in columns" :key="column.key">@{{ cell(column, day.targets) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
             </section>
 
             <!-- Working days of the month -->

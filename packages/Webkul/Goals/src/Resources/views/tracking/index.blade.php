@@ -89,7 +89,7 @@
 
                 <template v-else>
                     <div class="gt-cards">
-                        <div v-for="name in ['day', 'week', 'month']" :key="name" class="gt-box gt-card">
+                        <div v-for="name in ['week', 'month']" :key="name" class="gt-box gt-card">
                             <h3>@{{ labels.periods[name] }}</h3>
 
                             <div v-for="row in periodRows(name)" :key="row.step" class="gt-item">

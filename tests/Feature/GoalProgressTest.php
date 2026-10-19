@@ -62,7 +62,7 @@ it('counts what happened by its date against what the plan expected by today', f
         ->and($steps['leads']['projection'])->toBe(4)
         ->and($steps['leads']['missing'])->toBe(250)
         ->and($steps['leads']['per_day'])->toBe(20)
-        ->and($data['periods']['day']['steps'][0]['step'])->toBe('leads');
+        ->and($data['periods']['week']['steps'][0]['step'])->toBe('leads')->and($data['periods'])->not->toHaveKey('day');
 });
 
 it('is green when the pace is enough', function () {

@@ -161,7 +161,7 @@ return [
         'gap_less'      => ':metric: os funis somam :funnels e a meta geral é :general (faltam :gap).',
         'gap_more'      => ':metric: os funis somam :funnels e a meta geral é :general (passam :gap).',
 
-        'schedule'      => 'Metas por semana e por dia',
+        'schedule'      => 'Metas por semana',
         'by_week'       => 'Por semana',
         'by_day'        => 'Por dia',
         'week'          => 'Semana',

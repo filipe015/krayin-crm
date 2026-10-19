@@ -150,14 +150,13 @@ final class GoalProgress
     }
 
     /**
-     * Today, this week (Monday–Sunday) and the month, each against its own goal.
+     * This week (Monday–Sunday) and the month, each against its own goal.
      *
      * @return array<string, array<string, mixed>>
      */
     private static function periods(CarbonImmutable $today, CarbonImmutable $first, CarbonImmutable $last, string $funnel): array
     {
         $ranges = [
-            'day'   => [$today, $today],
             'week'  => [$today->startOfWeek(CarbonImmutable::MONDAY), $today->endOfWeek(CarbonImmutable::SUNDAY)->startOfDay()],
             'month' => [$first, $last],
         ];
