@@ -57,8 +57,7 @@
             <!-- Total Leads Stats -->
             @include('admin::dashboard.index.total-leads')
 
-            <!-- Sales cycle (creation to closing / to first appointment) -->
-            @include('admin::dashboard.index.sales-cycle')
+            {{-- Sales cycle (creation to closing / to first appointment): hidden for now. To bring it back, restore: @include('admin::dashboard.index.sales-cycle') --}}
 
         </div>
 
