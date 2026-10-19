@@ -7,7 +7,7 @@
 @pushOnce('scripts')
     <script type="text/x-template" id="v-agenda-book-template">
         <Teleport to="body">
-        <div v-if="form" class="ag-back" @click.self="form = null">
+        <div v-if="form" class="ag-back" @click.self="dismiss">
             <form class="ag ag-modal" @submit.prevent="submit(false)">
                 <h2>@{{ form.kind === 'followup' ? labels.kind_followup : labels.new }}</h2>
 
@@ -106,7 +106,7 @@
                 </div>
 
                 <div class="ag-footer">
-                    <button type="button" class="ag-btn" @click="form = null">@{{ labels.cancel }}</button>
+                    <button type="button" class="ag-btn" @click="dismiss">@{{ labels.cancel }}</button>
                     <button v-if="conflicts.length" type="button" class="ag-btn is-danger" :disabled="busy" @click="submit(true)">@{{ labels.conflict_force }}</button>
                     <button type="submit" class="ag-btn is-primary" :disabled="busy">@{{ form.kind === 'followup' ? labels.followup_save : labels.save }}</button>
                 </div>
@@ -154,6 +154,12 @@
                 localInput(date) {
                     return date.getFullYear() + '-' + this.pad(date.getMonth() + 1) + '-' + this.pad(date.getDate())
                         + 'T' + this.pad(date.getHours()) + ':' + this.pad(date.getMinutes());
+                },
+
+                dismiss() {
+                    this.form = null;
+
+                    this.$emitter.emit('agenda-book-closed');
                 },
 
                 open({ lead = null, start = null, kind = 'appointment', lockKind = false } = {}) {

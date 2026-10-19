@@ -971,6 +971,9 @@
                                 });
 
                             this.$emitter.emit('add-flash', { type: 'success', message: response.data.message });
+
+                            // The card to book it opens when the installation chose this column (Configurações → Agenda).
+                            this.$emitter.emit('agenda-stage-changed', { lead_id: event.added.element.id });
                         })
                         .catch(error => {
                             this.get()

@@ -187,6 +187,51 @@ class AgendaController extends Controller
         return response()->json($result['body'], $result['status']);
     }
 
+    /**
+     * After a deal reaches a stage (moved on the board, on its page, or created there): should the
+     * booking card open? Only when the installation chose that stage (Configurações → Agenda) and
+     * the deal has nothing of that kind waiting yet.
+     */
+    public function stagePrompt(Request $request): JsonResponse
+    {
+        $data = $request->validate(['lead_id' => ['required', 'integer', 'exists:leads,id']]);
+
+        $authorized = bouncer()->getAuthorizedUserIds();
+
+        abort_if(
+            $authorized && ! Lead::query()->whereKey($data['lead_id'])->whereIn('user_id', $authorized)->exists(),
+            403,
+        );
+
+        $lead = Lead::query()->with(['person:id,name', 'stage:id,name'])->findOrFail($data['lead_id']);
+
+        $kind = AgendaSetting::stageTriggers()[(int) $lead->lead_pipeline_stage_id] ?? null;
+
+        if ($kind === null || $this->hasPending($lead->id, $kind)) {
+            return response()->json(['open' => false]);
+        }
+
+        return response()->json([
+            'open' => true,
+            'kind' => $kind,
+            'lead' => ['id' => $lead->id, 'title' => $lead->title, 'person' => $lead->person?->name, 'stage' => $lead->stage?->name],
+        ]);
+    }
+
+    /**
+     * A deal already waiting for an appointment (or a follow-up) does not need another one asked.
+     */
+    private function hasPending(int $leadId, string $kind): bool
+    {
+        return DB::table('activities')
+            ->join('lead_activities', 'lead_activities.activity_id', '=', 'activities.id')
+            ->where('lead_activities.lead_id', $leadId)
+            ->where('activities.is_done', 0)
+            ->where(fn ($query) => $this->ofAgenda($query, 'activities', $kind === 'followup'))
+            ->when($kind === 'followup', fn ($query) => $query->where('activities.type', 'call'), fn ($query) => $query->where('activities.type', 'meeting'))
+            ->exists();
+    }
+
     public function done(int $id): JsonResponse
     {
         $query = DB::table('activities')->where('id', $id)->where(fn ($inner) => $this->ofAgenda($inner, 'activities', true));

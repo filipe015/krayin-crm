@@ -9,6 +9,7 @@
         :initial="{{ Illuminate\Support\Js::from($settings) }}"
         :users="{{ Illuminate\Support\Js::from($users) }}"
         :durations="{{ Illuminate\Support\Js::from($durations) }}"
+        :pipelines="{{ Illuminate\Support\Js::from($pipelines) }}"
     >
         <div class="p-6 text-sm text-gray-500">@lang('whatsapp::app.agenda.loading')</div>
     </v-agenda-settings>
@@ -132,6 +133,45 @@
                     </div>
                 </div>
 
+                <div class="as-card">
+                    <h2>@{{ labels.trigger_title }}</h2>
+                    <p class="as-muted">@{{ labels.trigger_hint }}</p>
+
+                    <p class="as-muted" v-if="! form.stage_triggers.length">@{{ labels.trigger_none }}</p>
+
+                    <div class="as-row" v-for="(trigger, index) in form.stage_triggers" :key="index" style="align-items:flex-end">
+                        <label class="as-field">
+                            @{{ labels.trigger_pipeline }}
+                            <select v-model.number="trigger.pipeline_id" @change="trigger.stage_id = stagesOf(trigger.pipeline_id)[0]?.id ?? null">
+                                <option v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">@{{ pipeline.name }}</option>
+                            </select>
+                        </label>
+
+                        <label class="as-field">
+                            @{{ labels.trigger_stage }}
+                            <select v-model.number="trigger.stage_id">
+                                <option v-for="stage in stagesOf(trigger.pipeline_id)" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
+                            </select>
+                        </label>
+
+                        <label class="as-field">
+                            @{{ labels.trigger_kind }}
+                            <select v-model="trigger.kind">
+                                <option value="appointment">@{{ labels.trigger_kind_appointment }}</option>
+                                <option value="followup">@{{ labels.trigger_kind_followup }}</option>
+                            </select>
+                        </label>
+
+                        <div style="flex:none;min-width:0">
+                            <button type="button" class="as-btn" @click="form.stage_triggers.splice(index, 1)">@{{ labels.trigger_remove }}</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" class="as-btn" @click="addTrigger" :disabled="! pipelines.length">@{{ labels.trigger_add }}</button>
+                    </div>
+                </div>
+
                 <div class="as-ok" v-if="saved">@{{ labels.saved }}</div>
                 <div class="as-alert" v-if="problem">@{{ problem }}</div>
 
@@ -151,6 +191,7 @@
                     initial: { type: Object, required: true },
                     users: { type: Array, default: () => [] },
                     durations: { type: Array, default: () => [30] },
+                    pipelines: { type: Array, default: () => [] },
                 },
 
                 data() {
@@ -169,6 +210,16 @@
                 },
 
                 methods: {
+                    stagesOf(pipelineId) {
+                        return this.pipelines.find(pipeline => pipeline.id === pipelineId)?.stages ?? [];
+                    },
+
+                    addTrigger() {
+                        const pipeline = this.pipelines[0];
+
+                        this.form.stage_triggers.push({ pipeline_id: pipeline.id, stage_id: pipeline.stages[0]?.id ?? null, kind: 'appointment' });
+                    },
+
                     apply(preset) {
                         ['singular', 'plural', 'gender', 'responsible', 'responsible_plural'].forEach(key => { this.form[key] = preset[key]; });
                         this.saved = false;

@@ -28,10 +28,10 @@ class AgendaSetting extends Model
 
     protected $fillable = [
         'singular', 'plural', 'gender', 'responsible', 'responsible_plural', 'default_duration',
-        'day_start', 'day_end', 'distribution_mode', 'distribution_user_ids', 'last_assigned_user_id',
+        'day_start', 'day_end', 'distribution_mode', 'distribution_user_ids', 'last_assigned_user_id', 'stage_triggers',
     ];
 
-    protected $casts = ['distribution_user_ids' => 'array'];
+    protected $casts = ['distribution_user_ids' => 'array', 'stage_triggers' => 'array'];
 
     /**
      * The saved settings, or the neutral defaults while nothing was saved.
@@ -39,5 +39,24 @@ class AgendaSetting extends Model
     public static function current(): self
     {
         return static::query()->first() ?? new static(self::DEFAULTS);
+    }
+
+    /**
+     * What opens the booking card when a deal reaches a stage: stage id => kind ("appointment" or
+     * "followup"). Empty until the installation chooses its stages.
+     *
+     * @return array<int, string>
+     */
+    public static function stageTriggers(): array
+    {
+        $triggers = [];
+
+        foreach ((array) (static::current()->stage_triggers ?? []) as $trigger) {
+            if (isset($trigger['stage_id'], $trigger['kind'])) {
+                $triggers[(int) $trigger['stage_id']] = $trigger['kind'];
+            }
+        }
+
+        return $triggers;
     }
 }

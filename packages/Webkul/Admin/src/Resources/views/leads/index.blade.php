@@ -48,6 +48,8 @@
 
     {!! view_render_event('admin.leads.index.header.after') !!}
 
+    @includeIf('whatsapp::agenda.stage-prompt', ['withBook' => true])
+
     {!! view_render_event('admin.leads.index.content.before') !!}
 
     <!-- Content -->

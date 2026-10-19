@@ -8,3 +8,4 @@ Route::get('events', [AgendaController::class, 'events'])->name('admin.agenda.ev
 Route::get('leads', [AgendaController::class, 'leads'])->name('admin.agenda.leads');
 Route::post('appointments', [AgendaController::class, 'store'])->name('admin.agenda.store');
 Route::post('appointments/{id}/done', [AgendaController::class, 'done'])->name('admin.agenda.done');
+Route::post('stage-prompt', [AgendaController::class, 'stagePrompt'])->name('admin.agenda.stage-prompt');

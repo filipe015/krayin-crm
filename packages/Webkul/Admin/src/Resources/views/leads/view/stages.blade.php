@@ -244,6 +244,8 @@
                             this.$parent.$refs.activities.get();
 
                             this.$emitter.emit('add-flash', { type: 'success', message: response.data.message });
+
+                            this.$emitter.emit('agenda-stage-changed', { lead_id: {{ $lead->id }} });
                         })
                         .catch ((error) => {
                             this.isUpdating = false;

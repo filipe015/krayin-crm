@@ -88,6 +88,7 @@ return [
         'route' => [
             'admin.agenda.store',
             'admin.agenda.done',
+            'admin.agenda.stage-prompt',
         ],
         'sort'  => 1,
     ],

@@ -6,6 +6,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Webkul\User\Models\User;
 use Webkul\WhatsApp\Models\AgendaSetting;
@@ -28,7 +29,9 @@ class AgendaSettingController extends Controller
                 'day_end'             => (int) $setting->day_end,
                 'distribution_mode'   => $setting->distribution_mode,
                 'distribution_user_ids' => array_map('intval', (array) ($setting->distribution_user_ids ?? [])),
+                'stage_triggers'      => array_values((array) ($setting->stage_triggers ?? [])),
             ],
+            'pipelines' => self::pipelines(),
             'users'     => User::query()->where('status', 1)->orderBy('name')->get(['id', 'name']),
             'durations' => AgendaController::DURATIONS,
             'urls'      => ['save' => route('admin.agenda.settings.update')],
@@ -49,7 +52,13 @@ class AgendaSettingController extends Controller
             'distribution_mode'     => ['required', Rule::in(AgendaSetting::MODES)],
             'distribution_user_ids' => ['nullable', 'array', 'max:100'],
             'distribution_user_ids.*' => ['integer', Rule::exists('users', 'id')],
+            'stage_triggers'        => ['nullable', 'array', 'max:30'],
+            'stage_triggers.*.pipeline_id' => ['required', 'integer'],
+            'stage_triggers.*.stage_id'    => ['required', 'integer'],
+            'stage_triggers.*.kind'        => ['required', Rule::in(['appointment', 'followup'])],
         ]);
+
+        $data['stage_triggers'] = $this->validTriggers($data['stage_triggers'] ?? []);
 
         $data['distribution_user_ids'] = array_values(array_unique(array_map('intval', $data['distribution_user_ids'] ?? [])));
 
@@ -63,5 +72,51 @@ class AgendaSettingController extends Controller
         $setting->fill($data)->save();
 
         return response()->json(['saved' => true]);
+    }
+
+    /**
+     * Each stage must belong to the pipeline it was chosen under, and a stage opens the card once.
+     *
+     * @param  list<array{pipeline_id: int, stage_id: int, kind: string}>  $triggers
+     * @return list<array{pipeline_id: int, stage_id: int, kind: string}>
+     */
+    private function validTriggers(array $triggers): array
+    {
+        $valid = [];
+
+        foreach ($triggers as $trigger) {
+            $belongs = DB::table('lead_pipeline_stages')
+                ->where('id', (int) $trigger['stage_id'])
+                ->where('lead_pipeline_id', (int) $trigger['pipeline_id'])
+                ->exists();
+
+            abort_unless($belongs, 422, trans('whatsapp::app.agenda_settings.trigger_invalid'));
+
+            $valid[(int) $trigger['stage_id']] = [
+                'pipeline_id' => (int) $trigger['pipeline_id'],
+                'stage_id'    => (int) $trigger['stage_id'],
+                'kind'        => $trigger['kind'],
+            ];
+        }
+
+        return array_values($valid);
+    }
+
+    /**
+     * @return list<array{id: int, name: string, stages: list<array{id: int, name: string}>}>
+     */
+    private static function pipelines(): array
+    {
+        $stages = DB::table('lead_pipeline_stages')
+            ->whereNotIn('code', ['won', 'lost'])
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'lead_pipeline_id'])
+            ->groupBy('lead_pipeline_id');
+
+        return DB::table('lead_pipelines')->orderBy('name')->get(['id', 'name'])->map(fn ($pipeline) => [
+            'id'     => (int) $pipeline->id,
+            'name'   => $pipeline->name,
+            'stages' => ($stages[$pipeline->id] ?? collect())->map(fn ($stage) => ['id' => (int) $stage->id, 'name' => $stage->name])->values()->all(),
+        ])->all();
     }
 }

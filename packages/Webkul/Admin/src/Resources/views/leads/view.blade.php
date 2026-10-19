@@ -120,6 +120,9 @@
                     )
                         <!-- Agendar: appointment or follow-up, shown in the Agenda -->
                         @include('whatsapp::agenda.book-button')
+
+                        <!-- Opens that card when a deal is moved to a stage the installation chose -->
+                        @include('whatsapp::agenda.stage-prompt')
                     @endif
 
                     {!! view_render_event('admin.leads.view.actions.after', ['lead' => $lead]) !!}

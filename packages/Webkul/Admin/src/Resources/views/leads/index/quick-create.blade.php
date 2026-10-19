@@ -230,14 +230,23 @@
 
                             form.reset();
 
+                            const created = response.data?.data?.id;
+
                             // The kanban reloads itself; the table is simply reloaded.
                             if (this.viewType === 'table') {
+                                try {
+                                    // Asked again once the page is back (the booking card for a chosen column).
+                                    created && sessionStorage.setItem('agendaPromptLead', created);
+                                } catch (error) {}
+
                                 window.location.reload();
 
                                 return;
                             }
 
                             this.$emitter.emit('lead-created');
+
+                            this.$emitter.emit('agenda-stage-changed', { lead_id: created });
                         })
                         .catch(error => {
                             if (error.response?.status == 422) {

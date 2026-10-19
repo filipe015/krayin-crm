@@ -22,6 +22,13 @@ class WhatsAppServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
 
+        // A deal created from the full form (a page that reloads) asks the booking card once the next page is up.
+        \Illuminate\Support\Facades\Event::listen('lead.create.after', function ($lead) {
+            if (request()->hasSession() && auth()->guard('user')->check()) {
+                session()->flash('agenda_prompt_lead_id', $lead->id);
+            }
+        });
+
         // Outgoing webhooks: lead and appointment events.
         \Webkul\WhatsApp\Api\Support\WebhookEvents::register();
 
