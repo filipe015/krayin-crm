@@ -203,6 +203,8 @@
                     stageId: this.firstStageId(),
                     serviceId: '',
                     autoValue: '',
+                    autoTitle: '',
+                    contactName: '',
                 };
             },
 
@@ -225,6 +227,12 @@
                  * something else in it.
                  */
                 fillContactName(person) {
+                    if (person?.name) {
+                        this.contactName = person.name;
+
+                        this.suggestTitle();
+                    }
+
                     if (! this.contactNameField || ! person?.name) {
                         return;
                     }
@@ -242,6 +250,8 @@
                  * The deal's value starts as the service's price (when nobody typed another value).
                  */
                 serviceChanged() {
+                    this.suggestTitle();
+
                     const price = this.chosenService ? String(this.chosenService.price) : '';
                     const current = String(this.$refs.form?.elements?.lead_value?.value ?? '');
 
@@ -249,6 +259,25 @@
                         this.$refs.formWrapper?.setFieldValue('lead_value', price);
 
                         this.autoValue = price;
+                    }
+                },
+
+                /**
+                 * The deal's title starts as "Contact name — Service" (just the name while no service is chosen),
+                 * unless someone wrote their own title: that one is never overwritten.
+                 */
+                suggestTitle() {
+                    if (! this.contactName) {
+                        return;
+                    }
+
+                    const suggestion = this.chosenService ? this.contactName + ' — ' + this.chosenService.name : this.contactName;
+                    const current = String(this.$refs.form?.elements?.title?.value ?? '');
+
+                    if (current === '' || current === this.autoTitle) {
+                        this.$refs.formWrapper?.setFieldValue('title', suggestion);
+
+                        this.autoTitle = suggestion;
                     }
                 },
 
@@ -263,6 +292,8 @@
                     this.autoContactName = '';
                     this.serviceId = '';
                     this.autoValue = '';
+                    this.autoTitle = '';
+                    this.contactName = '';
                     this.person = { name: '' };
                     this.$refs.modal.open();
                 },
