@@ -446,7 +446,7 @@
                                 </label>
 
                                 <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <input type="radio" :value="true" v-model="user.pipelines_restricted" />
+                                    <input type="radio" :value="true" v-model="user.pipelines_restricted" @change="restrictedToPipelines" />
                                     @lang('admin::app.settings.users.index.create.pipeline-only')
                                 </label>
 
@@ -581,6 +581,13 @@
                         url.searchParams.delete('action');
 
                         window.history.replaceState({}, '', url);
+                    },
+
+                    // Limiting a user to some pipelines: start them on "only their own deals", so liberating a pipeline does not show all of it.
+                    restrictedToPipelines() {
+                        if (! this.user.view_permission || this.user.view_permission === 'global') {
+                            this.user.view_permission = 'individual';
+                        }
                     },
 
                     openModal() {
