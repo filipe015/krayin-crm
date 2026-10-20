@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Event;
 use Illuminate\View\View;
 use Webkul\Admin\DataGrids\Settings\RoleDataGrid;
+use Webkul\Admin\Support\DefaultRoles;
 use Webkul\Admin\Http\Controllers\Controller;
 use Webkul\User\Repositories\RoleRepository;
 
@@ -29,6 +30,21 @@ class RoleController extends Controller
         }
 
         return view('admin::settings.roles.index');
+    }
+
+    /**
+     * Creates the standard profiles that do not exist yet; the ones that exist are never touched.
+     */
+    public function installDefaults(): RedirectResponse
+    {
+        $result = DefaultRoles::install();
+
+        session()->flash($result['created'] ? 'success' : 'warning', trans('admin::app.settings.roles.index.install-defaults-done', [
+            'created' => $result['created'] ? implode(', ', $result['created']) : '—',
+            'skipped' => $result['skipped'] ? implode(', ', $result['skipped']) : '—',
+        ]));
+
+        return redirect()->route('admin.settings.roles.index');
     }
 
     /**

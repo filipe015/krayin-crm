@@ -735,6 +735,9 @@ return [
         ],
         'roles' => [
             'index' => [
+                'install-defaults-btn' => 'Install standard roles',
+                'install-defaults-confirm' => 'Create the standard roles (Manager, Seller, SDR, Support, Marketing and Read-only)? Existing ones are not changed.',
+                'install-defaults-done' => 'Roles created: :created. Already existed (kept): :skipped.',
                 'being-used' => 'Role can not be deleted, as this is being used in admin user.',
                 'create-btn' => 'Create Roles',
                 'create-success' => 'Role created successfully.',

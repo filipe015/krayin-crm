@@ -269,7 +269,7 @@ return [
     ], [
         'key' => 'settings.user.roles.create',
         'name' => 'admin::app.acl.create',
-        'route' => ['admin.settings.roles.create', 'admin.settings.roles.store'],
+        'route' => ['admin.settings.roles.create', 'admin.settings.roles.store', 'admin.settings.roles.install_defaults'],
         'sort' => 1,
     ], [
         'key' => 'settings.user.roles.edit',

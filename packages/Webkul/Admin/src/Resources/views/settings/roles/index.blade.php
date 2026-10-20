@@ -26,6 +26,19 @@
                     {!! view_render_event('admin.settings.roles.index.create_button.before') !!}
 
                     @if (bouncer()->hasPermission('settings.user.roles.create'))
+                        <!-- Standard profiles (Gestor, Vendedor, SDR...): only the ones that do not exist yet are created -->
+                        <form
+                            method="POST"
+                            action="{{ route('admin.settings.roles.install_defaults') }}"
+                            onsubmit="return confirm(@js(trans('admin::app.settings.roles.index.install-defaults-confirm')))"
+                        >
+                            @csrf
+
+                            <button type="submit" class="secondary-button">
+                                @lang('admin::app.settings.roles.index.install-defaults-btn')
+                            </button>
+                        </form>
+
                         <a
                             href="{{ route('admin.settings.roles.create') }}"
                             class="primary-button"

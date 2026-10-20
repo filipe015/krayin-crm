@@ -42,6 +42,10 @@ class AdminServiceProvider extends ServiceProvider
 
         $this->registerAuthLimiters();
 
+        if ($this->app->runningInConsole()) {
+            $this->commands([\Webkul\Admin\Console\Commands\InstallDefaultRoles::class, \Webkul\Admin\Console\Commands\AuditRoles::class]);
+        }
+
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path'))
             ->group(__DIR__.'/../Routes/Admin/web.php');

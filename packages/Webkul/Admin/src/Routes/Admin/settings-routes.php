@@ -75,6 +75,8 @@ Route::prefix('settings')->group(function () {
 
         Route::post('create', 'store')->name('admin.settings.roles.store');
 
+        Route::post('standard-roles', 'installDefaults')->name('admin.settings.roles.install_defaults');
+
         Route::get('edit/{id}', 'edit')->name('admin.settings.roles.edit');
 
         Route::put('edit/{id}', 'update')->name('admin.settings.roles.update');
