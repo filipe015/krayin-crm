@@ -96,6 +96,10 @@ class AgendaController extends Controller
             ->leftJoin('users', 'users.id', '=', 'activities.user_id')
             ->where(fn ($query) => $this->ofAgenda($query, 'activities', (bool) ($data['include_followups'] ?? true)))
             ->whereBetween('activities.schedule_from', [$from, $to])
+            ->when(
+                ($pipelineIds = bouncer()->getAllowedPipelineIds()) !== null,
+                fn ($query) => $query->where(fn ($inner) => $inner->whereNull('leads.id')->orWhereIn('leads.lead_pipeline_id', $pipelineIds ?: [0])),
+            )
             ->when(! ($data['include_done'] ?? false), fn ($query) => $query->where('activities.is_done', 0))
             ->when(! empty($data['user_ids']), fn ($query) => $query->whereIn('activities.user_id', $data['user_ids']))
             ->when($authorized, fn ($query) => $query->where(function ($inner) use ($authorized) {

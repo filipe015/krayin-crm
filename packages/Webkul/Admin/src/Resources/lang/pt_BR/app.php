@@ -1183,6 +1183,12 @@ return [
                     'status' => 'Status',
                     'title' => 'Adicionar Usuário',
                     'view-permission' => 'Visualizar Permissão',
+                    'pipeline-access' => 'Acesso por funil',
+                    'pipeline-all' => 'Todos os funis',
+                    'pipeline-only' => 'Só estes funis',
+                    'pipeline-required' => 'Marque ao menos um funil.',
+                    'pipeline-queue' => 'Ver também as conversas de WhatsApp sem oportunidade (fila)',
+                    'pipeline-hint' => 'Quem tem acesso restrito só vê oportunidades, conversas, agenda e relatórios dos funis marcados.',
                     'select-at-lest-one-group' => 'Select at least one group',
                 ],
                 'edit' => [

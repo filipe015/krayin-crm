@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Webkul\Contact\Repositories\OrganizationRepository;
+use Webkul\Lead\Models\Pipeline;
 
 class Organization extends AbstractReporting
 {
@@ -60,6 +61,7 @@ class Organization extends AbstractReporting
             ->leftJoin('leads', 'persons.id', '=', 'leads.person_id')
             ->select('*', 'persons.id as id')
             ->addSelect(DB::raw('SUM('.$tablePrefix.'leads.lead_value) as revenue'))
+            ->whereIn('leads.lead_pipeline_id', Pipeline::reportableIds())
             ->whereBetween('leads.closed_at', [$this->startDate, $this->endDate])
             ->having(DB::raw('SUM('.$tablePrefix.'leads.lead_value)'), '>', 0)
             ->groupBy('organization_id')

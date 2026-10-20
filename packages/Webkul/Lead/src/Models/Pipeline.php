@@ -46,6 +46,19 @@ class Pipeline extends Model implements PipelineContract
         return self::$counted ??= static::query()->where('counts_in_reports', true)->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
+    /**
+     * The counted pipelines the logged user may also use (the same list for an unrestricted user): what the
+     * reports built with raw queries have to stay inside.
+     *
+     * @return list<int>
+     */
+    public static function reportableIds(): array
+    {
+        $allowed = bouncer()->getAllowedPipelineIds();
+
+        return $allowed === null ? self::countedIds() : array_values(array_intersect(self::countedIds(), $allowed));
+    }
+
     public static function forgetCounted(): void
     {
         self::$counted = null;

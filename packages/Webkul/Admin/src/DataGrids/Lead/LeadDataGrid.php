@@ -37,11 +37,10 @@ class LeadDataGrid extends DataGrid
         protected UserRepository $userRepository,
         protected TagRepository $tagRepository,
     ) {
-        if (request('pipeline_id')) {
-            $this->pipeline = $this->pipelineRepository->find(request('pipeline_id'));
-        } else {
-            $this->pipeline = $this->pipelineRepository->getDefaultPipeline();
-        }
+        $this->pipeline = (request('pipeline_id') ? $this->pipelineRepository->find(request('pipeline_id')) : null)
+            ?: $this->pipelineRepository->getDefaultPipeline();
+
+        abort_if(! $this->pipeline, 403, trans('admin::app.errors.401.description'));
     }
 
     /**

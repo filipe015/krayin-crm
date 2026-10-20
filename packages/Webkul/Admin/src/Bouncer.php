@@ -119,4 +119,21 @@ class Bouncer
             return [$user->id];
         }
     }
+
+    /**
+     * The pipelines the logged user may use: null = all of them (nobody restricted, or no logged user).
+     * A restricted user gets the list chosen on their registration (possibly empty).
+     *
+     * @return list<int>|null
+     */
+    public function getAllowedPipelineIds(): ?array
+    {
+        $user = auth()->guard('user')->user();
+
+        if (! $user || ! $user->pipelines_restricted) {
+            return null;
+        }
+
+        return $user->loadMissing('pipelines')->pipelines->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
 }

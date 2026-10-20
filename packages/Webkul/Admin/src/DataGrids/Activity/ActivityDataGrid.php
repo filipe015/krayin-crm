@@ -34,6 +34,12 @@ class ActivityDataGrid extends DataGrid
             ->leftJoin('users', 'activities.user_id', '=', 'users.id')
             ->whereIn('type', ['call', 'meeting', 'lunch'])
             ->where(function ($query) {
+                // Only deals of the pipelines this user may use (an activity without a deal is not tied to any).
+                if (($pipelineIds = bouncer()->getAllowedPipelineIds()) !== null) {
+                    $query->whereNull('leads.id')->orWhereIn('leads.lead_pipeline_id', $pipelineIds ?: [0]);
+                }
+            })
+            ->where(function ($query) {
                 if ($userIds = bouncer()->getAuthorizedUserIds()) {
                     $query->whereIn('activities.user_id', $userIds)
                         ->orWhereIn('activity_participants.user_id', $userIds);

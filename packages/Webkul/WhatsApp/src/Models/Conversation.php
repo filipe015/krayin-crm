@@ -65,6 +65,19 @@ class Conversation extends Model implements ConversationContract
      */
     public function scopeVisible(Builder $query): Builder
     {
+        $pipelineIds = bouncer()->getAllowedPipelineIds();
+
+        // Restricted to some pipelines: only the conversations of deals in them (plus the queue, when the user sees it).
+        if ($pipelineIds !== null) {
+            $query->where(function (Builder $inner) use ($pipelineIds) {
+                $inner->whereIn('lead_id', DB::table('leads')->whereIn('lead_pipeline_id', $pipelineIds ?: [0])->select('id'));
+
+                if (auth()->guard('user')->user()?->inbox_queue) {
+                    $inner->orWhereNull('lead_id');
+                }
+            });
+        }
+
         $userIds = bouncer()->getAuthorizedUserIds();
 
         if ($userIds === null) {

@@ -70,11 +70,11 @@ class LeadController extends Controller
             return datagrid(LeadDataGrid::class)->process();
         }
 
-        if (request('pipeline_id')) {
-            $pipeline = $this->pipelineRepository->find(request('pipeline_id'));
-        } else {
-            $pipeline = $this->pipelineRepository->getDefaultPipeline();
-        }
+        // A pipeline the user may not use is not found: they get their first allowed one, or nothing if there is none.
+        $pipeline = (request('pipeline_id') ? $this->pipelineRepository->find(request('pipeline_id')) : null)
+            ?: $this->pipelineRepository->getDefaultPipeline();
+
+        abort_if(! $pipeline, 403, trans('admin::app.errors.401.description'));
 
         return view('admin::leads.index', [
             'pipeline' => $pipeline,
@@ -87,11 +87,10 @@ class LeadController extends Controller
      */
     public function get(): JsonResponse
     {
-        if (request()->query('pipeline_id')) {
-            $pipeline = $this->pipelineRepository->find(request()->query('pipeline_id'));
-        } else {
-            $pipeline = $this->pipelineRepository->getDefaultPipeline();
-        }
+        $pipeline = (request()->query('pipeline_id') ? $this->pipelineRepository->find(request()->query('pipeline_id')) : null)
+            ?: $this->pipelineRepository->getDefaultPipeline();
+
+        abort_if(! $pipeline, 403, trans('admin::app.errors.401.description'));
 
         if (request()->query('pipeline_stage_id')) {
             $stages = $pipeline->stages->where('id', request()->query('pipeline_stage_id'));

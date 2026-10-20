@@ -432,6 +432,47 @@
 
                             {!! view_render_event('admin.settings.users.index.form.role_id.after') !!}
 
+                            <!-- Access by pipeline -->
+                            <div class="mb-4 rounded-md border p-3 dark:border-gray-800">
+                                <p class="mb-2 text-sm font-medium text-gray-800 dark:text-white">
+                                    @lang('admin::app.settings.users.index.create.pipeline-access')
+                                </p>
+
+                                <input type="hidden" name="pipelines_restricted" :value="user.pipelines_restricted ? 1 : 0" />
+
+                                <label class="mb-1 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <input type="radio" :value="false" v-model="user.pipelines_restricted" />
+                                    @lang('admin::app.settings.users.index.create.pipeline-all')
+                                </label>
+
+                                <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <input type="radio" :value="true" v-model="user.pipelines_restricted" />
+                                    @lang('admin::app.settings.users.index.create.pipeline-only')
+                                </label>
+
+                                <template v-if="user.pipelines_restricted">
+                                    <div class="mt-3 grid gap-1 pl-5">
+                                        <label v-for="pipeline in pipelines" :key="pipeline.id" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                            <input type="checkbox" name="pipelines[]" :value="pipeline.id" v-model="user.pipelines" />
+                                            @{{ pipeline.name }}
+                                        </label>
+                                    </div>
+
+                                    <p v-if="! user.pipelines.length" class="mt-2 pl-5 text-xs text-red-600">
+                                        @lang('admin::app.settings.users.index.create.pipeline-required')
+                                    </p>
+
+                                    <input type="hidden" name="inbox_queue" :value="user.inbox_queue ? 1 : 0" />
+
+                                    <label class="mt-3 flex items-start gap-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
+                                        <input type="checkbox" class="mt-1" v-model="user.inbox_queue" />
+                                        <span>@lang('admin::app.settings.users.index.create.pipeline-queue')</span>
+                                    </label>
+                                </template>
+
+                                <p class="mt-2 text-xs text-gray-500">@lang('admin::app.settings.users.index.create.pipeline-hint')</p>
+                            </div>
+
                             {!! view_render_event('admin.settings.users.index.form.status.before') !!}
 
                             <!-- Status -->
@@ -492,8 +533,13 @@
 
                         groups:  @json($groups),
 
+                        pipelines: @json($pipelines),
+
                         user: {
                             view_permission: 'global',
+                            pipelines_restricted: false,
+                            pipelines: [],
+                            inbox_queue: true,
                         },
                     };
                 },
@@ -540,6 +586,9 @@
                     openModal() {
                         this.user = {
                             groups: [],
+                            pipelines_restricted: false,
+                            pipelines: [],
+                            inbox_queue: true,
                         };
 
                         this.$refs.userUpdateAndCreateModal.toggle();
@@ -582,6 +631,10 @@
                                 this.user = response.data.data;
 
                                 this.user.groups = this.user.groups.map(group => group.id);
+
+                                this.user.pipelines_restricted = !! this.user.pipelines_restricted;
+                                this.user.inbox_queue = !! this.user.inbox_queue;
+                                this.user.pipelines = (this.user.pipelines || []).map(pipeline => pipeline.id);
 
                                 this.$refs.userUpdateAndCreateModal.toggle();
                             })

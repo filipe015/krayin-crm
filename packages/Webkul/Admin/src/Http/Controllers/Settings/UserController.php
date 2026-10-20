@@ -7,6 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Prettus\Repository\Criteria\RequestCriteria;
 use Webkul\Admin\DataGrids\Settings\UserDataGrid;
@@ -15,6 +16,7 @@ use Webkul\Admin\Http\Requests\MassDestroyRequest;
 use Webkul\Admin\Http\Requests\MassUpdateRequest;
 use Webkul\Admin\Http\Resources\UserResource;
 use Webkul\Admin\Notifications\User\Create as UserCreatedNotification;
+use Webkul\Lead\Models\Pipeline;
 use Webkul\User\Repositories\GroupRepository;
 use Webkul\User\Repositories\RoleRepository;
 use Webkul\User\Repositories\UserRepository;
@@ -45,7 +47,9 @@ class UserController extends Controller
 
         $groups = $this->groupRepository->all();
 
-        return view('admin::settings.users.index', compact('roles', 'groups'));
+        $pipelines = Pipeline::withoutGlobalScopes()->orderBy('name')->get(['id', 'name']);
+
+        return view('admin::settings.users.index', compact('roles', 'groups', 'pipelines'));
     }
 
     /**
@@ -61,9 +65,10 @@ class UserController extends Controller
             'role_id' => 'required',
             'status' => 'boolean|in:0,1',
             'view_permission' => 'string|in:global,group,individual',
+            ...$this->pipelineRules(),
         ]);
 
-        $data = request()->all();
+        $data = $this->withPipelineAccess(request()->all());
 
         if (
             isset($data['password'])
@@ -77,6 +82,7 @@ class UserController extends Controller
         $admin = $this->userRepository->create($data);
 
         $admin->groups()->sync($data['groups'] ?? []);
+        $admin->pipelines()->sync($data['pipelines']);
 
         try {
             Mail::queue(new UserCreatedNotification($admin));
@@ -99,6 +105,8 @@ class UserController extends Controller
     {
         $admin = $this->userRepository->with(['role', 'groups'])->findOrFail($id);
 
+        $admin->load('pipelines:id,name');
+
         return new JsonResponse([
             'data' => $admin,
         ]);
@@ -117,9 +125,10 @@ class UserController extends Controller
             'role_id' => 'required|integer|exists:roles,id',
             'status' => 'nullable|boolean|in:0,1',
             'view_permission' => 'required|string|in:global,group,individual',
+            ...$this->pipelineRules(),
         ]);
 
-        $data = request()->all();
+        $data = $this->withPipelineAccess(request()->all());
 
         if (empty($data['password'])) {
             $data = Arr::except($data, ['password', 'confirm_password']);
@@ -138,6 +147,7 @@ class UserController extends Controller
         $admin = $this->userRepository->update($data, $id);
 
         $admin->groups()->sync($data['groups'] ?? []);
+        $admin->pipelines()->sync($data['pipelines']);
 
         Event::dispatch('settings.user.update.after', $admin);
 
@@ -145,6 +155,36 @@ class UserController extends Controller
             'data' => $admin,
             'message' => trans('admin::app.settings.users.index.update-success'),
         ]);
+    }
+
+    /**
+     * Access by pipeline: restricted users must keep at least one pipeline, or they could open nothing.
+     *
+     * @return array<string, mixed>
+     */
+    protected function pipelineRules(): array
+    {
+        return [
+            'pipelines_restricted' => 'nullable|boolean',
+            'inbox_queue' => 'nullable|boolean',
+            'pipelines' => ['nullable', 'array', 'required_if:pipelines_restricted,1,true', 'max:200'],
+            'pipelines.*' => ['integer', Rule::exists('lead_pipelines', 'id')],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function withPipelineAccess(array $data): array
+    {
+        $restricted = filter_var($data['pipelines_restricted'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $data['pipelines_restricted'] = $restricted;
+        $data['inbox_queue'] = $restricted ? filter_var($data['inbox_queue'] ?? false, FILTER_VALIDATE_BOOLEAN) : true;
+        $data['pipelines'] = $restricted ? array_values(array_unique(array_map('intval', $data['pipelines'] ?? []))) : [];
+
+        return $data;
     }
 
     /**

@@ -26,6 +26,13 @@ class User extends Authenticatable implements UserContract
         'role_id',
         'status',
         'view_permission',
+        'pipelines_restricted',
+        'inbox_queue',
+    ];
+
+    protected $casts = [
+        'pipelines_restricted' => 'boolean',
+        'inbox_queue'          => 'boolean',
     ];
 
     /**
@@ -85,6 +92,14 @@ class User extends Authenticatable implements UserContract
     public function groups()
     {
         return $this->belongsToMany(GroupProxy::modelClass(), 'user_groups');
+    }
+
+    /**
+     * The pipelines a restricted user may use (see pipelines_restricted).
+     */
+    public function pipelines()
+    {
+        return $this->belongsToMany(\Webkul\Lead\Models\PipelineProxy::modelClass(), 'user_pipelines', 'user_id', 'lead_pipeline_id')->withoutGlobalScopes();
     }
 
     /**

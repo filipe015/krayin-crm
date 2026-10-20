@@ -1184,6 +1184,12 @@ return [
                     'status' => 'Status',
                     'title' => 'Create User',
                     'view-permission' => 'View Permission',
+                    'pipeline-access' => 'Pipeline access',
+                    'pipeline-all' => 'All pipelines',
+                    'pipeline-only' => 'Only these pipelines',
+                    'pipeline-required' => 'Select at least one pipeline.',
+                    'pipeline-queue' => 'Also see WhatsApp conversations without a deal (queue)',
+                    'pipeline-hint' => 'Restricted users only see deals, conversations, agenda and reports of the selected pipelines.',
                     'select-at-lest-one-group' => 'Select at least one group',
                 ],
                 'edit' => [

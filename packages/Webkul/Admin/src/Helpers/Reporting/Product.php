@@ -4,6 +4,7 @@ namespace Webkul\Admin\Helpers\Reporting;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Webkul\Lead\Models\Pipeline;
 use Webkul\Lead\Repositories\ProductRepository;
 
 class Product extends AbstractReporting
@@ -35,6 +36,7 @@ class Product extends AbstractReporting
             ->leftJoin('products', 'lead_products.product_id', '=', 'products.id')
             ->select('*')
             ->addSelect(DB::raw('SUM('.$tablePrefix.'lead_products.amount) as revenue'))
+            ->whereIn('leads.lead_pipeline_id', Pipeline::reportableIds())
             ->whereBetween('leads.closed_at', [$this->startDate, $this->endDate])
             ->having(DB::raw('SUM('.$tablePrefix.'lead_products.amount)'), '>', 0)
             ->groupBy('product_id')
@@ -72,6 +74,7 @@ class Product extends AbstractReporting
             ->leftJoin('products', 'lead_products.product_id', '=', 'products.id')
             ->select('*')
             ->addSelect(DB::raw('SUM('.$tablePrefix.'lead_products.quantity) as total_qty_ordered'))
+            ->whereIn('leads.lead_pipeline_id', Pipeline::reportableIds())
             ->whereBetween('leads.closed_at', [$this->startDate, $this->endDate])
             ->having(DB::raw('SUM('.$tablePrefix.'lead_products.quantity)'), '>', 0)
             ->groupBy('product_id')
