@@ -63,6 +63,12 @@ final class DefaultRoles
                 'permissions' => [...$chat, 'whatsapp.manage', ...$lead, ...$person, 'activities', 'activities.create', ...$agenda],
             ],
             [
+                'name'        => 'Pós-venda',
+                'description' => 'Cuida dos clientes depois da venda: negócios, contatos, WhatsApp e agenda, sem cotações nem exclusões. Visão recomendada: individual, com o acesso por funil limitado ao funil de pós-venda.',
+                'view'        => 'individual',
+                'permissions' => ['dashboard', ...$lead, ...$person, ...$organization, ...$activity, ...$chat, 'whatsapp.manage', ...$agenda, 'goals'],
+            ],
+            [
                 'name'        => 'Marketing / Tráfego',
                 'description' => 'Cuida de anúncios, metas e formulários: vê os negócios para medir resultado, sem editá-los. Visão recomendada: global.',
                 'view'        => 'global',

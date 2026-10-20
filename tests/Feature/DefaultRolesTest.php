@@ -95,3 +95,21 @@ it('installs the profiles from the Profiles screen, for those who may create pro
 
     test()->actingAs($seller, 'user')->post(route('admin.settings.roles.install_defaults'))->assertStatus(401);
 });
+
+it('gives post-sale the Inbox and the deals, but only of the pipeline it is limited to', function () {
+    $post = userWithDefaultRole('Pós-venda');
+
+    $pipelineId = DB::table('lead_pipelines')->insertGetId(['name' => 'ZZ Pós '.uniqid(), 'type' => 'post_sale', 'counts_in_reports' => 0, 'rotten_days' => 30, 'is_default' => 0, 'created_at' => now(), 'updated_at' => now()]);
+    $stageId = DB::table('lead_pipeline_stages')->insertGetId(['name' => 'Onboarding', 'code' => 'onboarding', 'probability' => 10, 'sort_order' => 1, 'lead_pipeline_id' => $pipelineId]);
+    $mine = DB::table('leads')->insertGetId(['title' => 'ZZ cliente', 'lead_value' => 0, 'status' => 1, 'lead_pipeline_id' => $pipelineId, 'lead_pipeline_stage_id' => $stageId, 'created_at' => now(), 'updated_at' => now()]);
+    $stage = DB::table('lead_pipeline_stages')->whereNotIn('code', ['won', 'lost'])->where('lead_pipeline_id', '!=', $pipelineId)->first();
+    $other = DB::table('leads')->insertGetId(['title' => 'ZZ venda', 'lead_value' => 0, 'status' => 1, 'lead_pipeline_id' => $stage->lead_pipeline_id, 'lead_pipeline_stage_id' => $stage->id, 'created_at' => now(), 'updated_at' => now()]);
+
+    DB::table('users')->where('id', $post->id)->update(['view_permission' => 'global', 'pipelines_restricted' => 1]);
+    DB::table('user_pipelines')->insert(['user_id' => $post->id, 'lead_pipeline_id' => $pipelineId]);
+
+    test()->actingAs($post->refresh(), 'user')->get(route('admin.whatsapp.inbox.index'))->assertOk();
+    test()->get(route('admin.leads.view', ['id' => $mine]))->assertOk();
+    test()->get(route('admin.leads.view', ['id' => $other]))->assertNotFound();
+    test()->deleteJson(route('admin.leads.delete', ['id' => $mine]))->assertStatus(401);
+});
