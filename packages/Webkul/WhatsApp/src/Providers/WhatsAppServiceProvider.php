@@ -29,6 +29,13 @@ class WhatsAppServiceProvider extends ServiceProvider
             }
         });
 
+        // A deal won in a pipeline can open a card in another one (Configurações → Regras de funil), from wherever the win happens.
+        \Webkul\Lead\Models\Lead::updated(function ($lead) {
+            if ($lead->wasChanged('lead_pipeline_stage_id')) {
+                \Webkul\WhatsApp\Support\FunnelPassage::handle($lead);
+            }
+        });
+
         // Outgoing webhooks: lead and appointment events.
         \Webkul\WhatsApp\Api\Support\WebhookEvents::register();
 
@@ -55,6 +62,10 @@ class WhatsAppServiceProvider extends ServiceProvider
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/settings/agenda')
             ->group(__DIR__.'/../Routes/agenda-settings.php');
+
+        Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/settings/funnel-rules')
+            ->group(__DIR__.'/../Routes/funnel-rules.php');
 
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/ads')

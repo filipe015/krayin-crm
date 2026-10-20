@@ -104,6 +104,17 @@ return [
         'sort'  => 1,
     ],
     [
+        'key'   => 'settings.other_settings.funnel-rules',
+        'name'  => 'whatsapp::app.acl.funnel_rules',
+        'route' => 'admin.funnel-rules.index',
+        'sort'  => 8,
+    ], [
+        'key'   => 'settings.other_settings.funnel-rules.edit',
+        'name'  => 'whatsapp::app.acl.funnel_rules_edit',
+        'route' => ['admin.funnel-rules.store', 'admin.funnel-rules.update', 'admin.funnel-rules.delete'],
+        'sort'  => 1,
+    ],
+    [
         'key'   => 'settings.other_settings.api',
         'name'  => 'whatsapp::app.acl.api_settings',
         'route' => ['admin.api.settings.index', 'admin.api.settings.list'],

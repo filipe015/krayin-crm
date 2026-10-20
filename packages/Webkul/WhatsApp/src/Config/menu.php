@@ -31,6 +31,14 @@ return [
         'icon-class' => 'icon-calendar',
     ],
     [
+        'key'        => 'settings.other_settings.funnel-rules',
+        'name'       => 'whatsapp::app.menu.funnel_rules',
+        'info'       => 'whatsapp::app.menu.funnel_rules_info',
+        'route'      => 'admin.funnel-rules.index',
+        'sort'       => 5,
+        'icon-class' => 'icon-leads',
+    ],
+    [
         'key'        => 'settings.other_settings.api',
         'name'       => 'whatsapp::app.menu.api_settings',
         'info'       => 'whatsapp::app.menu.api_settings_info',
