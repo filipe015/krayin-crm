@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Webkul\Goals\Models\LeadEvent;
+use Webkul\Lead\Models\Pipeline;
 use Webkul\WhatsApp\Api\Support\AdsOverview;
 
 /**
@@ -81,7 +82,11 @@ final class GoalActuals
      */
     private static function ids(string $kind, CarbonImmutable $from, CarbonImmutable $to, ?callable $where = null): array
     {
-        $query = LeadEvent::query()->where('kind', $kind)->whereBetween('occurred_at', [$from, $to]);
+        // Only the deals of the pipelines that count in the sales reports (a post-sale pipeline does not).
+        $query = LeadEvent::query()
+            ->where('kind', $kind)
+            ->whereBetween('occurred_at', [$from, $to])
+            ->whereIn('lead_id', DB::table('leads')->whereIn('lead_pipeline_id', Pipeline::countedIds())->select('id'));
 
         if ($where) {
             $where($query);
@@ -100,6 +105,7 @@ final class GoalActuals
         return DB::table('leads')
             ->join('lead_pipeline_stages as stages', 'stages.id', '=', 'leads.lead_pipeline_stage_id')
             ->where('stages.code', 'won')
+            ->whereIn('leads.lead_pipeline_id', Pipeline::countedIds())
             ->whereBetween('leads.closed_at', [$from, $to])
             ->pluck('leads.lead_value', 'leads.id')
             ->map(fn ($value) => (float) $value)

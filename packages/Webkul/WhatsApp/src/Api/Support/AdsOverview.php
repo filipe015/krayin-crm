@@ -391,6 +391,7 @@ final class AdsOverview
     {
         $query = DB::table('leads')
             ->join('lead_pipeline_stages as stages', 'stages.id', '=', 'leads.lead_pipeline_stage_id')
+            ->whereIn('leads.lead_pipeline_id', \Webkul\Lead\Models\Pipeline::countedIds())
             ->whereBetween('leads.created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->select([
                 'leads.id', 'leads.description', 'leads.lead_value', 'stages.code as stage_code',

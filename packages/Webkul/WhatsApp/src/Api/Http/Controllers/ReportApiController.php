@@ -35,7 +35,12 @@ class ReportApiController extends ApiController
 
         $base = fn () => DB::table('leads')
             ->join('lead_pipeline_stages as stages', 'stages.id', '=', 'leads.lead_pipeline_stage_id')
-            ->when($data['pipeline_id'] ?? null, fn ($q, $v) => $q->where('leads.lead_pipeline_id', $v));
+            ->when(
+                $data['pipeline_id'] ?? null,
+                fn ($q, $v) => $q->where('leads.lead_pipeline_id', $v),
+                // Without a pipeline: the ones that count in the sales reports.
+                fn ($q) => $q->whereIn('leads.lead_pipeline_id', \Webkul\Lead\Models\Pipeline::countedIds()),
+            );
 
         $created = $base()->whereBetween('leads.created_at', [$from, $to]);
 

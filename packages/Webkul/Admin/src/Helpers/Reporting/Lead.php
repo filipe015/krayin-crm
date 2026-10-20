@@ -5,6 +5,7 @@ namespace Webkul\Admin\Helpers\Reporting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Webkul\Lead\Models\Pipeline;
 use Webkul\Lead\Repositories\LeadRepository;
 use Webkul\Lead\Repositories\StageRepository;
 
@@ -39,11 +40,14 @@ class Lead extends AbstractReporting
         protected LeadRepository $leadRepository,
         protected StageRepository $stageRepository
     ) {
-        $this->allStageIds = $this->stageRepository->pluck('id')->toArray();
+        // Only the pipelines that count in the sales reports (Configurações → Funis: "Conta nos relatórios de vendas").
+        $counted = Pipeline::countedIds();
 
-        $this->wonStageIds = $this->stageRepository->where('code', 'won')->pluck('id')->toArray();
+        $this->allStageIds = $this->stageRepository->resetModel()->whereIn('lead_pipeline_id', $counted)->pluck('id')->toArray();
 
-        $this->lostStageIds = $this->stageRepository->where('code', 'lost')->pluck('id')->toArray();
+        $this->wonStageIds = $this->stageRepository->resetModel()->whereIn('lead_pipeline_id', $counted)->where('code', 'won')->pluck('id')->toArray();
+
+        $this->lostStageIds = $this->stageRepository->resetModel()->whereIn('lead_pipeline_id', $counted)->where('code', 'lost')->pluck('id')->toArray();
 
         parent::__construct();
     }
@@ -138,6 +142,7 @@ class Lead extends AbstractReporting
     {
         return $this->leadRepository
             ->resetModel()
+            ->whereIn('lead_pipeline_stage_id', $this->allStageIds)
             ->whereBetween('created_at', [$startDate, $endDate])
             ->count();
     }
@@ -194,6 +199,7 @@ class Lead extends AbstractReporting
     {
         return $this->leadRepository
             ->resetModel()
+            ->whereIn('lead_pipeline_stage_id', $this->allStageIds)
             ->whereBetween('created_at', [$startDate, $endDate])
             ->sum('lead_value');
     }
@@ -406,6 +412,7 @@ class Lead extends AbstractReporting
                     ->whereBetween('leads.created_at', [$this->startDate, $this->endDate]);
             })
             ->whereNotIn('lead_pipeline_stages.id', $this->lostStageIds)
+            ->whereIn('lead_pipeline_stages.id', $this->allStageIds)
             ->groupBy(
                 'lead_pipeline_stages.id',
                 'lead_pipeline_stages.name',

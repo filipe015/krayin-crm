@@ -50,6 +50,7 @@ class SalesCycle extends AbstractReporting
             ->where('stages.code', 'won')
             ->whereNotNull('leads.closed_at')
             ->whereNotNull('leads.created_at')
+            ->whereIn('leads.lead_pipeline_id', \Webkul\Lead\Models\Pipeline::countedIds())
             ->whereBetween('leads.closed_at', [$this->startDate, $this->endDate]);
 
         $this->restrictToAuthorized($query);
@@ -75,6 +76,7 @@ class SalesCycle extends AbstractReporting
 
         $query = DB::table('leads')
             ->joinSub($first, 'first_meeting', 'first_meeting.lead_id', '=', 'leads.id')
+            ->whereIn('leads.lead_pipeline_id', \Webkul\Lead\Models\Pipeline::countedIds())
             ->whereNotNull('leads.created_at')
             ->whereBetween('first_meeting.booked_at', [$this->startDate, $this->endDate]);
 

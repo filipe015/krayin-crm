@@ -117,6 +117,50 @@
 
                 {!! view_render_event('admin.settings.pipelines.edit.form.is_default.after', ['pipeline' => $pipeline]) !!}
             </div>
+
+            <!-- Type of the pipeline and whether its deals count in the sales reports (plain fields: the form posts them as they are) -->
+            <div class="flex flex-wrap items-start gap-4 border-t border-gray-300 px-4 py-3 dark:border-gray-800">
+                {!! view_render_event('admin.settings.pipelines.edit.form.type.before') !!}
+
+                <div class="grid gap-1.5">
+                    <label for="type" class="text-xs font-medium text-gray-800 dark:text-white">
+                        @lang('admin::app.settings.pipelines.create.type')
+                    </label>
+
+                    <select
+                        name="type"
+                        id="type"
+                        class="custom-select w-56 rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                    >
+                        @foreach (['commercial', 'post_sale', 'other'] as $option)
+                            <option value="{{ $option }}" @selected((old('type') ?: $pipeline->type) === $option)>
+                                @lang('admin::app.settings.pipelines.create.type-'.str_replace('_', '-', $option))
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="grid max-w-xl gap-1.5">
+                    <label for="counts_in_reports" class="text-xs font-medium text-gray-800 dark:text-white">
+                        @lang('admin::app.settings.pipelines.create.counts-in-reports')
+                    </label>
+
+                    <select
+                        name="counts_in_reports"
+                        id="counts_in_reports"
+                        class="custom-select w-56 rounded-md border bg-white px-3 py-2.5 text-sm text-gray-600 transition-all hover:border-gray-400 focus:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                    >
+                        <option value="1" @selected((string) (old('counts_in_reports') ?? (int) $pipeline->counts_in_reports) === '1')>@lang('admin::app.settings.pipelines.create.counts-yes')</option>
+                        <option value="0" @selected((string) (old('counts_in_reports') ?? (int) $pipeline->counts_in_reports) === '0')>@lang('admin::app.settings.pipelines.create.counts-no')</option>
+                    </select>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        @lang('admin::app.settings.pipelines.create.counts-in-reports-hint')
+                    </p>
+                </div>
+
+                {!! view_render_event('admin.settings.pipelines.edit.form.type.after') !!}
+            </div>
         </div>
 
         <div class="flex gap-2.5 overflow-auto py-3.5 max-xl:flex-wrap">

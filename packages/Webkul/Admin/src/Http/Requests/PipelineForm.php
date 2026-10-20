@@ -37,6 +37,8 @@ class PipelineForm extends FormRequest
         if (request('id')) {
             return [
                 'name' => 'required|unique:lead_pipelines,name,'.request('id'),
+                'type' => 'nullable|in:commercial,post_sale,other',
+                'counts_in_reports' => 'nullable|boolean',
                 'stages.*.name' => 'unique_key',
                 'stages.*.code' => 'unique_key',
                 'stages.*.alert_threshold_days' => 'nullable|integer|min:0',
@@ -45,6 +47,8 @@ class PipelineForm extends FormRequest
 
         return [
             'name' => 'required|unique:lead_pipelines,name',
+            'type' => 'nullable|in:commercial,post_sale,other',
+            'counts_in_reports' => 'nullable|boolean',
             'rotten_days' => 'required',
             'stages.*.name' => 'unique_key',
             'stages.*.code' => 'unique_key',

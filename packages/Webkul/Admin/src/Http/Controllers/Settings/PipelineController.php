@@ -9,6 +9,7 @@ use Illuminate\View\View;
 use Webkul\Admin\DataGrids\Settings\PipelineDataGrid;
 use Webkul\Admin\Http\Controllers\Controller;
 use Webkul\Admin\Http\Requests\PipelineForm;
+use Webkul\Lead\Models\Pipeline;
 use Webkul\Lead\Repositories\PipelineRepository;
 
 class PipelineController extends Controller
@@ -49,6 +50,8 @@ class PipelineController extends Controller
 
         $request->merge([
             'is_default' => request()->has('is_default') ? 1 : 0,
+            'type' => in_array(request('type'), Pipeline::TYPES, true) ? request('type') : 'commercial',
+            'counts_in_reports' => request()->boolean('counts_in_reports', true) ? 1 : 0,
         ]);
 
         Event::dispatch('settings.pipeline.create.before');
@@ -96,7 +99,11 @@ class PipelineController extends Controller
             }
         }
 
-        $request->merge(['is_default' => $isDefault]);
+        $request->merge([
+            'is_default' => $isDefault,
+            'type' => in_array(request('type'), Pipeline::TYPES, true) ? request('type') : 'commercial',
+            'counts_in_reports' => request()->boolean('counts_in_reports', true) ? 1 : 0,
+        ]);
 
         Event::dispatch('settings.pipeline.update.before', $id);
 

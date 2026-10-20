@@ -16,9 +16,40 @@ class Pipeline extends Model implements PipelineContract
      */
     protected $fillable = [
         'name',
+        'type',
+        'counts_in_reports',
         'rotten_days',
         'is_default',
     ];
+
+    public const TYPES = ['commercial', 'post_sale', 'other'];
+
+    protected $casts = ['counts_in_reports' => 'boolean'];
+
+    /** @var list<int>|null remembered for the request */
+    private static ?array $counted = null;
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => self::$counted = null);
+        static::deleted(fn () => self::$counted = null);
+    }
+
+    /**
+     * The pipelines whose deals count in the sales reports (revenue, average ticket, goals, ads): the
+     * ones with "Conta nos relatórios de vendas" on. A pipeline of post-sale follow-up is usually off.
+     *
+     * @return list<int>
+     */
+    public static function countedIds(): array
+    {
+        return self::$counted ??= static::query()->where('counts_in_reports', true)->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    public static function forgetCounted(): void
+    {
+        self::$counted = null;
+    }
 
     /**
      * Get the leads.
