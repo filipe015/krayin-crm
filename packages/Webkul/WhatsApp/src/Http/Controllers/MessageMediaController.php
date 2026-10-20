@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
 use Webkul\WhatsApp\Channels\Cloud\CloudClient;
+use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 
 /**
@@ -21,7 +22,8 @@ class MessageMediaController extends Controller
 
     public function __invoke(int $id): StreamedResponse
     {
-        $message = Message::query()->findOrFail($id);
+        // Only the attachments of conversations this user may see.
+        $message = Message::query()->whereIn('conversation_id', Conversation::query()->visible()->select('id'))->findOrFail($id);
 
         if (str_starts_with((string) $message->media_path, 'local:')) {
             return $this->local($message);

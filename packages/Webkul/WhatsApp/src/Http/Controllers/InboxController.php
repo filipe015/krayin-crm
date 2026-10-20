@@ -27,7 +27,7 @@ class InboxController extends Controller
     {
         // "?c=ID" opens the Inbox already on that conversation (used by the lead's WhatsApp button).
         $initial = $request->filled('c')
-            ? Conversation::query()
+            ? Conversation::query()->visible()
                 ->whereNotNull('session_id')
                 ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,channel,status'])
                 ->find((int) $request->query('c'))
@@ -85,7 +85,7 @@ class InboxController extends Controller
                 ->whereColumn('r.conversation_id', 'whatsapp_messages.conversation_id')
                 ->where('r.user_id', $userId));
 
-        $query = Conversation::query()
+        $query = Conversation::query()->visible()
             ->whereNotNull('session_id')
             ->with(['lead:id,title,lead_pipeline_stage_id', 'lead.stage:id,name', 'assignedUser:id,name', 'session:id,channel,status'])
             ->withCount([
@@ -135,7 +135,7 @@ class InboxController extends Controller
         $offset = (((int) ($filters['page'] ?? 1)) - 1) * self::LIST_SIZE;
 
         // Conversations that need this user's eyes (unassigned or theirs), for the tab title.
-        $unreadTotal = Conversation::query()
+        $unreadTotal = Conversation::query()->visible()
             ->whereNotNull('session_id')
             ->where('status', 'open')
             ->where(fn ($owner) => $owner->whereNull('assigned_user_id')->orWhere('assigned_user_id', $userId))
@@ -239,7 +239,7 @@ class InboxController extends Controller
 
     private function conversation(int $id): Conversation
     {
-        return Conversation::query()->whereNotNull('session_id')->findOrFail($id);
+        return Conversation::query()->visible()->whereNotNull('session_id')->findOrFail($id);
     }
 
     private function conversationData(Conversation $conversation): array

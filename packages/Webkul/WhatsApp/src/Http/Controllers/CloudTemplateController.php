@@ -113,7 +113,7 @@ class CloudTemplateController extends Controller
 
     private function conversation(int $id): Conversation
     {
-        $conversation = Conversation::query()->whereNotNull('session_id')->with('session')->findOrFail($id);
+        $conversation = Conversation::query()->visible()->whereNotNull('session_id')->with('session')->findOrFail($id);
 
         abort_unless($conversation->session?->channel === 'cloud', 404);
 

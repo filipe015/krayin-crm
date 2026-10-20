@@ -52,6 +52,7 @@ return [
     'users' => [
         'activate-warning' => 'Sua conta ainda não foi ativada. Por favor, entre em contato com o administrador.',
         'login-error' => 'As credenciais não correspondem aos nossos registros.',
+        'too-many-attempts' => 'Muitas tentativas. Aguarde :seconds segundos e tente de novo.',
         'not-permission' => 'You do not have permission to access the admin panel.',
         'login' => [
             'email' => 'Endereço de E-mail',

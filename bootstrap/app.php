@@ -15,7 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->trustProxies(at: '*');
+        // Who may tell us the client's address and scheme (X-Forwarded-*): "*" trusts any sender, which lets a client
+        // pick its own address. Set TRUSTED_PROXIES (comma separated addresses or ranges of the proxy, e.g.
+        // "172.16.0.0/12,10.0.0.0/8") once the proxy in front of the app is known.
+        $middleware->trustProxies(at: env('TRUSTED_PROXIES') ? array_map('trim', explode(',', env('TRUSTED_PROXIES'))) : '*');
 
         $middleware->append(CanInstall::class);
 

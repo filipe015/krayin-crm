@@ -4,11 +4,15 @@ namespace Webkul\Admin\Providers;
 
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Routing\Router;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Webkul\Admin\Bouncer;
 use Webkul\Admin\Exceptions\Handler;
 use Webkul\Admin\Http\Middleware\Bouncer as BouncerMiddleware;
@@ -35,6 +39,8 @@ class AdminServiceProvider extends ServiceProvider
         $router->aliasMiddleware('sanitize_url', SanitizeUrl::class);
 
         include __DIR__.'/../Http/helpers.php';
+
+        $this->registerAuthLimiters();
 
         Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path'))
@@ -107,5 +113,26 @@ class AdminServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(dirname(__DIR__).'/Config/attribute_entity_types.php', 'attribute_entity_types');
 
         $this->mergeConfigFrom(dirname(__DIR__).'/Config/support.php', 'support');
+    }
+
+    /**
+     * Limits on the screens anybody can reach (login, forgotten and reset password): a few attempts a minute
+     * for each e-mail (it holds even when the address of the client is spoofed) and a wider one for each address.
+     */
+    private function registerAuthLimiters(): void
+    {
+        $tooMany = fn (Request $request, array $headers) => redirect()->back()->withInput($request->only('email'))->with('error', trans('admin::app.users.too-many-attempts', [
+            'seconds' => (int) ($headers['Retry-After'] ?? 60),
+        ]));
+
+        RateLimiter::for('admin-login', fn (Request $request) => [
+            Limit::perMinute(5)->by('login-email|'.Str::lower((string) $request->input('email')))->response($tooMany),
+            Limit::perMinute(30)->by('login-ip|'.$request->ip())->response($tooMany),
+        ]);
+
+        RateLimiter::for('admin-password', fn (Request $request) => [
+            Limit::perMinute(3)->by('password-email|'.Str::lower((string) $request->input('email')))->response($tooMany),
+            Limit::perMinute(10)->by('password-ip|'.$request->ip())->response($tooMany),
+        ]);
     }
 }

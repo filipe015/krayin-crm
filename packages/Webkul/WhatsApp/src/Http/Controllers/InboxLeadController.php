@@ -52,7 +52,7 @@ class InboxLeadController extends Controller
     {
         $data = $request->validate(['lead_id' => ['nullable', 'integer', 'exists:leads,id']]);
 
-        $conversation = Conversation::query()->whereNotNull('session_id')->findOrFail($id);
+        $conversation = Conversation::query()->visible()->whereNotNull('session_id')->findOrFail($id);
 
         if (! empty($data['lead_id'])) {
             $userIds = bouncer()->getAuthorizedUserIds();
@@ -86,7 +86,7 @@ class InboxLeadController extends Controller
     {
         abort_unless(bouncer()->hasPermission('leads.create'), 403);
 
-        $conversation = Conversation::query()->whereNotNull('session_id')->findOrFail($id);
+        $conversation = Conversation::query()->visible()->whereNotNull('session_id')->findOrFail($id);
 
         abort_if($conversation->lead_id !== null, 422, trans('whatsapp::app.inbox.already_has_lead'));
 

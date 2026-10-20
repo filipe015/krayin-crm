@@ -84,7 +84,7 @@ class LeadFunnelController extends Controller
      */
     private function leadOf(int $conversationId): ?Lead
     {
-        $conversation = Conversation::query()->whereNotNull('session_id')->findOrFail($conversationId);
+        $conversation = Conversation::query()->visible()->whereNotNull('session_id')->findOrFail($conversationId);
 
         if ($conversation->lead_id === null) {
             return null;

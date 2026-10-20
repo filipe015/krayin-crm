@@ -35,7 +35,7 @@ class InboxMessageController extends Controller
 
         $scheduledAt = $this->scheduleTime($data['scheduled_at'] ?? null);
 
-        $conversation = Conversation::query()->whereNotNull('session_id')->with('session')->findOrFail($id);
+        $conversation = Conversation::query()->visible()->whereNotNull('session_id')->with('session')->findOrFail($id);
 
         abort_if($conversation->session?->status !== 'WORKING', 409, trans('whatsapp::app.inbox.session_offline'));
         abort_if(SendTarget::for($conversation) === [], 422, trans('whatsapp::app.inbox.no_identity'));
@@ -143,7 +143,7 @@ class InboxMessageController extends Controller
     {
         $data = $request->validate(['state' => ['required', 'in:typing,recording,paused']]);
 
-        $conversation = Conversation::query()->whereNotNull('session_id')->with('session:id,external_id,status')->findOrFail($id);
+        $conversation = Conversation::query()->visible()->whereNotNull('session_id')->with('session:id,external_id,status')->findOrFail($id);
 
         if (! config('whatsapp.send_typing')
             || $conversation->session?->channel !== 'waha'
@@ -224,6 +224,7 @@ class InboxMessageController extends Controller
     private function scheduledMessage(int $id): Message
     {
         return Message::query()
+            ->whereIn('conversation_id', Conversation::query()->visible()->select('id'))
             ->where('direction', 'outbound')
             ->where('source', 'crm')
             ->where('status', 'scheduled')
@@ -239,6 +240,7 @@ class InboxMessageController extends Controller
     {
         $message = Message::query()
             ->with('conversation.session')
+            ->whereIn('conversation_id', Conversation::query()->visible()->select('id'))
             ->where('direction', 'outbound')
             ->where('source', 'crm')
             ->where('status', 'failed')
