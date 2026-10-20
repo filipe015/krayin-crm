@@ -735,7 +735,7 @@ return [
         'roles' => [
             'index' => [
                 'install-defaults-btn' => 'Instalar cargos-padrão',
-                'install-defaults-confirm' => 'Criar os cargos-padrão (Gestor, Vendedor, SDR, Atendimento, Marketing e Somente leitura)? Os que já existirem não serão alterados.',
+                'install-defaults-confirm' => 'Criar os cargos-padrão (Gestor, Vendedor, SDR, Atendimento, Pós-venda, Marketing e Somente leitura)? Os que já existirem não serão alterados.',
                 'install-defaults-done' => 'Cargos criados: :created. Já existiam (mantidos): :skipped.',
                 'being-used' => 'Não é possível excluir o cargo, pois está sendo usado por um usuário administrador.',
                 'create-btn' => 'Adicionar Cargos',
