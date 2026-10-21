@@ -43,7 +43,7 @@ class AdminServiceProvider extends ServiceProvider
         $this->registerAuthLimiters();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([\Webkul\Admin\Console\Commands\InstallDefaultRoles::class, \Webkul\Admin\Console\Commands\AuditRoles::class]);
+            $this->commands([\Webkul\Admin\Console\Commands\InstallDefaultRoles::class, \Webkul\Admin\Console\Commands\AuditRoles::class, \Webkul\Admin\Console\Commands\SetupTravelAgency::class]);
         }
 
         Route::middleware(['web', 'admin_locale', 'user'])
