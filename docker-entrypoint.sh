@@ -6,6 +6,12 @@ cd /var/www/html
 # storage may be a mounted volume that starts out owned by root
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 
+# Files uploaded in the admin (logo, favicon) live in storage/app/public and are served through public/storage;
+# a new container has no such link, and the images show up broken.
+mkdir -p storage/app/public
+chown www-data:www-data storage/app/public 2>/dev/null || true
+[ -e public/storage ] || ln -s ../storage/app/public public/storage
+
 # Krayin only treats itself as installed when a .env file exists (and the database has users);
 # without it, it shows the web installer, which runs migrate:fresh. The configuration comes from
 # the container environment, so an empty file is enough and never overrides a real variable.
