@@ -1802,6 +1802,7 @@ return [
     'leads' => [
         'create-success' => 'Lead created successfully.',
         'update-success' => 'Leads updated successfully.',
+        'lost-reason-required' => 'Choose the reason for the loss.',
         'update-failed' => 'Leads can not be deleted.',
         'destroy-success' => 'Lead deleted successfully.',
         'destroy-failed' => 'Lead can not be deleted.',
@@ -1894,6 +1895,7 @@ return [
                     'closed-at' => 'Closed At',
                     'won-value' => 'Won Value',
                     'lost-reason' => 'Lost Reason',
+                    'lost-reason-choose' => 'Choose a reason',
                     'save-btn' => 'Save',
                 ],
             ],
@@ -2015,6 +2017,7 @@ return [
                 'closed-at' => 'Closed At',
                 'won-value' => 'Won Value',
                 'lost-reason' => 'Lost Reason',
+                'lost-reason-choose' => 'Choose a reason',
                 'save-btn' => 'Save',
             ],
             'tags' => [

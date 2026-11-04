@@ -31,6 +31,7 @@ class LeadFunnelController extends Controller
         $data = $request->validate([
             'stage_id'    => ['required', 'integer'],
             'lost_reason' => ['nullable', 'string', 'max:500'],
+            'lost_reason_id' => ['nullable', 'integer'],
         ]);
 
         $lead = $this->leadOf($id);
@@ -44,8 +45,8 @@ class LeadFunnelController extends Controller
 
         $payload = ['entity_type' => 'leads', 'lead_pipeline_stage_id' => $stage->id];
 
-        if ($stage->code === 'lost' && ! empty($data['lost_reason'])) {
-            $payload['lost_reason'] = $data['lost_reason'];
+        if ($stage->code === 'lost') {
+            $payload = array_merge($payload, \Webkul\Lead\Models\LostReason::resolve($lead->lead_pipeline_id, $data['lost_reason_id'] ?? null, $data['lost_reason'] ?? null));
         }
 
         $updated = $this->leads->update($payload, $lead->id, ['lead_pipeline_stage_id']);
@@ -113,6 +114,7 @@ class LeadFunnelController extends Controller
             'stages'    => $lead->pipeline
                 ? $lead->pipeline->stages->sortBy('sort_order')->values()->map(fn ($stage) => ['id' => $stage->id, 'name' => $stage->name, 'code' => $stage->code])
                 : [],
+            'lost_reasons' => \Webkul\Lead\Models\LostReason::optionsFor((int) $lead->lead_pipeline_id),
             'tags'      => $lead->tags->map(fn ($tag) => ['id' => $tag->id, 'name' => $tag->name, 'color' => $tag->color])->values(),
             'available_tags' => Tag::query()->whereNotIn('id', $attached)->orderBy('name')->limit(100)->get(['id', 'name', 'color']),
         ];

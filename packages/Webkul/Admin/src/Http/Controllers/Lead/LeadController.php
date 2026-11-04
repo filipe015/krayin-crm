@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
@@ -384,6 +385,16 @@ class LeadController extends Controller
             'lead_pipeline_stage_id',
             'entity_type',
         ]);
+
+        if ($stage->code === 'lost') {
+            // The loss date is always "now" and the reason comes from the pipeline's list (Configurações → Motivos de perda).
+            unset($payload['closed_at']);
+
+            $payload = array_merge(
+                Arr::except($payload, ['lost_reason']),
+                \Webkul\Lead\Models\LostReason::resolve($lead->lead_pipeline_id, request()->input('lost_reason_id'), request()->input('lost_reason')),
+            );
+        }
 
         $lead = $this->leadRepository->update($payload, $id, ['lead_pipeline_stage_id']);
 

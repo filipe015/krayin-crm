@@ -39,6 +39,14 @@ return [
         'icon-class' => 'icon-leads',
     ],
     [
+        'key'        => 'settings.other_settings.lost-reasons',
+        'name'       => 'whatsapp::app.menu.lost_reasons',
+        'info'       => 'whatsapp::app.menu.lost_reasons_info',
+        'route'      => 'admin.lost-reasons.index',
+        'sort'       => 6,
+        'icon-class' => 'icon-leads',
+    ],
+    [
         'key'        => 'settings.other_settings.api',
         'name'       => 'whatsapp::app.menu.api_settings',
         'info'       => 'whatsapp::app.menu.api_settings_info',

@@ -377,9 +377,31 @@
                                 </x-admin::form.control-group>
                             </template>
 
-                            <!-- Lost Reason -->
+                            <!-- Lost Reason: a standard reason of this funnel (Configurações → Motivos de perda) -->
                             <template v-else>
-                                <x-admin::form.control-group>
+                                <x-admin::form.control-group v-if="lostReasons.length">
+                                    <x-admin::form.control-group.label class="required">
+                                        @lang('admin::app.leads.index.kanban.stages.lost-reason')
+                                    </x-admin::form.control-group.label>
+
+                                    <x-admin::form.control-group.control
+                                        type="select"
+                                        name="lost_reason_id"
+                                        rules="required"
+                                        :label="trans('admin::app.leads.index.kanban.stages.lost-reason')"
+                                    >
+                                        <option value="">@lang('admin::app.leads.index.kanban.stages.lost-reason-choose')</option>
+
+                                        <option v-for="reason in lostReasons" :key="reason.id" :value="reason.id">
+                                            @{{ reason.name }}
+                                        </option>
+                                    </x-admin::form.control-group.control>
+
+                                    <x-admin::form.control-group.error control-name="lost_reason_id"/>
+                                </x-admin::form.control-group>
+
+                                <!-- This funnel has no reasons registered yet: the old free text stays so the move is not blocked. -->
+                                <x-admin::form.control-group v-else>
                                     <x-admin::form.control-group.label>
                                         @lang('admin::app.leads.index.kanban.stages.lost-reason')
                                     </x-admin::form.control-group.label>
@@ -391,8 +413,8 @@
                                 </x-admin::form.control-group>
                             </template>
 
-                            <!-- Closed At -->
-                            <x-admin::form.control-group>
+                            <!-- Closed At: only when winning; a lost deal is closed now -->
+                            <x-admin::form.control-group v-if="finalized.stage.code == 'won'">
                                 <x-admin::form.control-group.label>
                                     @lang('admin::app.leads.index.kanban.stages.closed-at')
                                 </x-admin::form.control-group.label>
@@ -451,6 +473,9 @@
                     },
 
                     stages: @json($pipeline->stages->toArray()),
+
+                    // Standard loss reasons of this funnel (Configurações → Motivos de perda).
+                    lostReasons: @json(\Webkul\Lead\Models\LostReason::optionsFor((int) $pipeline->id)),
 
                     stageLeads: {},
 

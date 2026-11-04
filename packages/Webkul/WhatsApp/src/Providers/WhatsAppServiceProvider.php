@@ -68,6 +68,10 @@ class WhatsAppServiceProvider extends ServiceProvider
             ->group(__DIR__.'/../Routes/funnel-rules.php');
 
         Route::middleware(['web', 'admin_locale', 'user'])
+            ->prefix(config('app.admin_path').'/settings/lost-reasons')
+            ->group(__DIR__.'/../Routes/lost-reasons.php');
+
+        Route::middleware(['web', 'admin_locale', 'user'])
             ->prefix(config('app.admin_path').'/ads')
             ->group(__DIR__.'/../Routes/ads.php');
 

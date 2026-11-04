@@ -115,6 +115,17 @@ return [
         'sort'  => 1,
     ],
     [
+        'key'   => 'settings.other_settings.lost-reasons',
+        'name'  => 'whatsapp::app.acl.lost_reasons',
+        'route' => 'admin.lost-reasons.index',
+        'sort'  => 9,
+    ], [
+        'key'   => 'settings.other_settings.lost-reasons.edit',
+        'name'  => 'whatsapp::app.acl.lost_reasons_edit',
+        'route' => ['admin.lost-reasons.store', 'admin.lost-reasons.update', 'admin.lost-reasons.delete'],
+        'sort'  => 1,
+    ],
+    [
         'key'   => 'settings.other_settings.api',
         'name'  => 'whatsapp::app.acl.api_settings',
         'route' => ['admin.api.settings.index', 'admin.api.settings.list'],

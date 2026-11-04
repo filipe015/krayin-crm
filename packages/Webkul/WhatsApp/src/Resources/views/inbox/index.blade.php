@@ -1294,16 +1294,33 @@
                     changeStage(stageId) {
                         const stage = this.funnel.stages.find(item => String(item.id) === String(stageId));
                         let lostReason;
+                        let lostReasonId;
 
                         if (stage && stage.code === 'lost') {
-                            lostReason = window.prompt(this.labels.lost_reason) || undefined;
+                            const reasons = this.funnel.lost_reasons || [];
+
+                            if (reasons.length) {
+                                // The funnel has standard reasons: pick one by its number (Configurações → Motivos de perda).
+                                const list = reasons.map((reason, index) => (index + 1) + ' - ' + reason.name).join('\n');
+                                const chosen = reasons[parseInt(window.prompt(this.labels.lost_reason_pick + '\n' + list), 10) - 1];
+
+                                if (! chosen) {
+                                    this.loadFunnel();
+
+                                    return;
+                                }
+
+                                lostReasonId = chosen.id;
+                            } else {
+                                lostReason = window.prompt(this.labels.lost_reason) || undefined;
+                            }
                         } else if (stage && stage.code === 'won' && ! window.confirm(this.labels.won_confirm)) {
                             this.loadFunnel();
 
                             return;
                         }
 
-                        this.funnelAction(() => this.$axios.post(this.url('funnelStage', this.selectedId), { stage_id: stageId, lost_reason: lostReason }));
+                        this.funnelAction(() => this.$axios.post(this.url('funnelStage', this.selectedId), { stage_id: stageId, lost_reason: lostReason, lost_reason_id: lostReasonId }));
                     },
 
                     addTag(event) {

@@ -1801,6 +1801,7 @@ return [
     'leads' => [
         'create-success' => 'Negócio adicionado com sucesso.',
         'update-success' => 'Negócio atualizado com sucesso.',
+        'lost-reason-required' => 'Escolha o motivo da perda.',
         'update-failed' => 'Leads can not be deleted.',
         'destroy-success' => 'Negócio excluído com sucesso.',
         'destroy-failed' => 'Este negócio não pode ser excluído.',
@@ -1893,6 +1894,7 @@ return [
                     'closed-at' => 'Fechado em',
                     'won-value' => 'Valor Ganhado',
                     'lost-reason' => 'Motivo da Perda',
+                    'lost-reason-choose' => 'Escolha um motivo',
                     'save-btn' => 'Salvar',
                 ],
             ],
@@ -2014,6 +2016,7 @@ return [
                 'closed-at' => 'Fechado em',
                 'won-value' => 'Valor Ganhado',
                 'lost-reason' => 'Motivo da Perda',
+                'lost-reason-choose' => 'Escolha um motivo',
                 'save-btn' => 'Salvar',
             ],
             'tags' => [
