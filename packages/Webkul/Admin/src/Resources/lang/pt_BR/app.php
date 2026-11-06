@@ -1802,7 +1802,7 @@ return [
         'create-success' => 'Negócio adicionado com sucesso.',
         'update-success' => 'Negócio atualizado com sucesso.',
         'lost-reason-required' => 'Escolha o motivo da perda.',
-        'update-failed' => 'Leads can not be deleted.',
+        'update-failed' => 'Não foi possível mover os negócios.',
         'destroy-success' => 'Negócio excluído com sucesso.',
         'destroy-failed' => 'Este negócio não pode ser excluído.',
         'file' => [

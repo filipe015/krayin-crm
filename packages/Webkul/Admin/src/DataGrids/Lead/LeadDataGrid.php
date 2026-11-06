@@ -316,10 +316,33 @@ class LeadDataGrid extends DataGrid
             'title' => trans('admin::app.leads.index.datagrid.mass-update'),
             'url' => route('admin.leads.mass_update'),
             'method' => 'POST',
-            'options' => $this->pipeline->stages->map(fn ($stage) => [
-                'label' => $stage->name,
-                'value' => $stage->id,
-            ])->toArray(),
+            'options' => $this->massUpdateOptions(),
         ]);
+    }
+
+    /**
+     * Stages to move the selected deals to. When the pipeline has standard loss reasons, "lost" shows
+     * one option per reason ("lost:<id>") so the reason is chosen in the same step.
+     *
+     * @return list<array{label: string, value: int|string}>
+     */
+    protected function massUpdateOptions(): array
+    {
+        $reasons = \Webkul\Lead\Models\LostReason::optionsFor((int) $this->pipeline->id);
+        $options = [];
+
+        foreach ($this->pipeline->stages as $stage) {
+            if ($stage->code === 'lost' && $reasons) {
+                foreach ($reasons as $reason) {
+                    $options[] = ['label' => $stage->name.' — '.$reason['name'], 'value' => 'lost:'.$reason['id']];
+                }
+
+                continue;
+            }
+
+            $options[] = ['label' => $stage->name, 'value' => $stage->id];
+        }
+
+        return $options;
     }
 }

@@ -454,23 +454,55 @@ class LeadController extends Controller
     {
         $leads = $this->leadRepository->findWhereIn('id', $massUpdateRequest->input('indices'));
 
+        // "lost:<id>" = the lost stage with that standard reason (the datagrid offers one option per reason).
+        $value = (string) $massUpdateRequest->input('value');
+        $reasonId = null;
+
+        if (str_starts_with($value, 'lost:')) {
+            $reasonId = (int) substr($value, 5);
+            $value = null;
+        }
+
         try {
+            $updated = 0;
+
             foreach ($leads as $lead) {
-                Event::dispatch('lead.update.before', $lead->id);
+                $stage = $value !== null
+                    ? $lead->pipeline->stages()->where('id', $value)->first()
+                    : $lead->pipeline->stages()->where('code', 'lost')->first();
 
-                $lead = $this->leadRepository->find($lead->id);
+                // A stage of another pipeline is never a valid target for this deal.
+                if (! $stage) {
+                    continue;
+                }
 
-                if ($lead) {
-                    $this->leadRepository->update(['lead_pipeline_stage_id' => $massUpdateRequest->input('value')], $lead->id);
+                $payload = ['entity_type' => 'leads', 'lead_pipeline_stage_id' => $stage->id];
+
+                if ($stage->code === 'lost') {
+                    $payload = array_merge($payload, \Webkul\Lead\Models\LostReason::resolve($lead->lead_pipeline_id, $reasonId));
                 }
 
                 Event::dispatch('lead.update.before', $lead->id);
+
+                $lead = $this->leadRepository->update($payload, $lead->id, ['lead_pipeline_stage_id']);
+
+                Event::dispatch('lead.update.after', $lead);
+
+                $updated++;
+            }
+
+            if ($updated === 0) {
+                return response()->json(['message' => trans('admin::app.leads.update-failed')], 400);
             }
 
             return response()->json([
                 'message' => trans('admin::app.leads.update-success'),
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
         } catch (\Exception $th) {
+            report($th);
+
             return response()->json([
                 'message' => trans('admin::app.leads.update-failed'),
             ], 400);
