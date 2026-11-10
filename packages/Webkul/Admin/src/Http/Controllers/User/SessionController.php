@@ -16,6 +16,11 @@ class SessionController extends Controller
     public function create(): RedirectResponse|View
     {
         if (auth()->guard('user')->check()) {
+            // Quem não tem a permissão de Dashboard (ex.: função restrita) iria parar numa página 401.
+            if (! bouncer()->hasPermission('dashboard') && $firstMenu = menu()->getItems('admin')?->first()) {
+                return redirect()->to($firstMenu->getUrl());
+            }
+
             return redirect()->route('admin.dashboard.index');
         }
 
