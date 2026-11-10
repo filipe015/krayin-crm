@@ -174,7 +174,7 @@ class UserController extends Controller
             'pipelines' => ['nullable', 'array', 'required_if:pipelines_restricted,1,true', 'max:200'],
             'pipelines.*' => ['integer', Rule::exists('lead_pipelines', 'id')],
             'whatsapp_restricted' => 'nullable|boolean',
-            'whatsapp_sessions' => ['nullable', 'array', 'required_if:whatsapp_restricted,1,true', 'max:200'],
+            'whatsapp_sessions' => ['nullable', 'array', 'max:200'],
             'whatsapp_sessions.*' => ['integer', Rule::exists('whatsapp_sessions', 'id')],
         ];
     }

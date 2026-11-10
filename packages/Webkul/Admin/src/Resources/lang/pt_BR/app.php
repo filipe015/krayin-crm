@@ -1191,7 +1191,7 @@ return [
                     'whatsapp-access' => 'Acesso ao WhatsApp',
                     'whatsapp-all' => 'Todos os números',
                     'whatsapp-only' => 'Só os números marcados',
-                    'whatsapp-required' => 'Marque pelo menos um número, ou ele não verá nenhuma conversa.',
+                    'whatsapp-required' => 'Nenhum número marcado: esta pessoa ficará sem acesso a nenhum WhatsApp.',
                     'whatsapp-hint' => 'Escolhe QUAIS números de WhatsApp ele enxerga e responde. Vale junto com o acesso por funil: ele só vê a conversa que estiver num número liberado.',
                     'pipeline-hint' => 'Escolhe EM QUAIS funis ele enxerga. Dentro deles, o campo "Quais oportunidades ele vê" define se ele vê todas ou só as em que é o responsável.',
                     'select-at-lest-one-group' => 'Select at least one group',

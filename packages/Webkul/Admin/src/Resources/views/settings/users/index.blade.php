@@ -458,7 +458,7 @@
                                         </label>
                                     </div>
 
-                                    <p v-if="! user.pipelines.length" class="mt-2 pl-5 text-xs text-red-600">
+                                    <p v-if="! user.pipelines.length" class="mt-2 pl-5 text-xs text-amber-600">
                                         @lang('admin::app.settings.users.index.create.pipeline-required')
                                     </p>
 
@@ -499,7 +499,7 @@
                                         </label>
                                     </div>
 
-                                    <p v-if="! user.whatsapp_sessions.length" class="mt-2 pl-5 text-xs text-red-600">
+                                    <p v-if="! user.whatsapp_sessions.length" class="mt-2 pl-5 text-xs text-amber-600">
                                         @lang('admin::app.settings.users.index.create.whatsapp-required')
                                     </p>
                                 </template>

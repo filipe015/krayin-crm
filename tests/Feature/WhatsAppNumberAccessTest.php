@@ -74,7 +74,10 @@ it('saves the numbers of a user on the user form', function () {
 
     test()->actingAs(getDefaultAdmin(), 'user')
         ->putJson(route('admin.settings.users.update', $target->id), $payload(['whatsapp_restricted' => 1]))
-        ->assertUnprocessable();
+        ->assertOk();
+
+    expect($target->refresh()->load('whatsappSessions'))->whatsapp_restricted->toBeTrue()
+        ->and($target->whatsappSessions)->toHaveCount(0);
 
     test()->putJson(route('admin.settings.users.update', $target->id), $payload(['whatsapp_restricted' => 1, 'whatsapp_sessions' => [$mine]]))->assertOk();
 

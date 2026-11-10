@@ -1192,7 +1192,7 @@ return [
                     'whatsapp-access' => 'WhatsApp access',
                     'whatsapp-all' => 'All numbers',
                     'whatsapp-only' => 'Only the numbers checked',
-                    'whatsapp-required' => 'Check at least one number, or they will see no conversation.',
+                    'whatsapp-required' => 'No number checked: this person will have no WhatsApp access at all.',
                     'whatsapp-hint' => 'Chooses WHICH WhatsApp numbers they see and answer. It works together with the pipeline access.',
                     'pipeline-hint' => 'Restricted users only see deals, conversations, agenda and reports of the selected pipelines.',
                     'select-at-lest-one-group' => 'Select at least one group',
