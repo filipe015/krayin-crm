@@ -24,8 +24,11 @@ class OpenLeadConversationController extends Controller
             ->when($userIds, fn ($query) => $query->whereIn('leads.user_id', $userIds))
             ->findOrFail($leadId);
 
+        $allowedSessions = bouncer()->getAllowedSessionIds();
+
         $conversation = Conversation::query()
             ->whereNotNull('session_id')
+            ->when($allowedSessions !== null, fn ($query) => $query->whereIn('session_id', $allowedSessions ?: [0]))
             ->where('lead_id', $lead->id)
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
@@ -35,7 +38,7 @@ class OpenLeadConversationController extends Controller
 
         // A chat with this number that nobody linked to a lead yet becomes this lead's.
         if ($conversation === null && $phone !== null) {
-            $conversation = $this->unlinkedConversation($phone);
+            $conversation = $this->unlinkedConversation($phone, $allowedSessions);
 
             if ($conversation !== null) {
                 $conversation->lead_id = $lead->id;
@@ -46,8 +49,10 @@ class OpenLeadConversationController extends Controller
         if ($conversation === null) {
             abort_if($phone === null, 422, trans('whatsapp::app.inbox.lead_without_phone'));
 
-            $session = Session::query()->where('status', 'WORKING')->orderBy('id')->first()
-                ?? Session::query()->orderBy('id')->first();
+            $usable = fn () => Session::query()->when($allowedSessions !== null, fn ($query) => $query->whereIn('id', $allowedSessions ?: [0]));
+
+            $session = $usable()->where('status', 'WORKING')->orderBy('id')->first()
+                ?? $usable()->orderBy('id')->first();
 
             abort_if($session === null, 422, trans('whatsapp::app.inbox.no_session'));
 
@@ -89,10 +94,11 @@ class OpenLeadConversationController extends Controller
         return str_starts_with($digits, '55') ? $digits : '55'.$digits;
     }
 
-    private function unlinkedConversation(string $phone): ?Conversation
+    private function unlinkedConversation(string $phone, ?array $allowedSessions = null): ?Conversation
     {
         return Conversation::query()
             ->whereNotNull('session_id')
+            ->when($allowedSessions !== null, fn ($query) => $query->whereIn('session_id', $allowedSessions ?: [0]))
             ->whereNull('lead_id')
             ->whereIn('contact_phone', PhoneNumberMatcher::variants($phone))
             ->orderByDesc('last_message_at')

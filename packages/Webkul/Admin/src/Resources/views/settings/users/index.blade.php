@@ -473,6 +473,40 @@
                                 <p class="mt-2 text-xs text-gray-500">@lang('admin::app.settings.users.index.create.pipeline-hint')</p>
                             </div>
 
+                            <!-- Access by WhatsApp number -->
+                            <div class="mb-4 rounded-md border p-3 dark:border-gray-800">
+                                <p class="mb-2 text-sm font-medium text-gray-800 dark:text-white">
+                                    @lang('admin::app.settings.users.index.create.whatsapp-access')
+                                </p>
+
+                                <input type="hidden" name="whatsapp_restricted" :value="user.whatsapp_restricted ? 1 : 0" />
+
+                                <label class="mb-1 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <input type="radio" :value="false" v-model="user.whatsapp_restricted" />
+                                    @lang('admin::app.settings.users.index.create.whatsapp-all')
+                                </label>
+
+                                <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <input type="radio" :value="true" v-model="user.whatsapp_restricted" />
+                                    @lang('admin::app.settings.users.index.create.whatsapp-only')
+                                </label>
+
+                                <template v-if="user.whatsapp_restricted">
+                                    <div class="mt-3 grid gap-1 pl-5">
+                                        <label v-for="session in whatsappSessions" :key="session.id" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                            <input type="checkbox" name="whatsapp_sessions[]" :value="session.id" v-model="user.whatsapp_sessions" />
+                                            @{{ session.name }}
+                                        </label>
+                                    </div>
+
+                                    <p v-if="! user.whatsapp_sessions.length" class="mt-2 pl-5 text-xs text-red-600">
+                                        @lang('admin::app.settings.users.index.create.whatsapp-required')
+                                    </p>
+                                </template>
+
+                                <p class="mt-2 text-xs text-gray-500">@lang('admin::app.settings.users.index.create.whatsapp-hint')</p>
+                            </div>
+
                             {!! view_render_event('admin.settings.users.index.form.status.before') !!}
 
                             <!-- Status -->
@@ -535,11 +569,15 @@
 
                         pipelines: @json($pipelines),
 
+                        whatsappSessions: @json($whatsappSessions),
+
                         user: {
                             view_permission: 'global',
                             pipelines_restricted: false,
                             pipelines: [],
                             inbox_queue: true,
+                            whatsapp_restricted: false,
+                            whatsapp_sessions: [],
                         },
                     };
                 },
@@ -596,6 +634,8 @@
                             pipelines_restricted: false,
                             pipelines: [],
                             inbox_queue: true,
+                            whatsapp_restricted: false,
+                            whatsapp_sessions: [],
                         };
 
                         this.$refs.userUpdateAndCreateModal.toggle();
@@ -642,6 +682,8 @@
                                 this.user.pipelines_restricted = !! this.user.pipelines_restricted;
                                 this.user.inbox_queue = !! this.user.inbox_queue;
                                 this.user.pipelines = (this.user.pipelines || []).map(pipeline => pipeline.id);
+                                this.user.whatsapp_restricted = !! this.user.whatsapp_restricted;
+                                this.user.whatsapp_sessions = (this.user.whatsapp_sessions || []).map(session => session.id);
 
                                 this.$refs.userUpdateAndCreateModal.toggle();
                             })

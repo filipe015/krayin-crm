@@ -35,7 +35,7 @@ class InboxController extends Controller
 
         return view('whatsapp::inbox.index', [
             'initial'  => $initial ? $this->conversationData($initial) : null,
-            'sessions' => Session::query()->orderBy('name')->get(['id', 'name']),
+            'sessions' => Session::query()->when(bouncer()->getAllowedSessionIds(), fn ($query, $ids) => $query->whereIn('id', $ids))->orderBy('name')->get(['id', 'name']),
             'funnelFilters' => $this->funnelFilters(),
             'cloudVoice' => \Webkul\WhatsApp\Support\VoiceTranscoder::available(),
             'urls'     => [

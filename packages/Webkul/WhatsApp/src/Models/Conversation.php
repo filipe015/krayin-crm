@@ -65,6 +65,11 @@ class Conversation extends Model implements ConversationContract
      */
     public function scopeVisible(Builder $query): Builder
     {
+        // Restricted to some WhatsApp numbers: only the conversations that came through them.
+        if (($sessionIds = bouncer()->getAllowedSessionIds()) !== null) {
+            $query->whereIn('session_id', $sessionIds ?: [0]);
+        }
+
         $pipelineIds = bouncer()->getAllowedPipelineIds();
 
         // Restricted to some pipelines: only the conversations of deals in them (plus the queue, when the user sees it).

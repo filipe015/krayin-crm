@@ -20,7 +20,8 @@ class LeadMessageController extends Controller
         }
 
         $messages = Message::query()
-            ->whereHas('conversation', fn ($query) => $query->where('lead_id', $leadId))
+            ->whereHas('conversation', fn ($query) => $query->where('lead_id', $leadId)
+                ->when(bouncer()->getAllowedSessionIds() !== null, fn ($inner) => $inner->whereIn('session_id', bouncer()->getAllowedSessionIds() ?: [0])))
             ->with('conversation:id,canal_origem')
             ->oldest('created_at')
             ->oldest('id')

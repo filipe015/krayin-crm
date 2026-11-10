@@ -136,4 +136,20 @@ class Bouncer
 
         return $user->loadMissing('pipelines')->pipelines->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
+
+    /**
+     * The WhatsApp numbers (sessions) the logged user may use: null = every number, an empty list = none.
+     *
+     * @return list<int>|null
+     */
+    public function getAllowedSessionIds(): ?array
+    {
+        $user = auth()->guard('user')->user();
+
+        if (! $user || ! $user->whatsapp_restricted) {
+            return null;
+        }
+
+        return $user->whatsappSessions()->pluck('whatsapp_sessions.id')->map(fn ($id) => (int) $id)->all();
+    }
 }

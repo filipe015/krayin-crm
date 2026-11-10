@@ -28,11 +28,13 @@ class User extends Authenticatable implements UserContract
         'view_permission',
         'pipelines_restricted',
         'inbox_queue',
+        'whatsapp_restricted',
     ];
 
     protected $casts = [
         'pipelines_restricted' => 'boolean',
         'inbox_queue'          => 'boolean',
+        'whatsapp_restricted'  => 'boolean',
     ];
 
     /**
@@ -97,6 +99,14 @@ class User extends Authenticatable implements UserContract
     /**
      * The pipelines a restricted user may use (see pipelines_restricted).
      */
+    /**
+     * The WhatsApp numbers a restricted user may use (see whatsapp_restricted).
+     */
+    public function whatsappSessions()
+    {
+        return $this->belongsToMany(\Webkul\WhatsApp\Models\Session::class, 'user_whatsapp_sessions', 'user_id', 'session_id');
+    }
+
     public function pipelines()
     {
         return $this->belongsToMany(\Webkul\Lead\Models\PipelineProxy::modelClass(), 'user_pipelines', 'user_id', 'lead_pipeline_id')->withoutGlobalScopes();

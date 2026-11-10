@@ -49,7 +49,9 @@ class UserController extends Controller
 
         $pipelines = Pipeline::withoutGlobalScopes()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin::settings.users.index', compact('roles', 'groups', 'pipelines'));
+        $whatsappSessions = \Webkul\WhatsApp\Models\Session::query()->orderBy('name')->get(['id', 'name']);
+
+        return view('admin::settings.users.index', compact('roles', 'groups', 'pipelines', 'whatsappSessions'));
     }
 
     /**
@@ -83,6 +85,7 @@ class UserController extends Controller
 
         $admin->groups()->sync($data['groups'] ?? []);
         $admin->pipelines()->sync($data['pipelines']);
+        $admin->whatsappSessions()->sync($data['whatsapp_sessions']);
 
         try {
             Mail::queue(new UserCreatedNotification($admin));
@@ -105,7 +108,7 @@ class UserController extends Controller
     {
         $admin = $this->userRepository->with(['role', 'groups'])->findOrFail($id);
 
-        $admin->load('pipelines:id,name');
+        $admin->load(['pipelines:id,name', 'whatsappSessions:id,name']);
 
         return new JsonResponse([
             'data' => $admin,
@@ -148,6 +151,7 @@ class UserController extends Controller
 
         $admin->groups()->sync($data['groups'] ?? []);
         $admin->pipelines()->sync($data['pipelines']);
+        $admin->whatsappSessions()->sync($data['whatsapp_sessions']);
 
         Event::dispatch('settings.user.update.after', $admin);
 
@@ -169,6 +173,9 @@ class UserController extends Controller
             'inbox_queue' => 'nullable|boolean',
             'pipelines' => ['nullable', 'array', 'required_if:pipelines_restricted,1,true', 'max:200'],
             'pipelines.*' => ['integer', Rule::exists('lead_pipelines', 'id')],
+            'whatsapp_restricted' => 'nullable|boolean',
+            'whatsapp_sessions' => ['nullable', 'array', 'required_if:whatsapp_restricted,1,true', 'max:200'],
+            'whatsapp_sessions.*' => ['integer', Rule::exists('whatsapp_sessions', 'id')],
         ];
     }
 
@@ -183,6 +190,11 @@ class UserController extends Controller
         $data['pipelines_restricted'] = $restricted;
         $data['inbox_queue'] = $restricted ? filter_var($data['inbox_queue'] ?? false, FILTER_VALIDATE_BOOLEAN) : true;
         $data['pipelines'] = $restricted ? array_values(array_unique(array_map('intval', $data['pipelines'] ?? []))) : [];
+
+        $numbers = filter_var($data['whatsapp_restricted'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $data['whatsapp_restricted'] = $numbers;
+        $data['whatsapp_sessions'] = $numbers ? array_values(array_unique(array_map('intval', $data['whatsapp_sessions'] ?? []))) : [];
 
         return $data;
     }
