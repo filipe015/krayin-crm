@@ -140,11 +140,29 @@ class Lead extends AbstractReporting
      */
     public function getTotalLeads($startDate, $endDate): int
     {
-        return $this->leadRepository
-            ->resetModel()
+        return $this->leadsQuery('total', $startDate, $endDate)->count();
+    }
+
+    /**
+     * The deals behind a dashboard card, so the list opened from the card is exactly what was counted:
+     * "total" = created in the period (counted pipelines); "won" = won, by closing date.
+     *
+     * @param  Carbon  $startDate
+     * @param  Carbon  $endDate
+     */
+    public function leadsQuery(string $metric, $startDate, $endDate)
+    {
+        $query = $this->leadRepository->resetModel();
+
+        if ($metric === 'won') {
+            return $query
+                ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
+                ->whereBetween('closed_at', [$startDate, $endDate]);
+        }
+
+        return $query
             ->whereIn('lead_pipeline_stage_id', $this->allStageIds)
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->count();
+            ->whereBetween('created_at', [$startDate, $endDate]);
     }
 
     /**
@@ -251,11 +269,7 @@ class Lead extends AbstractReporting
      */
     public function getWonLeads($startDate, $endDate): int
     {
-        return $this->leadRepository
-            ->resetModel()
-            ->whereIn('lead_pipeline_stage_id', $this->wonStageIds)
-            ->whereBetween('closed_at', [$startDate, $endDate])
-            ->count();
+        return $this->leadsQuery('won', $startDate, $endDate)->count();
     }
 
     /**
