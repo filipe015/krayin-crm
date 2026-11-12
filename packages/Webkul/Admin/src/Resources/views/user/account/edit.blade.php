@@ -197,5 +197,39 @@
         </div>
     </x-admin::form>
 
+    <!-- WhatsApp button preference (own form: saving it does not ask for the password) -->
+    <form
+        method="POST"
+        action="{{ route('admin.user.account.whatsapp_open_mode') }}"
+        class="box-shadow mt-3.5 rounded bg-white p-4 dark:bg-gray-900"
+    >
+        @csrf
+        @method('PUT')
+
+        <p class="mb-2 text-base font-semibold text-gray-800 dark:text-white">
+            @lang('admin::app.account.edit.whatsapp-open-title')
+        </p>
+
+        <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
+            @lang('admin::app.account.edit.whatsapp-open-label')
+        </p>
+
+        @php($openMode = ($user->whatsapp_open_mode ?? 'crm') === 'web' ? 'web' : 'crm')
+
+        <label class="mb-2 flex items-center gap-2 text-sm dark:text-gray-300">
+            <input type="radio" name="whatsapp_open_mode" value="crm" @checked($openMode === 'crm')>
+            @lang('admin::app.account.edit.whatsapp-open-crm')
+        </label>
+
+        <label class="mb-4 flex items-center gap-2 text-sm dark:text-gray-300">
+            <input type="radio" name="whatsapp_open_mode" value="web" @checked($openMode === 'web')>
+            @lang('admin::app.account.edit.whatsapp-open-web')
+        </label>
+
+        <button type="submit" class="primary-button">
+            @lang('admin::app.account.edit.whatsapp-open-save')
+        </button>
+    </form>
+
     {!! view_render_event('admin.user.account.form.after') !!}
 </x-admin::layouts>

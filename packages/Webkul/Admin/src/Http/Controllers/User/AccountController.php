@@ -2,6 +2,7 @@
 
 namespace Webkul\Admin\Http\Controllers\User;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -92,6 +93,22 @@ class AccountController extends Controller
         }
 
         session()->flash('success', trans('admin::app.account.edit.update-success'));
+
+        return back();
+    }
+
+    /**
+     * Save only the WhatsApp button preference (no password needed for this one).
+     */
+    public function updateWhatsappOpenMode(): RedirectResponse
+    {
+        $this->validate(request(), [
+            'whatsapp_open_mode' => 'required|in:crm,web',
+        ]);
+
+        auth()->guard('user')->user()->update(['whatsapp_open_mode' => request()->input('whatsapp_open_mode')]);
+
+        session()->flash('success', trans('admin::app.account.edit.whatsapp-open-saved'));
 
         return back();
     }
