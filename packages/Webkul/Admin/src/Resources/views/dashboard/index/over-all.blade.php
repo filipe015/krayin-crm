@@ -55,6 +55,10 @@
                         @lang('admin::app.dashboard.index.over-all.won-leads')
                     </p>
 
+                    <a :href="leadsUrl('won')" class="text-xs font-medium text-brandColor hover:underline">
+                        @lang('admin::app.dashboard.leads.see') →
+                    </a>
+
                     <div class="flex gap-2">
                         <p class="text-xl font-bold dark:text-gray-300">
                             @{{ report.statistics.won_leads.current }}
@@ -81,6 +85,10 @@
                     <p class="text-xs font-medium text-gray-600 dark:text-gray-300">
                         @lang('admin::app.dashboard.index.over-all.total-leads')
                     </p>
+
+                    <a :href="leadsUrl('total')" class="text-xs font-medium text-brandColor hover:underline">
+                        @lang('admin::app.dashboard.leads.see') →
+                    </a>
 
                     <div class="flex gap-2">
                         <p class="text-xl font-bold dark:text-gray-300">
@@ -227,6 +235,12 @@
                     isLoading: true,
                     
                     chart: undefined,
+
+                    period: {
+                        start: "{{ $startDate->format('Y-m-d') }}",
+
+                        end: "{{ $endDate->format('Y-m-d') }}",
+                    },
                 }
             },
 
@@ -237,10 +251,20 @@
             },
 
             methods: {
+                leadsUrl(metric) {
+                    return "{{ route('admin.dashboard.leads') }}?metric=" + metric
+                        + "&start=" + encodeURIComponent(this.period.start)
+                        + "&end=" + encodeURIComponent(this.period.end);
+                },
+
                 getStats(filters) {
                     this.isLoading = true;
 
                     var filters = Object.assign({}, filters);
+
+                    if (filters.start && filters.end) {
+                        this.period = { start: filters.start, end: filters.end };
+                    }
 
                     filters.type = 'over-all';
 

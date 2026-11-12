@@ -2145,6 +2145,23 @@ return [
         ],
     ],
     'dashboard' => [
+        'leads' => [
+            'title-total' => "Total deals in the period",
+            'title-won' => "Won deals in the period",
+            'summary-total' => ":count deals created between :start and :end (the same ones counted on the dashboard).",
+            'summary-won' => ":count deals won between :start and :end, by closing date (the same ones counted on the dashboard).",
+            'back' => "← Back to dashboard",
+            'lead' => "Deal",
+            'contact' => "Contact",
+            'pipeline' => "Pipeline",
+            'stage' => "Stage",
+            'value' => "Value",
+            'owner' => "Owner",
+            'created-at' => "Created at",
+            'closed-at' => "Closed at",
+            'empty' => "No deals in this period.",
+            'see' => "See deals",
+        ],
         'index' => [
             'title' => 'Dashboard',
             'start-date' => 'Start Date',

@@ -2144,6 +2144,23 @@ return [
         ],
     ],
     'dashboard' => [
+        'leads' => [
+            'title-total' => "Total de negócios no período",
+            'title-won' => "Negócios ganhos no período",
+            'summary-total' => ":count negócios criados entre :start e :end (os mesmos contados no início).",
+            'summary-won' => ":count negócios ganhos entre :start e :end, pela data de fechamento (os mesmos contados no início).",
+            'back' => "← Voltar ao início",
+            'lead' => "Negócio",
+            'contact' => "Contato",
+            'pipeline' => "Funil",
+            'stage' => "Etapa",
+            'value' => "Valor",
+            'owner' => "Responsável",
+            'created-at' => "Criado em",
+            'closed-at' => "Fechado em",
+            'empty' => "Nenhum negócio neste período.",
+            'see' => "Ver negócios",
+        ],
         'index' => [
             'title' => 'Início',
             'start-date' => 'Start Date',

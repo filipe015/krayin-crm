@@ -5,6 +5,7 @@ namespace Webkul\Admin\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Webkul\Admin\Helpers\Dashboard;
+use Webkul\Admin\Helpers\Reporting\Lead as LeadReporting;
 
 class DashboardController extends Controller
 {
@@ -57,6 +58,32 @@ class DashboardController extends Controller
         return response()->json([
             'statistics' => $stats,
             'date_range' => $this->dashboardHelper->getDateRange(),
+        ]);
+    }
+
+    /**
+     * The deals counted by a dashboard card (total or won) in the chosen period.
+     */
+    public function leads(LeadReporting $reporting): View
+    {
+        abort_unless(bouncer()->hasPermission('leads'), 401);
+
+        $metric = request()->query('metric') === 'won' ? 'won' : 'total';
+
+        $query = $reporting->leadsQuery($metric, $reporting->getStartDate(), $reporting->getEndDate())
+            ->with(['person', 'stage', 'pipeline', 'user']);
+
+        if ($userIds = bouncer()->getAuthorizedUserIds()) {
+            $query->whereIn('leads.user_id', $userIds);
+        }
+
+        $leads = $query->orderBy($metric === 'won' ? 'closed_at' : 'created_at', 'desc')->paginate(25)->withQueryString();
+
+        return view('admin::dashboard.leads', [
+            'leads' => $leads,
+            'metric' => $metric,
+            'startDate' => $reporting->getStartDate(),
+            'endDate' => $reporting->getEndDate(),
         ]);
     }
 }
