@@ -83,6 +83,12 @@ return [
     ],
     'account' => [
         'edit' => [
+            'whatsapp-open-title' => "WhatsApp button on leads",
+            'whatsapp-open-label' => "When clicking a lead's WhatsApp icon, open:",
+            'whatsapp-open-crm' => "Conversation inside the CRM (Inbox)",
+            'whatsapp-open-web' => "WhatsApp Web in the browser (use it if your WhatsApp is not connected to the CRM)",
+            'whatsapp-open-save' => "Save preference",
+            'whatsapp-open-saved' => "WhatsApp preference saved.",
             'back-btn' => 'Back',
             'change-password' => 'Change Password',
             'confirm-password' => 'Confirm Password',

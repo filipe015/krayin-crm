@@ -61,4 +61,6 @@ Route::controller(AccountController::class)->prefix('account')->group(function (
     Route::get('', 'edit')->name('admin.user.account.edit');
 
     Route::put('update', 'update')->name('admin.user.account.update');
+
+    Route::put('whatsapp-open-mode', 'updateWhatsappOpenMode')->name('admin.user.account.whatsapp_open_mode');
 });

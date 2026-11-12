@@ -103,13 +103,13 @@
 
                                 @if ($whatsappNumber)
                                     @php
-                                        $inboxUrl = bouncer()->hasPermission('whatsapp.send')
+                                        $inboxUrl = auth()->guard('user')->user()->opensWhatsappInInbox()
                                             ? route('admin.whatsapp.inbox.open-lead', $lead->id)
                                             : null;
                                     @endphp
 
                                     <a
-                                        href="{{ $inboxUrl ?? 'https://wa.me/'.$whatsappNumber }}"
+                                        href="{{ $inboxUrl ?? 'https://web.whatsapp.com/send?phone='.$whatsappNumber }}"
                                         @if (! $inboxUrl) target="_blank" @endif
                                         class="flex items-center rounded p-1 transition-all hover:bg-gray-200 dark:hover:bg-gray-800"
                                         title="{{ trans('admin::app.leads.view.persons.whatsapp') }}"

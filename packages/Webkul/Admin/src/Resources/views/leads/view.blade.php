@@ -80,13 +80,13 @@
                         @if ($whatsappNumber)
                             <!-- WhatsApp Quick Action: opens the conversation in the Inbox when the user may use it -->
                             @php
-                                $inboxUrl = bouncer()->hasPermission('whatsapp.send')
+                                $inboxUrl = auth()->guard('user')->user()->opensWhatsappInInbox()
                                     ? route('admin.whatsapp.inbox.open-lead', $lead->id)
                                     : null;
                             @endphp
 
                             <a
-                                href="{{ $inboxUrl ?? 'https://wa.me/'.$whatsappNumber }}"
+                                href="{{ $inboxUrl ?? 'https://web.whatsapp.com/send?phone='.$whatsappNumber }}"
                                 @if (! $inboxUrl) target="_blank" @endif
                                 class="flex h-[74px] w-[84px] flex-col items-center justify-center gap-1 rounded-lg border border-transparent bg-green-200 font-medium text-green-900 transition-all hover:border-green-400"
                             >

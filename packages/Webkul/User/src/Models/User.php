@@ -29,6 +29,7 @@ class User extends Authenticatable implements UserContract
         'pipelines_restricted',
         'inbox_queue',
         'whatsapp_restricted',
+        'whatsapp_open_mode',
     ];
 
     protected $casts = [
@@ -125,5 +126,14 @@ class User extends Authenticatable implements UserContract
         }
 
         return in_array($permission, $this->role->permissions);
+    }
+
+    /**
+     * Whether the lead WhatsApp buttons should open the conversation in the CRM Inbox (needs the send permission)
+     * instead of WhatsApp Web. Users choose it in "My account"; the default is the Inbox.
+     */
+    public function opensWhatsappInInbox(): bool
+    {
+        return ($this->whatsapp_open_mode ?? 'crm') !== 'web' && bouncer()->hasPermission('whatsapp.send');
     }
 }
