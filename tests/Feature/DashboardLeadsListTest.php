@@ -9,7 +9,7 @@ uses(DatabaseTransactions::class);
 /**
  * The cards "Total de negócios" and "Negócios ganhos" on the dashboard link to a list of exactly the deals they counted.
  */
-function dashboardLead(int $stageId, string $createdAt, ?string $closedAt = null): int
+function cardListLead(int $stageId, string $createdAt, ?string $closedAt = null): int
 {
     $stage = DB::table('lead_pipeline_stages')->find($stageId);
 
@@ -26,9 +26,9 @@ it('lists the same deals the dashboard counts, for total and won', function () {
 
     $period = ['start' => '2020-03-01', 'end' => '2020-03-31'];
 
-    $inOpen = dashboardLead($open, '2020-03-10 10:00:00');
-    $inWon = dashboardLead($won, '2020-03-05 10:00:00', '2020-03-20 10:00:00');
-    $outside = dashboardLead($open, '2020-01-10 10:00:00');
+    $inOpen = cardListLead($open, '2020-03-10 10:00:00');
+    $inWon = cardListLead($won, '2020-03-05 10:00:00', '2020-03-20 10:00:00');
+    $outside = cardListLead($open, '2020-01-10 10:00:00');
 
     $admin = getDefaultAdmin();
 
