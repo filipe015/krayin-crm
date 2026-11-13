@@ -49,6 +49,7 @@ return [
             'admin.whatsapp.connections.code',
             'admin.whatsapp.connections.action',
             'admin.whatsapp.connections.cloud.connect',
+            'admin.whatsapp.connections.cloud.embedded',
             'admin.whatsapp.connections.cloud.refresh',
             'admin.whatsapp.connections.cloud.disconnect',
             'admin.whatsapp.button-rules.list',
@@ -59,6 +60,15 @@ return [
             'admin.whatsapp.reminders.update',
         ],
         'sort'  => 3,
+    ], [
+        'key'   => 'whatsapp.templates',
+        'name'  => 'whatsapp::app.acl.templates',
+        'route' => [
+            'admin.whatsapp.templates.index',
+            'admin.whatsapp.templates.list',
+            'admin.whatsapp.templates.store',
+        ],
+        'sort'  => 5,
     ], [
         'key'   => 'whatsapp.send',
         'name'  => 'whatsapp::app.acl.send',

@@ -11,6 +11,10 @@ use Webkul\WhatsApp\Channels\Events\MessageAck;
  * Turns a WhatsApp Cloud API webhook into the channel-neutral events the Inbox already
  * understands. The chat id is "<wa_id>@c.us", the same shape the WAHA channel uses, so
  * conversations are matched by the existing phone logic (Brazilian ninth digit included).
+ *
+ * Coexistence (the number also lives on the WhatsApp Business app): "smb_message_echoes"
+ * carries what was sent from the phone and becomes an outgoing message of the conversation;
+ * "history" and "smb_app_state_sync" are acknowledged and not imported.
  */
 final class CloudWebhookParser
 {
@@ -24,7 +28,9 @@ final class CloudWebhookParser
 
         foreach ((array) ($payload['entry'] ?? []) as $entry) {
             foreach ((array) ($entry['changes'] ?? []) as $change) {
-                if (($change['field'] ?? null) !== 'messages' || ! is_array($change['value'] ?? null)) {
+                $field = $change['field'] ?? null;
+
+                if (! in_array($field, ['messages', 'smb_message_echoes'], true) || ! is_array($change['value'] ?? null)) {
                     continue;
                 }
 
@@ -32,6 +38,18 @@ final class CloudWebhookParser
                 $session = (string) ($value['metadata']['phone_number_id'] ?? '');
 
                 if ($session === '') {
+                    continue;
+                }
+
+                if ($field === 'smb_message_echoes') {
+                    foreach ((array) ($value['message_echoes'] ?? []) as $message) {
+                        $event = self::message($session, (array) $message, [], true);
+
+                        if ($event !== null) {
+                            $events[] = $event;
+                        }
+                    }
+
                     continue;
                 }
 
@@ -67,10 +85,11 @@ final class CloudWebhookParser
     /**
      * @param  array<string, mixed>  $message
      * @param  array<string, ?string>  $names
+     * @param  bool  $echo  Sent by the business from the WhatsApp Business app: the customer is in "to".
      */
-    private static function message(string $session, array $message, array $names): ?InboundMessage
+    private static function message(string $session, array $message, array $names, bool $echo = false): ?InboundMessage
     {
-        $from = preg_replace('/\D/', '', (string) ($message['from'] ?? ''));
+        $from = preg_replace('/\D/', '', (string) ($message[$echo ? 'to' : 'from'] ?? ''));
         $id = (string) ($message['id'] ?? '');
 
         if ($from === '' || $id === '') {
@@ -93,8 +112,8 @@ final class CloudWebhookParser
             lid: null,
             contactName: $names[$from] ?? null,
             externalId: $id,
-            fromMe: false,
-            source: 'cloud',
+            fromMe: $echo,
+            source: $echo ? 'app' : 'cloud',
             type: $mapped,
             body: $body,
             mediaPath: $mediaId !== null ? 'cloud:'.$mediaId : null,
@@ -102,8 +121,8 @@ final class CloudWebhookParser
             mediaFilename: $filename,
             sentAt: self::moment($message['timestamp'] ?? null),
             channel: 'cloud',
-            buttonReply: $type === 'button'
-                || ($type === 'interactive' && in_array($message['interactive']['type'] ?? null, ['button_reply', 'list_reply'], true)),
+            buttonReply: ! $echo && $type === 'button'
+                || (! $echo && $type === 'interactive' && in_array($message['interactive']['type'] ?? null, ['button_reply', 'list_reply'], true)),
         );
     }
 

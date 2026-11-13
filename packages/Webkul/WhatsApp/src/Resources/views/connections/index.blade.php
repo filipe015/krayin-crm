@@ -7,6 +7,8 @@
         :urls="{{ Illuminate\Support\Js::from($urls) }}"
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.connections')) }}"
         :cloud-info="{{ Illuminate\Support\Js::from(['webhook' => $cloudWebhook, 'verify' => $cloudVerifyConfigured, 'secret' => $cloudSecretConfigured]) }}"
+        :signup="{{ Illuminate\Support\Js::from($embeddedSignup) }}"
+        :can-templates="{{ Illuminate\Support\Js::from(bouncer()->hasPermission('whatsapp.templates')) }}"
     >
         <div class="p-6 text-sm text-gray-500">
             @lang('whatsapp::app.connections.loading')
@@ -33,6 +35,13 @@
             .wa-conn-btn:hover{background:var(--wa-soft)}
             .wa-conn-btn:disabled{opacity:.5;cursor:default}
             .wa-conn-btn.is-danger{border-color:#dc2626;color:#dc2626}
+            .wa-conn-btn.is-primary{border-color:var(--wa-accent);background:var(--wa-accent);color:#fff}
+            .wa-conn-btn.is-primary:hover{background:var(--wa-accent);opacity:.9}
+            .wa-conn-btn.is-whatsapp{border-color:#16a34a;background:#16a34a;color:#fff;font-weight:600;padding:9px 16px}
+            .wa-conn-btn.is-whatsapp:hover{background:#15803d}
+            .wa-conn-check{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+            .wa-conn-check input{width:auto;margin-top:3px}
+            .wa-conn-ok{padding:10px 12px;border:1px solid #bbf7d0;border-radius:6px;background:#f0fdf4;color:#14532d;font-size:13px}
             .wa-conn-pair{display:flex;gap:24px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--wa-border)}
             .wa-conn-qr{display:flex;flex-direction:column;align-items:center;gap:8px;width:260px}
             .wa-conn-qr img{width:240px;height:240px;border:1px solid var(--wa-border);border-radius:6px;background:#fff}
@@ -52,7 +61,8 @@
                 </div>
 
                 <div v-if="error" class="wa-conn-error">@{{ labels.waha_unreachable }}: @{{ error }}</div>
-                <div v-if="notice" class="wa-conn-error">@{{ notice }}</div>
+                <div v-if="notice" class="wa-conn-error" style="white-space:pre-line">@{{ notice }}</div>
+                <div v-if="success" class="wa-conn-ok">@{{ success }}</div>
 
                 <div v-if="! loading && ! sessions.length && ! error" class="wa-conn-muted">@{{ labels.empty }}</div>
 
@@ -98,10 +108,41 @@
 
                 <div class="wa-conn-head" style="margin-top:8px">
                     <h1>@{{ labels.cloud_title }}</h1>
-                    <button type="button" class="wa-conn-btn is-primary" @click="cloudForm = cloudForm ? null : { name: '', phone_number_id: '', waba_id: '', access_token: '' }">@{{ labels.cloud_add }}</button>
+                    <div class="wa-conn-actions">
+                        <a v-if="canTemplates" :href="urls.templates" class="wa-conn-btn">@{{ labels.templates_link }}</a>
+                        <button type="button" class="wa-conn-btn" @click="cloudForm = cloudForm ? null : { name: '', phone_number_id: '', waba_id: '', access_token: '' }">@{{ labels.cloud_manual }}</button>
+                    </div>
                 </div>
 
                 <p class="wa-conn-muted" style="margin:0">@{{ labels.cloud_intro }}</p>
+
+                <div class="wa-conn-card">
+                    <div class="wa-conn-name">@{{ labels.es_button }}</div>
+                    <div class="wa-conn-muted">@{{ labels.es_intro }}</div>
+
+                    <template v-if="signup.ready">
+                        <label class="wa-conn-check">
+                            <input type="checkbox" v-model="esForm.coexistence">
+                            <span>@{{ labels.es_coexistence }}<br><span class="wa-conn-muted">@{{ labels.es_coexistence_help }}</span></span>
+                        </label>
+
+                        <div class="wa-conn-code" style="max-width:420px">
+                            <label class="wa-conn-field">@{{ labels.cloud_name }}<input type="text" v-model="esForm.name" maxlength="80"></label>
+                            <label v-if="! esForm.coexistence" class="wa-conn-field">@{{ labels.es_pin }}<input type="text" v-model="esForm.pin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="off"></label>
+                        </div>
+
+                        <div class="wa-conn-actions">
+                            <button type="button" class="wa-conn-btn is-whatsapp" :disabled="busy || esBusy" @click="startEmbeddedSignup">@{{ esBusy ? labels.es_working : labels.es_button }}</button>
+                        </div>
+                    </template>
+
+                    <div v-else class="wa-conn-muted wa-conn-bad">
+                        @{{ labels.es_missing }}
+                        <span v-if="! signup.appId"> META_APP_ID</span>
+                        <span v-if="! signup.configId"> META_ES_CONFIG_ID</span>
+                        <span v-if="! cloudInfo.secret"> WHATSAPP_CLOUD_APP_SECRET</span>
+                    </div>
+                </div>
 
                 <div class="wa-conn-card">
                     <div class="wa-conn-name">@{{ labels.cloud_webhook }}</div>
@@ -135,6 +176,9 @@
                                 <span v-if="number.phone">+@{{ number.phone }}</span>
                                 <span v-if="number.quality"> · @{{ labels.cloud_quality }}: @{{ number.quality }}</span>
                                 <span v-if="number.name_status"> · @{{ number.name_status }}</span>
+                                <span v-if="number.coexistence"> · @{{ labels.cloud_coexistence }}</span>
+                                <span v-else-if="number.embedded"> · @{{ labels.cloud_embedded }}</span>
+                                <span v-if="number.connected && number.registered === false" class="wa-conn-bad"> · @{{ labels.cloud_not_registered }}</span>
                             </div>
                         </div>
 
@@ -261,6 +305,8 @@
                     urls: { type: Object, required: true },
                     labels: { type: Object, required: true },
                     cloudInfo: { type: Object, default: () => ({}) },
+                    signup: { type: Object, default: () => ({}) },
+                    canTemplates: { type: Boolean, default: false },
                 },
 
                 data() {
@@ -268,6 +314,11 @@
                         sessions: [],
                         cloud: [],
                         cloudForm: null,
+                        esForm: { coexistence: !! this.signup.coexistence, name: '', pin: '' },
+                        esBusy: false,
+                        esSession: null,
+                        esListener: null,
+                        success: null,
                         rules: [],
                         reminder: null,
                         reminderOptions: { stages: [], sources: [], offset_options: [], activity_types: [] },
@@ -302,6 +353,10 @@
 
                 beforeUnmount() {
                     clearInterval(this.timer);
+
+                    if (this.esListener) {
+                        window.removeEventListener('message', this.esListener);
+                    }
                 },
 
                 computed: {
@@ -400,6 +455,185 @@
                     logout(session) {
                         if (window.confirm(this.labels.logout_confirm)) {
                             this.run(session, 'logout');
+                        }
+                    },
+
+                    /**
+                     * Meta's Embedded Signup. The popup reports the chosen account and number through a
+                     * window "message" event, and the login callback brings the one-time code; the server
+                     * needs both, and they can arrive in either order.
+                     */
+                    loadFacebookSdk() {
+                        if (window.FB) {
+                            return Promise.resolve(window.FB);
+                        }
+
+                        return new Promise((resolve, reject) => {
+                            window.fbAsyncInit = () => {
+                                window.FB.init({ appId: this.signup.appId, autoLogAppEvents: true, xfbml: false, version: this.signup.version });
+
+                                resolve(window.FB);
+                            };
+
+                            const script = document.createElement('script');
+
+                            script.src = 'https://connect.facebook.net/en_US/sdk.js';
+                            script.async = true;
+                            script.defer = true;
+                            script.crossOrigin = 'anonymous';
+                            script.onerror = () => reject(new Error('sdk'));
+
+                            document.head.appendChild(script);
+                        });
+                    },
+
+                    listenEmbeddedSignup() {
+                        if (this.esListener) {
+                            return;
+                        }
+
+                        this.esListener = (event) => {
+                            // Only Meta's own windows may report a signup.
+                            if (! /^https:\/\/([a-z0-9-]+\.)*facebook\.com$/.test(event.origin) || ! this.esSession) {
+                                return;
+                            }
+
+                            let payload;
+
+                            try {
+                                payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                            } catch (error) {
+                                return;
+                            }
+
+                            if (! payload || payload.type !== 'WA_EMBEDDED_SIGNUP') {
+                                return;
+                            }
+
+                            const data = payload.data || {};
+
+                            if (payload.event === 'CANCEL') {
+                                this.esSession.cancelled = true;
+                                this.esSession.error = data.error_message || null;
+                            } else if (String(payload.event || '').startsWith('FINISH')) {
+                                this.esSession.event = payload.event;
+                                this.esSession.waba_id = data.waba_id ? String(data.waba_id) : null;
+                                this.esSession.phone_number_id = data.phone_number_id ? String(data.phone_number_id) : null;
+                            }
+
+                            this.finishEmbeddedSignup();
+                        };
+
+                        window.addEventListener('message', this.esListener);
+                    },
+
+                    async startEmbeddedSignup() {
+                        this.notice = null;
+                        this.success = null;
+                        this.esBusy = true;
+
+                        let FB;
+
+                        try {
+                            FB = await this.loadFacebookSdk();
+                        } catch (error) {
+                            this.esBusy = false;
+                            this.notice = this.labels.es_sdk_failed;
+
+                            return;
+                        }
+
+                        this.listenEmbeddedSignup();
+
+                        const session = this.esSession = { code: null, waba_id: null, phone_number_id: null, event: null, cancelled: false, error: null, sent: false };
+
+                        const extras = { setup: {}, sessionInfoVersion: '3' };
+
+                        // Without the feature type Meta runs the standard flow (a number that is not on the app).
+                        if (this.esForm.coexistence) {
+                            extras.featureType = 'whatsapp_business_app_onboarding';
+                        }
+
+                        // The SDK refuses an async callback, hence the plain function.
+                        FB.login((response) => {
+                            if (this.esSession !== session) {
+                                return;
+                            }
+
+                            if (response && response.authResponse && response.authResponse.code) {
+                                session.code = response.authResponse.code;
+                            } else {
+                                session.cancelled = true;
+                            }
+
+                            this.finishEmbeddedSignup();
+
+                            // The popup's report normally comes first; give it a moment if it did not.
+                            setTimeout(() => this.finishEmbeddedSignup(true), 6000);
+                        }, {
+                            config_id: this.signup.configId,
+                            response_type: 'code',
+                            override_default_response_type: true,
+                            extras,
+                        });
+                    },
+
+                    async finishEmbeddedSignup(lastCall = false) {
+                        const session = this.esSession;
+
+                        if (! session || session.sent) {
+                            return;
+                        }
+
+                        if (session.cancelled) {
+                            this.esSession = null;
+                            this.esBusy = false;
+                            this.notice = session.error ? this.labels.es_error_meta.replace(':reason', session.error) : this.labels.es_cancelled;
+
+                            return;
+                        }
+
+                        if (! session.code) {
+                            return;
+                        }
+
+                        if (! session.waba_id || ! session.phone_number_id) {
+                            if (lastCall) {
+                                this.esSession = null;
+                                this.esBusy = false;
+                                this.notice = this.labels.es_no_number;
+                            }
+
+                            return;
+                        }
+
+                        session.sent = true;
+
+                        try {
+                            const { data } = await this.$axios.post(this.urls.cloudEmbedded, {
+                                code: session.code,
+                                waba_id: session.waba_id,
+                                phone_number_id: session.phone_number_id,
+                                event: session.event,
+                                name: this.esForm.name || null,
+                                pin: this.esForm.coexistence ? null : (this.esForm.pin || null),
+                            });
+
+                            this.esForm.pin = '';
+                            this.esForm.name = '';
+
+                            if (data.warnings && data.warnings.length) {
+                                this.notice = data.warnings.join('\n');
+                            } else {
+                                this.success = this.labels.es_done;
+                            }
+
+                            await this.load({ quiet: true });
+                        } catch (error) {
+                            this.notice = (error.response && error.response.data && (error.response.data.message || Object.values(error.response.data.errors || {}).flat()[0])) || this.labels.generic_error;
+                        } finally {
+                            this.esSession = null;
+                            this.esBusy = false;
                         }
                     },
 
@@ -516,7 +750,12 @@
                             return;
                         }
 
-                        await this.send(() => this.$axios.post(this.url('cloudDisconnect', number.id)));
+                        const response = await this.send(() => this.$axios.post(this.url('cloudDisconnect', number.id)));
+
+                        if (response && response.data.unsubscribed === false) {
+                            this.notice = this.labels.cloud_unsubscribe_failed;
+                        }
+
                         await this.load({ quiet: true });
                     },
 
