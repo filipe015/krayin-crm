@@ -3,11 +3,17 @@
         @lang('whatsapp::app.inbox.title')
     </x-slot>
 
-    @if (bouncer()->hasPermission('whatsapp.connections') || bouncer()->hasPermission('whatsapp.quick-replies'))
+    @if (bouncer()->hasPermission('whatsapp.connections') || bouncer()->hasPermission('whatsapp.quick-replies') || bouncer()->hasPermission('whatsapp.templates'))
         <div class="mb-2 flex justify-end gap-4 text-sm">
             @if (bouncer()->hasPermission('whatsapp.quick-replies'))
                 <a href="{{ route('admin.whatsapp.quick-replies.index') }}" class="text-brandColor hover:underline">
                     @lang('whatsapp::app.quick_replies.menu')
+                </a>
+            @endif
+
+            @if (bouncer()->hasPermission('whatsapp.templates'))
+                <a href="{{ route('admin.whatsapp.templates.index') }}" class="text-brandColor hover:underline">
+                    @lang('whatsapp::app.templates.menu')
                 </a>
             @endif
 

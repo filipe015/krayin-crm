@@ -158,7 +158,7 @@ final class CloudClient
         }
 
         $json = $this->request('GET', $this->wabaId.'/message_templates', [
-            'fields' => 'name,language,status,category,components',
+            'fields' => 'id,name,language,status,category,components,rejected_reason',
             'limit'  => 200,
         ]);
 
@@ -166,17 +166,74 @@ final class CloudClient
     }
 
     /**
-     * Lets the WABA deliver webhooks to the app.
+     * Creates a message template in the WhatsApp Business Account; Meta reviews it before it can be used.
+     *
+     * @param  list<array<string, mixed>>  $components
+     * @return array<string, mixed>  id, status, category
      *
      * @throws CloudApiException
      */
-    public function subscribeApp(): void
+    public function createTemplate(string $name, string $category, string $language, array $components): array
+    {
+        return $this->request('POST', $this->requireWaba().'/message_templates', [
+            'name'       => $name,
+            'category'   => $category,
+            'language'   => $language,
+            'components' => $components,
+        ]);
+    }
+
+    /**
+     * Lets the WABA deliver webhooks to the app. With a callback URL, Meta sends this
+     * account's webhooks to that URL instead of the one saved in the app (one app serving
+     * several CRM installations); Meta checks the URL with the verify token first.
+     *
+     * @throws CloudApiException
+     */
+    public function subscribeApp(?string $callbackUrl = null, ?string $verifyToken = null): void
     {
         if ($this->wabaId === null || $this->wabaId === '') {
             return;
         }
 
-        $this->request('POST', $this->wabaId.'/subscribed_apps');
+        $data = $callbackUrl !== null && $verifyToken !== null
+            ? ['override_callback_uri' => $callbackUrl, 'verify_token' => $verifyToken]
+            : [];
+
+        $this->request('POST', $this->wabaId.'/subscribed_apps', $data);
+    }
+
+    /**
+     * Stops the WABA's webhooks to the app.
+     *
+     * @throws CloudApiException
+     */
+    public function unsubscribeApp(): void
+    {
+        $this->request('DELETE', $this->requireWaba().'/subscribed_apps');
+    }
+
+    /**
+     * Activates the number on the Cloud API. The PIN is the number's two-step verification
+     * code: it is set when the number has none, and must match when it already has one.
+     *
+     * @throws CloudApiException
+     */
+    public function register(string $pin): void
+    {
+        $this->request('POST', $this->phoneNumberId.'/register', ['messaging_product' => 'whatsapp', 'pin' => $pin]);
+    }
+
+    /**
+     * @throws CloudApiException
+     */
+    private function requireWaba(): string
+    {
+        if ($this->wabaId === null || $this->wabaId === '') {
+            throw new CloudApiException('This WhatsApp number has no business account id configured.');
+        }
+
+        return $this->wabaId;
     }
 
     /**
@@ -239,9 +296,11 @@ final class CloudClient
         try {
             $pending = $this->authorized()->acceptJson()->timeout($this->timeout);
 
-            $response = $method === 'GET'
-                ? $pending->get($this->url($path), $data)
-                : $pending->post($this->url($path), $data);
+            $response = match ($method) {
+                'GET'    => $pending->get($this->url($path), $data),
+                'DELETE' => $pending->delete($this->url($path), $data),
+                default  => $pending->post($this->url($path), $data),
+            };
         } catch (ConnectionException) {
             throw new CloudApiException('The WhatsApp server did not answer in time.', null, true);
         }

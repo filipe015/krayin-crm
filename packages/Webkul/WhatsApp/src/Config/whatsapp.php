@@ -11,6 +11,18 @@ return [
         'app_secret'    => env('WHATSAPP_CLOUD_APP_SECRET'),
         'verify_token'  => env('WHATSAPP_CLOUD_VERIFY_TOKEN'),
         'graph_version' => env('WHATSAPP_CLOUD_GRAPH_VERSION', 'v23.0'),
+
+        // Embedded Signup ("Conectar com WhatsApp"): the Meta app and its signup configuration.
+        // The app secret above is the same one that trades the signup code for the token.
+        'app_id'       => env('META_APP_ID'),
+        'es_config_id' => env('META_ES_CONFIG_ID'),
+
+        // Default of the "my number is already on the WhatsApp Business app" option (coexistence).
+        'es_coexistence' => env('META_ES_COEXISTENCE', true),
+
+        // Ask Meta to send each connected account's webhooks to this installation's URL
+        // (several installations sharing one Meta app). Off = use the URL saved in the app.
+        'webhook_override' => env('WHATSAPP_CLOUD_WEBHOOK_OVERRIDE', true),
     ],
 
     // Key the super-admin panel sends (X-Control-Key) to read health and usage. At least 24

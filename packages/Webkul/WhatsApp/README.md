@@ -266,8 +266,8 @@ No painel direito da conversa, o bloco **Agendamentos** (🕒) lista as mensagen
 
 Segundo canal, em paralelo ao WAHA. Cada número oficial é uma "sessão" com canal `cloud`
 (o ID do número da Meta é o `external_id`; o token fica criptografado no banco).
-Esta fase **não** inclui coexistência (usar o app e a API no mesmo número) — isso exige
-virar Tech Provider e fica para a Fase 2.
+A conexão manual (ID + token) continua disponível; a conexão pela janela da Meta e a
+coexistência estão na Fase 2, mais abaixo.
 
 ### Variáveis de ambiente (serviço `krayin`)
 
@@ -295,12 +295,79 @@ Depois de publicar: `php artisan migrate --force` (cria `template_payload` em `w
   Fora dela o campo de texto é bloqueado e o botão **Enviar modelo** abre os modelos APROVADOS.
 - **Modelos:** listados da própria conta (cache de 5 min). Suportados: corpo com variáveis `{{n}}`,
   cabeçalho de texto sem variável e botões sem variável de URL. Os demais aparecem como não suportados
-  (criação de modelos pelo CRM fica para a Fase 2).
+  (a criação de modelos pelo CRM está na Fase 2, abaixo).
 - **Status:** ✓ enviado, ✓✓ entregue, lido e falha (com o motivo) via webhook `statuses`.
 - **Mídia recebida** é servida por proxy (token nunca vai ao navegador). **Mídia enviada:** imagem
   JPEG/PNG, vídeo MP4/3GP, áudio AAC/AMR/MP3/MP4/OGG-Opus e documentos; WebM/WebP/WAV são recusados.
 - Agendamentos para número oficial são reavaliados contra a janela no momento do envio.
 - A API oficial não devolve eco de mensagens enviadas pela própria API (só status) e não tem "digitando…".
+
+### Fase 2 — Embedded Signup (cada cliente conecta o próprio número), coexistência e modelos
+
+Em **Conexões → WhatsApp oficial** há o botão **Conectar com WhatsApp (API oficial)**. Ele abre
+a janela oficial da Meta (Facebook JS SDK, Embedded Signup v4); o cliente entra com o Facebook,
+escolhe a empresa e o número e o CRM faz o resto, sem copiar ID nem token:
+
+1. o navegador recebe um `code` de uso único (`FB.login` com `config_id`, `response_type: 'code'`)
+   e os IDs da conta e do número (evento `message` do tipo `WA_EMBEDDED_SIGNUP`);
+2. `POST /admin/whatsapp/inbox/connections/cloud/embedded` troca o `code` pelo token
+   (`/oauth/access_token`), confere o número, grava o token **criptografado** em
+   `whatsapp_sessions.credentials` (nunca volta ao navegador nem vai para log);
+3. assina o app na conta (`POST /{waba_id}/subscribed_apps`) pedindo que os webhooks **dessa
+   conta** venham para a URL **desta instalação** (`override_callback_uri` + `verify_token`) —
+   é o que permite um único app da Meta atender várias instalações. Se a Meta recusar o
+   override, assina sem ele (vale a URL salva no app);
+4. se o número **não** é de coexistência e ainda não está na Cloud API, registra-o
+   (`POST /{phone_number_id}/register`) com o PIN informado ou um PIN gerado (guardado criptografado).
+   Número em coexistência não é registrado (continua ativo no app do celular).
+
+**Coexistência** (opção marcada por padrão): o número continua no aplicativo WhatsApp Business
+do celular e também funciona pela API. O que for enviado pelo celular chega pelo webhook
+`smb_message_echoes` e aparece na conversa como mensagem enviada. Os webhooks `history` e
+`smb_app_state_sync` (histórico e contatos do app) são aceitos e apenas contados no log — o
+histórico **não** é importado nesta versão.
+
+**Desconectar** cancela a assinatura do app na conta (`DELETE /{waba_id}/subscribed_apps`, a não
+ser que outro número conectado use a mesma conta) e apaga o token; as conversas ficam.
+
+**Modelos de mensagem** (link na Inbox e em Conexões; permissão "Criar e ver modelos de
+mensagem"): lista os modelos da conta com o status da análise (Aprovado / Em análise / Rejeitado)
+e cria modelos novos (`POST /{waba_id}/message_templates`: nome, categoria Utilidade/Marketing,
+idioma, cabeçalho e rodapé opcionais, corpo com `{{1}}`, `{{2}}`… e um exemplo de cada variável).
+O envio continua na Inbox, botão **Enviar modelo**.
+
+#### Variáveis de ambiente novas (serviço `krayin`)
+
+| Variável | Para quê |
+| --- | --- |
+| `META_APP_ID` | ID do app da Meta (público; usado pelo SDK do Facebook) |
+| `META_ES_CONFIG_ID` | ID da configuração do Embedded Signup (Login do Facebook para Empresas → Configurações) |
+| `WHATSAPP_CLOUD_APP_SECRET` | a mesma chave secreta do app já usada no webhook; também troca o `code` pelo token |
+| `META_ES_COEXISTENCE` | opcional, padrão `true`: a opção de coexistência já vem marcada |
+| `WHATSAPP_CLOUD_WEBHOOK_OVERRIDE` | opcional, padrão `true`: pedir à Meta o webhook por conta apontando para esta instalação |
+
+Esta fase **não tem migration nova** (o token e os IDs ficam na coluna criptografada
+`credentials`, que já existia). Mesmo assim, como o Easypanel não roda migrations sozinho,
+rode `php artisan migrate --force` no console do serviço depois de publicar, para garantir que
+as migrations das fases anteriores estão aplicadas. Depois de trocar variáveis, reimplante.
+
+#### No painel da Meta (developers.facebook.com → app)
+
+1. **Login do Facebook para Empresas → Configurações**: ligar "Login com o SDK do JavaScript";
+   em "Domínios permitidos para o SDK do JavaScript" e em "URIs de redirecionamento OAuth válidos"
+   colocar o endereço **https** de cada instalação (ex.: `https://crm.telwaymarketing.com.br/`).
+2. **Configurações → Básico → Domínios do app**: o mesmo domínio.
+3. **Login do Facebook para Empresas → Configurações (Configurations)**: criar uma configuração
+   com a variação "WhatsApp Embedded Signup", token do tipo "System-user access token" e as
+   permissões `whatsapp_business_management` e `whatsapp_business_messaging`. O ID dela é o
+   `META_ES_CONFIG_ID`.
+4. **WhatsApp → Configuração → Webhook**: Callback URL de uma instalação
+   (`/admin/whatsapp/cloud/webhook`), Verify token = `WHATSAPP_CLOUD_VERIFY_TOKEN` (use o mesmo
+   valor em todas as instalações que compartilham o app); assinar os campos `messages`,
+   `message_template_status_update` e, para coexistência, `smb_message_echoes`, `history` e
+   `smb_app_state_sync`.
+5. Enquanto o app não passa na Análise, só administradores/desenvolvedores/testadores do app
+   conseguem concluir a janela de conexão.
 
 ### Áudio gravado no navegador (API oficial)
 

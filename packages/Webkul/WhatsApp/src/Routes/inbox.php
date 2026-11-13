@@ -12,6 +12,7 @@ use Webkul\WhatsApp\Http\Controllers\MessageMediaController;
 use Webkul\WhatsApp\Http\Controllers\OpenLeadConversationController;
 use Webkul\WhatsApp\Http\Controllers\QuickReplyController;
 use Webkul\WhatsApp\Http\Controllers\ReminderSettingController;
+use Webkul\WhatsApp\Http\Controllers\TemplateController;
 
 Route::get('/', [InboxController::class, 'index'])->name('admin.whatsapp.inbox.index');
 
@@ -33,6 +34,7 @@ Route::get('connections', [ConnectionController::class, 'index'])->name('admin.w
 Route::get('connections/list', [ConnectionController::class, 'list'])->name('admin.whatsapp.connections.list');
 Route::get('connections/{id}/qr', [ConnectionController::class, 'qr'])->name('admin.whatsapp.connections.qr');
 Route::post('connections/cloud', [ConnectionController::class, 'connectCloud'])->name('admin.whatsapp.connections.cloud.connect');
+Route::post('connections/cloud/embedded', [ConnectionController::class, 'connectEmbedded'])->name('admin.whatsapp.connections.cloud.embedded');
 Route::post('connections/{id}/cloud/refresh', [ConnectionController::class, 'refreshCloud'])->name('admin.whatsapp.connections.cloud.refresh');
 Route::post('connections/{id}/cloud/disconnect', [ConnectionController::class, 'disconnectCloud'])->name('admin.whatsapp.connections.cloud.disconnect');
 Route::post('connections/{id}/code', [ConnectionController::class, 'code'])->name('admin.whatsapp.connections.code');
@@ -64,3 +66,7 @@ Route::delete('button-rules/{id}', [ButtonRuleController::class, 'destroy'])->na
 Route::get('reminders', [ReminderSettingController::class, 'show'])->name('admin.whatsapp.reminders.show');
 Route::get('reminders/templates', [ReminderSettingController::class, 'templates'])->name('admin.whatsapp.reminders.templates');
 Route::put('reminders', [ReminderSettingController::class, 'update'])->name('admin.whatsapp.reminders.update');
+
+Route::get('templates', [TemplateController::class, 'index'])->name('admin.whatsapp.templates.index');
+Route::get('templates/list', [TemplateController::class, 'list'])->name('admin.whatsapp.templates.list');
+Route::post('templates', [TemplateController::class, 'store'])->name('admin.whatsapp.templates.store');
