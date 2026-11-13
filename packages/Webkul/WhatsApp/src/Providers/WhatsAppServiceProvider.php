@@ -14,6 +14,7 @@ class WhatsAppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../Config/whatsapp.php', 'whatsapp');
+        $this->mergeConfigFrom(__DIR__.'/../Config/legal.php', 'legal');
         $this->mergeConfigFrom(__DIR__.'/../Config/menu.php', 'menu.admin');
         $this->mergeConfigFrom(__DIR__.'/../Config/acl.php', 'acl');
     }
@@ -45,6 +46,14 @@ class WhatsAppServiceProvider extends ServiceProvider
         Route::middleware('api')
             ->prefix(config('app.admin_path').'/whatsapp')
             ->group(__DIR__.'/../Routes/webhook.php');
+
+        // Public legal pages for the Meta App Review (privacy, terms, data deletion).
+        Route::middleware('web')->group(__DIR__.'/../Routes/legal.php');
+
+        // Meta's data deletion callback: "api" group (no session, no CSRF), like the Cloud webhook.
+        Route::middleware(['api', 'throttle:60,1'])
+            ->post('meta/data-deletion', \Webkul\WhatsApp\Http\Controllers\MetaDataDeletionController::class)
+            ->name('legal.meta.data-deletion');
 
         // Public REST API (API key, not the admin session). Limited per key/IP.
         Route::middleware(['api', 'throttle:120,1', \Webkul\WhatsApp\Api\Http\Middleware\AuthenticateApiKey::class])
