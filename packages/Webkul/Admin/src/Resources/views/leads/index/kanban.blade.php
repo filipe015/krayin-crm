@@ -577,11 +577,20 @@
 
                 // A lead created from the card appears on the board without reloading the page.
                 this.$emitter.on('lead-created', () => this.boot());
+
+                // Changing the stage inside the lead card must show up here: when the board comes back
+                // (browser Back restores a cached page, or the tab becomes visible again) it reloads the cards.
+                this.hiddenAt = null;
+
+                window.addEventListener('pageshow', this.onPageShow);
+                document.addEventListener('visibilitychange', this.onVisibilityChange);
             },
 
             beforeUnmount() {
                 window.removeEventListener('resize', this.updateFixedKanbanScrollbar);
                 window.removeEventListener('scroll', this.updateFixedKanbanScrollbar);
+                window.removeEventListener('pageshow', this.onPageShow);
+                document.removeEventListener('visibilitychange', this.onVisibilityChange);
 
                 this.kanbanResizeObserver?.disconnect();
             },
@@ -597,6 +606,26 @@
             },
 
             methods: {
+                onPageShow(event) {
+                    if (event.persisted) {
+                        this.boot();
+                    }
+                },
+
+                onVisibilityChange() {
+                    if (document.hidden) {
+                        this.hiddenAt = Date.now();
+
+                        return;
+                    }
+
+                    if (this.hiddenAt && Date.now() - this.hiddenAt > 3000) {
+                        this.boot();
+                    }
+
+                    this.hiddenAt = null;
+                },
+
                 initializeFixedKanbanScrollbar() {
                     const kanbanScroll = this.$refs.kanbanScroll;
 

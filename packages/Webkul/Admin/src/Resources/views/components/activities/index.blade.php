@@ -214,9 +214,37 @@
                                         {!! view_render_event('admin.components.activities.content.activity.item.description.before') !!}
 
                                         <!-- Activity Description -->
+                                        <div v-if="activity.type == 'note' && editingNote[activity.id] !== undefined" class="flex flex-col gap-2">
+                                            <textarea
+                                                class="min-h-24 w-full rounded border border-gray-200 px-2.5 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+                                                v-model="editingNote[activity.id]"
+                                                :disabled="isUpdating[activity.id]"
+                                            ></textarea>
+
+                                            <div class="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    class="primary-button"
+                                                    :disabled="isUpdating[activity.id] || ! editingNote[activity.id].trim()"
+                                                    @click="saveNote(activity)"
+                                                >
+                                                    Salvar
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    class="secondary-button"
+                                                    :disabled="isUpdating[activity.id]"
+                                                    @click="cancelEditNote(activity)"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <p
                                             class="whitespace-pre-line [overflow-wrap:anywhere] dark:text-white"
-                                            v-if="activity.comment"
+                                            v-else-if="activity.comment"
                                         >@{{ activity.comment }}</p>
 
                                         {!! view_render_event('admin.components.activities.content.activity.item.description.after') !!}
@@ -309,6 +337,16 @@
 
                                                                 @lang('admin::app.components.activities.index.edit')
                                                             </a>
+                                                        </x-admin::dropdown.menu.item>
+                                                        <x-admin::dropdown.menu.item
+                                                            v-if="activity.type == 'note'"
+                                                            @click="startEditNote(activity)"
+                                                        >
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="icon-edit text-2xl"></span>
+
+                                                                @lang('admin::app.components.activities.index.edit')
+                                                            </div>
                                                         </x-admin::dropdown.menu.item>
                                                     @endif
 
@@ -471,6 +509,8 @@
 
                     isUpdating: {},
 
+                    editingNote: {},
+
                     activities: [],
 
                     selectedType: this.activeType,
@@ -600,6 +640,40 @@
                         })
                         .catch(error => {
                             console.error(error);
+                        });
+                },
+
+                startEditNote(activity) {
+                    this.editingNote[activity.id] = activity.comment ?? '';
+                },
+
+                cancelEditNote(activity) {
+                    delete this.editingNote[activity.id];
+                },
+
+                saveNote(activity) {
+                    const comment = (this.editingNote[activity.id] ?? '').trim();
+
+                    if (! comment) {
+                        return;
+                    }
+
+                    this.isUpdating[activity.id] = true;
+
+                    this.$axios.put("{{ route('admin.activities.update', 'replaceId') }}".replace('replaceId', activity.id), { comment })
+                        .then((response) => {
+                            this.isUpdating[activity.id] = false;
+
+                            activity.comment = comment;
+
+                            delete this.editingNote[activity.id];
+
+                            this.$emitter.emit('add-flash', { type: 'success', message: response.data.message });
+                        })
+                        .catch((error) => {
+                            this.isUpdating[activity.id] = false;
+
+                            this.$emitter.emit('add-flash', { type: 'error', message: error.response?.data?.message ?? 'Erro ao salvar a nota.' });
                         });
                 },
 

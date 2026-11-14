@@ -150,6 +150,11 @@ class ActivityController extends Controller
      */
     public function update($id): RedirectResponse|JsonResponse
     {
+        // A note can be edited (text only), but never saved empty.
+        if (request()->has('comment') && $this->activityRepository->findOrFail($id)->type === 'note') {
+            $this->validate(request(), ['comment' => 'required|string']);
+        }
+
         Event::dispatch('activity.update.before', $id);
 
         $data = request()->all();
