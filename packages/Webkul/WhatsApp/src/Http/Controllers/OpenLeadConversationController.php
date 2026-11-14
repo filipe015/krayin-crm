@@ -54,7 +54,10 @@ class OpenLeadConversationController extends Controller
             $session = $usable()->where('status', 'WORKING')->orderBy('id')->first()
                 ?? $usable()->orderBy('id')->first();
 
-            abort_if($session === null, 422, trans('whatsapp::app.inbox.no_session'));
+            // No number to talk through: do not leave the operator on an error page, send them to WhatsApp Web.
+            if ($session === null) {
+                return redirect()->away('https://web.whatsapp.com/send?phone='.$phone);
+            }
 
             $conversation = Conversation::query()->firstOrCreate(
                 ['session_id' => $session->id, 'chat_id' => $phone.'@c.us'],

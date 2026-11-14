@@ -134,6 +134,15 @@ class User extends Authenticatable implements UserContract
      */
     public function opensWhatsappInInbox(): bool
     {
-        return ($this->whatsapp_open_mode ?? 'crm') !== 'web' && bouncer()->hasPermission('whatsapp.send');
+        if (($this->whatsapp_open_mode ?? 'crm') === 'web' || ! bouncer()->hasPermission('whatsapp.send')) {
+            return false;
+        }
+
+        // Without any WhatsApp number this user can reach, the Inbox has nothing to open: use WhatsApp Web.
+        $allowedSessions = bouncer()->getAllowedSessionIds();
+
+        return \Webkul\WhatsApp\Models\Session::query()
+            ->when($allowedSessions !== null, fn ($query) => $query->whereIn('id', $allowedSessions ?: [0]))
+            ->exists();
     }
 }
