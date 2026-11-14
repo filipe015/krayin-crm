@@ -168,6 +168,10 @@
                 <template #whatsapp>
                     @include('whatsapp::leads.messages', ['lead' => $lead])
                 </template>
+
+                <template #history>
+                    @include ('admin::leads.view.history')
+                </template>
             </v-lead-communication-tabs>
         </div>
 
@@ -199,6 +203,17 @@
                     >
                         @lang('whatsapp::app.tabs.messages')
                     </button>
+
+                    <button
+                        type="button"
+                        class="px-4 py-3 text-sm font-medium"
+                        :class="activeTab === 'history'
+                            ? 'border-b-2 border-brandColor text-brandColor'
+                            : 'text-gray-600 dark:text-gray-300'"
+                        @click="activeTab = 'history'"
+                    >
+                        Histórico
+                    </button>
                 </div>
 
                 <div v-show="activeTab === 'activities'">
@@ -207,6 +222,10 @@
 
                 <div v-show="activeTab === 'whatsapp'">
                     <slot name="whatsapp"></slot>
+                </div>
+
+                <div v-show="activeTab === 'history'">
+                    <slot name="history"></slot>
                 </div>
             </div>
         </script>
