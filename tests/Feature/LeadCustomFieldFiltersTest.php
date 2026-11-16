@@ -63,3 +63,12 @@ it('matches exactly when the value is picked from the list', function () {
     // "logistica online" contains "logistica" but is another value.
     expect($query->count())->toBe(1);
 });
+
+it('gives a price field a column type the datagrid knows', function () {
+    $price = (object) ['id' => 1, 'code' => 'orcamento_estimado', 'name' => 'Orçamento estimado', 'type' => 'price'];
+
+    $column = LeadCustomFieldFilters::column($price);
+
+    // "decimal" is not a ColumnTypeEnum value; it made the whole lead list answer 500.
+    expect(Webkul\DataGrid\Enums\ColumnTypeEnum::tryFrom($column['type']))->not->toBeNull();
+});

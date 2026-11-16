@@ -159,7 +159,7 @@ class LeadCustomFieldFilters
                 'search_field'          => 'in',
             ]),
 
-            'price' => array_merge($base, ['type' => 'decimal', 'filterable_type' => null, 'search_field' => 'in']),
+            'price' => array_merge($base, ['type' => 'float', 'filterable_type' => null, 'search_field' => 'in']),
 
             'date' => array_merge($base, [
                 'type'                  => 'date',
