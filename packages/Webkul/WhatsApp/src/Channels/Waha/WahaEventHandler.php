@@ -16,6 +16,7 @@ use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\AgentNotifier;
 use Webkul\WhatsApp\Support\AutoLead;
 use Webkul\WhatsApp\Support\ButtonReplyRules;
 use Webkul\WhatsApp\Support\LeadPhoneFinder;
@@ -31,12 +32,18 @@ class WahaEventHandler
      */
     private const LEAD_LOOKUP_COOLDOWN = 600;
 
-    public function __construct(protected LeadPhoneFinder $leads, protected AutoLead $autoLead) {}
+    public function __construct(protected LeadPhoneFinder $leads, protected AutoLead $autoLead, protected AgentNotifier $notifier) {}
 
     public function handle(InboundMessage|MessageAck|MessageEdited|MessageRevoked|PresenceChanged|SessionStatus $event): void
     {
         // Another installation's session on a shared WAHA server (WAHA_SESSIONS).
         if (($event->channel ?? 'waha') === 'waha' && ! WahaSessions::allows($event->session)) {
+            return;
+        }
+
+        // The WAHA session that sends the team notices (WHATSAPP_NOTIFY_SESSION) is not a
+        // customer channel: none of its events become a conversation or a lead.
+        if (($event->channel ?? 'waha') === 'waha' && AgentNotifier::ignoresSession($event->session)) {
             return;
         }
 
@@ -266,8 +273,17 @@ class WahaEventHandler
 
         // WHATSAPP_AUTO_LEAD: a contact writing in a chat without a lead gets one. Never
         // throws, so the message above is always kept.
+        $createdLead = false;
+
         if ($message->wasRecentlyCreated && ! $event->fromMe && $conversation->lead_id === null && AutoLead::mode() !== 'off') {
             $this->autoLead->handle($conversation);
+            $createdLead = $this->autoLead->createdLeadId !== null;
+        }
+
+        // WHATSAPP_NOTIFY_EVENTS=new_message: a received message in a conversation with a lead
+        // (not the one that just opened the lead, which got its own notice). Never throws.
+        if ($message->wasRecentlyCreated && ! $event->fromMe && ! $createdLead && $conversation->lead_id !== null) {
+            $this->notifier->newMessage($conversation, $message);
         }
     }
 
