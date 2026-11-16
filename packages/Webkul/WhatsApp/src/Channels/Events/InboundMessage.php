@@ -25,5 +25,7 @@ final readonly class InboundMessage
         public bool $buttonReply = false,
         // Click-to-WhatsApp ad that opened the chat (see Support\AdReferral), when present.
         public ?array $ad = null,
+        // Raw type of a message the CRM cannot read (no text, no media): kept in the thread but never opens a lead or notice.
+        public ?string $unsupported = null,
     ) {}
 }

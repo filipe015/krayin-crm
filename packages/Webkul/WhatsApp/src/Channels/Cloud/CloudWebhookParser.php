@@ -106,6 +106,10 @@ final class CloudWebhookParser
 
         [$mapped, $body, $mediaId, $mime, $filename] = self::content($type, $message);
 
+        // Nothing readable came in (unsupported type, poll, order...): flagged with its raw
+        // type so it is shown as such and does not open a lead.
+        $unsupported = ! $echo && $mapped === 'text' && $body === null && $mediaId === null ? $type : null;
+
         return new InboundMessage(
             session: $session,
             chatId: $from.'@c.us',
@@ -125,6 +129,7 @@ final class CloudWebhookParser
             buttonReply: ! $echo && $type === 'button'
                 || (! $echo && $type === 'interactive' && in_array($message['interactive']['type'] ?? null, ['button_reply', 'list_reply'], true)),
             ad: $echo ? null : AdReferral::extract($message),
+            unsupported: $unsupported,
         );
     }
 

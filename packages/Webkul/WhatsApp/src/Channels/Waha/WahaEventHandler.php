@@ -231,6 +231,10 @@ class WahaEventHandler
             $conversation->lead_id = $this->leads->find($conversation->contact_phone);
         }
 
+        $body = $event->unsupported !== null
+            ? trans('whatsapp::app.inbox.unsupported_message', ['type' => $event->unsupported])
+            : $event->body;
+
         $message = ($event->fromMe ? $this->adoptPendingSend($conversation, $event) : null) ?? Message::query()->createOrFirst(
             ['conversation_id' => $conversation->id, 'external_message_id' => $event->externalId],
             [
@@ -238,7 +242,7 @@ class WahaEventHandler
                 'status'         => $event->fromMe ? 'sent' : 'received',
                 'source'         => $event->source,
                 'sender_name'    => $event->fromMe ? null : $event->contactName,
-                'content'        => $event->body,
+                'content'        => $body,
                 'message_type'   => $event->type,
                 'media_path'     => $event->mediaPath,
                 'media_mime'     => $event->mediaMime,
@@ -251,7 +255,7 @@ class WahaEventHandler
         if ($message->wasRecentlyCreated) {
             if ($conversation->last_message_at === null || $sentAt->gt($conversation->last_message_at)) {
                 $conversation->last_message_at = $sentAt;
-                $conversation->last_message_preview = Str::limit($event->body ?? '['.$event->type.']', 280, '');
+                $conversation->last_message_preview = Str::limit($body ?? '['.$event->type.']', 280, '');
             }
 
             if (! $event->fromMe && ($conversation->last_inbound_at === null || $sentAt->gt($conversation->last_inbound_at))) {
@@ -275,14 +279,14 @@ class WahaEventHandler
         // throws, so the message above is always kept.
         $createdLead = false;
 
-        if ($message->wasRecentlyCreated && ! $event->fromMe && $conversation->lead_id === null && AutoLead::mode() !== 'off') {
+        if ($message->wasRecentlyCreated && ! $event->fromMe && $conversation->lead_id === null && $event->unsupported === null && AutoLead::mode() !== 'off') {
             $this->autoLead->handle($conversation);
             $createdLead = $this->autoLead->createdLeadId !== null;
         }
 
         // WHATSAPP_NOTIFY_EVENTS=new_message: a received message in a conversation with a lead
         // (not the one that just opened the lead, which got its own notice). Never throws.
-        if ($message->wasRecentlyCreated && ! $event->fromMe && ! $createdLead && $conversation->lead_id !== null) {
+        if ($message->wasRecentlyCreated && ! $event->fromMe && $event->unsupported === null && ! $createdLead && $conversation->lead_id !== null) {
             $this->notifier->newMessage($conversation, $message);
         }
     }
