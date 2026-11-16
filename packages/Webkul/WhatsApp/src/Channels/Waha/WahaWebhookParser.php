@@ -9,6 +9,7 @@ use Webkul\WhatsApp\Channels\Events\MessageEdited;
 use Webkul\WhatsApp\Channels\Events\MessageRevoked;
 use Webkul\WhatsApp\Channels\Events\PresenceChanged;
 use Webkul\WhatsApp\Channels\Events\SessionStatus;
+use Webkul\WhatsApp\Support\AdReferral;
 
 /**
  * Turns a WAHA (GOWS engine) webhook envelope into a channel-neutral event.
@@ -86,6 +87,7 @@ final class WahaWebhookParser
             mediaMime: $mime,
             mediaFilename: ($media['filename'] ?? null) ?: null,
             sentAt: self::moment($payload['timestamp'] ?? null),
+            ad: $fromMe ? null : AdReferral::extract($payload),
         );
     }
 

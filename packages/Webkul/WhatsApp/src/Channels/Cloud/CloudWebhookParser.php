@@ -6,6 +6,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Webkul\WhatsApp\Channels\Events\InboundMessage;
 use Webkul\WhatsApp\Channels\Events\MessageAck;
+use Webkul\WhatsApp\Support\AdReferral;
 
 /**
  * Turns a WhatsApp Cloud API webhook into the channel-neutral events the Inbox already
@@ -123,6 +124,7 @@ final class CloudWebhookParser
             channel: 'cloud',
             buttonReply: ! $echo && $type === 'button'
                 || (! $echo && $type === 'interactive' && in_array($message['interactive']['type'] ?? null, ['button_reply', 'list_reply'], true)),
+            ad: $echo ? null : AdReferral::extract($message),
         );
     }
 

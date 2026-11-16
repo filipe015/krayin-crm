@@ -49,7 +49,7 @@ class UserController extends Controller
 
         $pipelines = Pipeline::withoutGlobalScopes()->orderBy('name')->get(['id', 'name']);
 
-        $whatsappSessions = \Webkul\WhatsApp\Models\Session::query()->orderBy('name')->get(['id', 'name']);
+        $whatsappSessions = \Webkul\WhatsApp\Support\WahaSessions::scope(\Webkul\WhatsApp\Models\Session::query())->orderBy('name')->get(['id', 'name']);
 
         return view('admin::settings.users.index', compact('roles', 'groups', 'pipelines', 'whatsappSessions'));
     }

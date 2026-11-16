@@ -29,11 +29,19 @@ class Conversation extends Model implements ConversationContract
         'last_message_at',
         'last_message_preview',
         'last_inbound_at',
+        'ad_source_id',
+        'ad_source_url',
+        'ad_source_type',
+        'ad_title',
+        'ad_body',
+        'ad_ctwa_clid',
+        'ad_captured_at',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
         'last_inbound_at' => 'datetime',
+        'ad_captured_at'  => 'datetime',
     ];
 
     public function lead(): BelongsTo

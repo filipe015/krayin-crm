@@ -16,9 +16,11 @@ use Webkul\WhatsApp\Channels\Events\SessionStatus;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\AutoLead;
 use Webkul\WhatsApp\Support\ButtonReplyRules;
 use Webkul\WhatsApp\Support\LeadPhoneFinder;
 use Webkul\WhatsApp\Support\PhoneNumberMatcher;
+use Webkul\WhatsApp\Support\WahaSessions;
 
 class WahaEventHandler
 {
@@ -29,10 +31,15 @@ class WahaEventHandler
      */
     private const LEAD_LOOKUP_COOLDOWN = 600;
 
-    public function __construct(protected LeadPhoneFinder $leads) {}
+    public function __construct(protected LeadPhoneFinder $leads, protected AutoLead $autoLead) {}
 
     public function handle(InboundMessage|MessageAck|MessageEdited|MessageRevoked|PresenceChanged|SessionStatus $event): void
     {
+        // Another installation's session on a shared WAHA server (WAHA_SESSIONS).
+        if (($event->channel ?? 'waha') === 'waha' && ! WahaSessions::allows($event->session)) {
+            return;
+        }
+
         match (true) {
             $event instanceof InboundMessage => $this->message($event),
             $event instanceof MessageAck     => $this->ack($event),
@@ -200,6 +207,17 @@ class WahaEventHandler
         $conversation->contact_lid ??= $event->lid;
         $conversation->contact_name = $event->contactName ?? $conversation->contact_name;
 
+        // The ad that opened the chat is kept from the first message that carried it.
+        if (! $event->fromMe && $event->ad !== null && $conversation->ad_captured_at === null) {
+            $conversation->ad_source_id = $event->ad['source_id'] ?? null;
+            $conversation->ad_source_url = $event->ad['source_url'] ?? null;
+            $conversation->ad_source_type = isset($event->ad['source_type']) ? mb_substr($event->ad['source_type'], 0, 50) : null;
+            $conversation->ad_title = isset($event->ad['title']) ? mb_substr($event->ad['title'], 0, 500) : null;
+            $conversation->ad_body = $event->ad['body'] ?? null;
+            $conversation->ad_ctwa_clid = isset($event->ad['ctwa_clid']) ? mb_substr($event->ad['ctwa_clid'], 0, 500) : null;
+            $conversation->ad_captured_at = now();
+        }
+
         if ($conversation->lead_id === null
             && $conversation->contact_phone !== null
             && Cache::add('whatsapp.lead-lookup.'.$conversation->id, true, self::LEAD_LOOKUP_COOLDOWN)) {
@@ -244,6 +262,12 @@ class WahaEventHandler
             } catch (\Throwable $exception) {
                 report($exception);
             }
+        }
+
+        // WHATSAPP_AUTO_LEAD: a contact writing in a chat without a lead gets one. Never
+        // throws, so the message above is always kept.
+        if ($message->wasRecentlyCreated && ! $event->fromMe && $conversation->lead_id === null && AutoLead::mode() !== 'off') {
+            $this->autoLead->handle($conversation);
         }
     }
 
