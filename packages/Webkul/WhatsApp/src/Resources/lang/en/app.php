@@ -57,6 +57,7 @@ return [
         'error'              => 'Could not load.',
         'action_error'       => 'The action could not be completed.',
         'unknown'            => 'Unnamed contact',
+        'unsupported_message' => 'Message not supported by the CRM (type: :type). Check it on the phone.',
         'no_lead'            => 'No lead',
         'today'              => 'Today',
         'yesterday'          => 'Yesterday',

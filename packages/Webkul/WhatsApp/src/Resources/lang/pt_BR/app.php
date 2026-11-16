@@ -57,6 +57,7 @@ return [
         'error'              => 'Não foi possível carregar.',
         'action_error'       => 'Não foi possível concluir a ação.',
         'unknown'            => 'Contato sem nome',
+        'unsupported_message' => 'Mensagem não suportada pelo CRM (tipo: :type). Veja no WhatsApp do celular.',
         'no_lead'            => 'Sem lead',
         'today'              => 'Hoje',
         'yesterday'          => 'Ontem',

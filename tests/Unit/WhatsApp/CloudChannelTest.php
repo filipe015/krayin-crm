@@ -322,3 +322,20 @@ it('flags button and list answers, but not typed text', function () {
         ->and($events[1]->buttonReply)->toBeTrue()
         ->and($events[2]->buttonReply)->toBeFalse();
 });
+
+it('shows the type of a message it cannot read and flags it, instead of an empty text', function () {
+    $events = CloudWebhookParser::parse(cloudEnvelope([
+        'metadata' => ['display_phone_number' => '556199990000', 'phone_number_id' => '1100'],
+        'messages' => [
+            ['from' => '551148619361', 'id' => 'wamid.U1', 'timestamp' => '1760000000', 'type' => 'unsupported'],
+            ['from' => '551148619361', 'id' => 'wamid.U2', 'timestamp' => '1760000001', 'type' => 'text', 'text' => ['body' => 'Olá']],
+            ['from' => '551148619361', 'id' => 'wamid.U3', 'timestamp' => '1760000002', 'type' => 'image', 'image' => ['id' => 'm1', 'mime_type' => 'image/jpeg']],
+        ],
+    ]));
+
+    expect($events[0]->unsupported)->toBe('unsupported')
+        ->and($events[0]->body)->toBeNull()
+        ->and($events[1]->unsupported)->toBeNull()
+        ->and($events[1]->body)->toBe('Olá')
+        ->and($events[2]->unsupported)->toBeNull();
+});
