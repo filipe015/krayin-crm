@@ -61,4 +61,23 @@ return [
         // Owner when the conversation has no assigned operator; empty = no owner.
         'user_id'     => env('WHATSAPP_AUTO_LEAD_USER_ID'),
     ],
+
+    // WhatsApp notice to the team (a number or a group) on a new automatic lead and on new
+    // messages from conversations that already have a lead. Always sent through WAHA, also
+    // when the conversation came through the Cloud API (no 24h window). Off when `to` or
+    // `session` is empty.
+    'notify' => [
+        // Destinations, comma separated: digits (55 is added when missing) or a full chatId
+        // (…@c.us, …@g.us for a group).
+        'to'               => env('WHATSAPP_NOTIFY_TO', ''),
+        // WAHA session that sends the notices. Its own events never become conversations.
+        'session'          => env('WHATSAPP_NOTIFY_SESSION', ''),
+        // new_lead, new_message (comma separated); empty = nothing is sent.
+        'events'           => env('WHATSAPP_NOTIFY_EVENTS', ''),
+        // At most one new_message notice per conversation in this many minutes (0 = no limit).
+        'cooldown_minutes' => env('WHATSAPP_NOTIFY_COOLDOWN_MINUTES', 30),
+        // Optional: another WAHA server for the notices; empty = WAHA_API_URL / WAHA_API_KEY.
+        'waha_url'         => env('WHATSAPP_NOTIFY_WAHA_URL'),
+        'waha_api_key'     => env('WHATSAPP_NOTIFY_WAHA_API_KEY'),
+    ],
 ];

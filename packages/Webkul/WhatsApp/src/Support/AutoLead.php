@@ -19,7 +19,13 @@ class AutoLead
 {
     public const MODES = ['off', 'ads', 'all'];
 
-    public function __construct(protected ConversationLead $service) {}
+    /**
+     * Lead created by the last handle() call (null when it only linked one or did nothing),
+     * so the caller does not also send a "new message" notice for the same message.
+     */
+    public ?int $createdLeadId = null;
+
+    public function __construct(protected ConversationLead $service, protected AgentNotifier $notifier) {}
 
     public static function mode(): string
     {
@@ -42,6 +48,8 @@ class AutoLead
      */
     public function handle(Conversation $conversation): ?int
     {
+        $this->createdLeadId = null;
+
         if ($conversation->lead_id !== null || ! self::applies($conversation)) {
             return $conversation->lead_id;
         }
@@ -109,6 +117,10 @@ class AutoLead
         ]);
 
         $conversation->lead_id = $lead->id;
+        $this->createdLeadId = $lead->id;
+
+        // WHATSAPP_NOTIFY_EVENTS=new_lead. Queued and never throws.
+        $this->notifier->newLead($fresh);
 
         return $lead->id;
     }

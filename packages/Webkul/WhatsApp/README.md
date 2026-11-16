@@ -251,6 +251,53 @@ Como funciona:
   (`WhatsApp: the automatic lead could not be created`).
 - O padrão é `off`: nada muda em produção até a variável ser ligada em cada CRM.
 
+## Aviso no WhatsApp da equipe (novo lead e nova mensagem)
+
+Manda um aviso curto por WhatsApp para um número ou **grupo** da equipe quando:
+
+- **`new_lead`:** um lead é criado **automaticamente** a partir de mensagem recebida (`WHATSAPP_AUTO_LEAD`);
+- **`new_message`:** chega mensagem **recebida** numa conversa que **já tem lead** (a mensagem que acabou de criar o lead
+  não gera o segundo aviso).
+
+O aviso **sempre sai pelo WAHA** (`POST /api/sendText`), também no CRM que só usa a API oficial (Cloud): o grupo da
+equipe não tem janela de 24 h. Tudo vem desligado.
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `WHATSAPP_NOTIFY_TO` | vazio | Destinos separados por vírgula. Só dígitos = número (sem `55` na frente, o `55` é colocado; vira `55…@c.us`). Com `@` = chatId usado como está (ex.: `120363…@g.us` para grupo). |
+| `WHATSAPP_NOTIFY_SESSION` | vazio | Nome da sessão do WAHA que envia os avisos. Vazio (ou `WHATSAPP_NOTIFY_TO` vazio) = recurso desligado. |
+| `WHATSAPP_NOTIFY_EVENTS` | vazio | `new_lead`, `new_message` ou os dois (vírgula). Vazio = não manda nada. |
+| `WHATSAPP_NOTIFY_COOLDOWN_MINUTES` | `30` | No máximo 1 aviso de `new_message` por conversa nesse intervalo (`0` = sem limite). |
+| `WHATSAPP_NOTIFY_WAHA_URL` / `WHATSAPP_NOTIFY_WAHA_API_KEY` | vazio | Opcionais: outro WAHA só para os avisos. Vazio = `WAHA_API_URL` / `WAHA_API_KEY`. No CRM só-Cloud, preencha um dos dois pares. |
+
+Exemplo (grupo da equipe, os dois avisos):
+
+```
+WHATSAPP_NOTIFY_TO=120363000000000000@g.us
+WHATSAPP_NOTIFY_SESSION=avisos
+WHATSAPP_NOTIFY_EVENTS=new_lead,new_message
+WHATSAPP_NOTIFY_COOLDOWN_MINUTES=30
+```
+
+Textos:
+
+- `Novo lead no CRM: <nome> (+<telefone>) — origem: <título do anúncio ou "mensagem direta">. Abrir: <link>`
+- `Nova mensagem de <nome> (+<telefone>): «<trecho de até 120 caracteres>». Responder: <link>`
+  (mídia sem legenda aparece como `[imagem]`, `[áudio]`, `[vídeo]`, `[documento]`, `[figurinha]`...)
+- O link é `APP_URL` + Inbox já aberta na conversa (`/admin/whatsapp/inbox?c=<id>`), então `APP_URL` tem de estar certo.
+
+Como funciona:
+
+- **Nunca atrasa nem derruba o webhook:** cada aviso (um por destino) vai para a **fila** (job `SendAgentNotification`,
+  1 tentativa, timeout curto). Falha do WAHA só vira `warning` no log (`WhatsApp notice ...`). Requer o worker da fila
+  rodando (o mesmo que já envia as mensagens da Inbox).
+- **Nunca avisa** de mensagem enviada por nós (`fromMe`/eco), de grupo, status ou lista de transmissão (nem viram conversa).
+- **A sessão de aviso não vira conversa nem lead:** com `WAHA_SESSIONS` preenchido, basta **não** colocá-la na lista;
+  com `WAHA_SESSIONS` vazio, os eventos da sessão `WHATSAPP_NOTIFY_SESSION` são ignorados de propósito.
+- A sessão de aviso precisa estar conectada (WORKING) no WAHA; não precisa existir na tela de Conexões do CRM.
+
+Sem migração. Depois de mudar as variáveis, faça o deploy (ou `php artisan config:clear` se usar cache de configuração).
+
 ## Filtrar conversas por etapa e etiqueta
 
 Abaixo da busca da lista, dois seletores filtram pelo lead da conversa:
