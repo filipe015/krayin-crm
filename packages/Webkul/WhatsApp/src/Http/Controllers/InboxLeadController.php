@@ -5,17 +5,10 @@ namespace Webkul\WhatsApp\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
-use Webkul\Contact\Models\Person;
 use Webkul\Lead\Models\Lead;
-use Webkul\Lead\Models\Source;
 use Webkul\Lead\Models\Type;
-use Webkul\Lead\Repositories\LeadRepository;
-use Webkul\Lead\Repositories\PipelineRepository;
 use Webkul\WhatsApp\Models\Conversation;
-use Webkul\WhatsApp\Support\LeadPhoneFinder;
-use Webkul\WhatsApp\Support\PhoneNumberMatcher;
+use Webkul\WhatsApp\Support\ConversationLead;
 
 class InboxLeadController extends Controller
 {
@@ -82,7 +75,7 @@ class InboxLeadController extends Controller
      * first stage, with the contact as the person. When the contact already has a lead (or
      * a person without one) that one is reused instead of creating a duplicate.
      */
-    public function create(int $id, LeadRepository $leads, PipelineRepository $pipelines, LeadPhoneFinder $finder): JsonResponse
+    public function create(int $id, ConversationLead $service): JsonResponse
     {
         abort_unless(bouncer()->hasPermission('leads.create'), 403);
 
@@ -90,11 +83,10 @@ class InboxLeadController extends Controller
 
         abort_if($conversation->lead_id !== null, 422, trans('whatsapp::app.inbox.already_has_lead'));
 
-        $phone = preg_replace('/\D/', '', (string) $conversation->contact_phone);
         $userIds = bouncer()->getAuthorizedUserIds();
 
         // A lead for this number already exists: link it rather than opening a second one.
-        $existingId = $phone !== '' ? $finder->find($phone) : null;
+        $existingId = $service->existingLeadId($conversation);
 
         if ($existingId !== null) {
             $visible = ! $userIds || Lead::query()->whereKey($existingId)->whereIn('user_id', $userIds)->exists();
@@ -107,51 +99,18 @@ class InboxLeadController extends Controller
             return $this->leadResponse($existingId, false);
         }
 
-        $pipeline = $pipelines->getDefaultPipeline();
-        $stage = $pipeline?->stages()->orderBy('sort_order')->first();
-        $type = Type::query()->orderBy('id')->first();
+        abort_if($service->defaultPlacement() === null || ! Type::query()->exists(), 422, trans('whatsapp::app.inbox.no_pipeline'));
 
-        abort_if($pipeline === null || $stage === null || $type === null, 422, trans('whatsapp::app.inbox.no_pipeline'));
-
-        $source = Source::query()->firstOrCreate(['name' => 'WhatsApp']);
-        $name = trim((string) $conversation->contact_name);
-        $label = $name !== '' ? $name : ($phone !== '' ? '+'.$phone : trans('whatsapp::app.inbox.unknown'));
         $user = auth()->guard('user')->user();
 
-        $person = $phone !== '' ? $this->personWithPhone($phone, $userIds) : null;
-
-        $data = [
-            'entity_type'            => 'leads',
-            'title'                  => 'WhatsApp - '.$label,
-            'description'            => trans('whatsapp::app.inbox.lead_created_from_whatsapp'),
-            'lead_value'             => 0,
-            'status'                 => 1,
-            'lead_source_id'         => $source->id,
-            'lead_type_id'           => $type->id,
-            'user_id'                => $conversation->assigned_user_id ?? $user->id,
-            'lead_pipeline_id'       => $pipeline->id,
-            'lead_pipeline_stage_id' => $stage->id,
-            'person'                 => $person !== null
-                ? ['id' => $person->id]
-                : [
-                    'name'            => $label,
-                    'contact_numbers' => $phone !== '' ? [['value' => $phone, 'label' => 'work']] : [],
-                    'user_id'         => $user->id,
-                ],
-        ];
-
-        Event::dispatch('lead.create.before');
-
-        $lead = DB::transaction(function () use ($leads, $data, $conversation) {
-            $lead = $leads->create($data);
-
-            $conversation->lead_id = $lead->id;
-            $conversation->save();
-
-            return $lead;
-        });
-
-        Event::dispatch('lead.create.after', $lead);
+        $lead = $service->open($conversation, [
+            'title'           => 'WhatsApp - '.ConversationLead::label($conversation, trans('whatsapp::app.inbox.unknown')),
+            'description'     => trans('whatsapp::app.inbox.lead_created_from_whatsapp'),
+            'source'          => 'WhatsApp',
+            'user_id'         => $conversation->assigned_user_id ?? $user->id,
+            'person_owner_id' => $user->id,
+            'person_user_ids' => $userIds,
+        ]);
 
         return $this->leadResponse($lead->id, true);
     }
@@ -169,33 +128,5 @@ class InboxLeadController extends Controller
                 'stage' => $lead->stage?->name,
             ],
         ], $created ? 201 : 200);
-    }
-
-    /**
-     * A person (visible to the user) that already has this number, so a new lead for a
-     * known contact hangs from the same person.
-     *
-     * @param  list<int>|null  $userIds
-     */
-    private function personWithPhone(string $phone, ?array $userIds): ?Person
-    {
-        return Person::query()
-            ->whereNotNull('contact_numbers')
-            ->when($userIds, fn ($query) => $query->whereIn('user_id', $userIds))
-            ->latest('id')
-            ->cursor()
-            ->first(function (Person $person) use ($phone) {
-                $numbers = is_array($person->contact_numbers) ? $person->contact_numbers : json_decode((string) $person->contact_numbers, true);
-
-                foreach ((array) $numbers as $number) {
-                    $value = is_array($number) ? ($number['value'] ?? null) : $number;
-
-                    if ($value !== null && PhoneNumberMatcher::matches((string) $value, $phone)) {
-                        return true;
-                    }
-                }
-
-                return false;
-            });
     }
 }

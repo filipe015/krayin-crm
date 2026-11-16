@@ -23,5 +23,7 @@ final readonly class InboundMessage
         public DateTimeImmutable $sentAt,
         public string $channel = 'waha',
         public bool $buttonReply = false,
+        // Click-to-WhatsApp ad that opened the chat (see Support\AdReferral), when present.
+        public ?array $ad = null,
     ) {}
 }

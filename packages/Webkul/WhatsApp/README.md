@@ -187,6 +187,70 @@ Na conversa sem lead, o botão **Criar lead** (bloco *Lead*, ao lado de *Vincula
 - **Permissão:** exige poder criar leads (`leads.create`) e **Gerenciar conversas**. Sem migração nova.
 
 
+## Um WAHA para vários CRMs (`WAHA_SESSIONS`)
+
+Quando o mesmo servidor WAHA atende várias instalações do Krayin (CRM principal, agência de viagens, Assertiva...),
+cada uma diz quais sessões são suas:
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `WAHA_SESSIONS` | vazio | Nomes das sessões do WAHA desta instalação, separados por vírgula (ex.: `crm-principal,crm-suporte`). Vazio = todas as sessões do servidor (comportamento antigo). O nome é o da sessão no WAHA, com as mesmas maiúsculas/minúsculas. |
+
+Com a lista preenchida:
+
+- **Conexões** mostra e controla (QR, código de pareamento, iniciar/parar/reiniciar/desconectar) só as sessões da lista.
+  Ação sobre outra sessão responde 404; o cliente do WAHA também recusa (403) qualquer chamada a uma sessão fora da lista.
+- **Webhook:** eventos de sessões fora da lista são respondidos com 200 e ignorados (log de nível `debug`), para o WAHA
+  não reenviar e as mensagens de um CRM não caírem no outro. A assinatura HMAC continua sendo conferida antes.
+- **Inbox**, **Abrir WhatsApp do lead** (escolha do primeiro número conectado), tela de usuários (acesso por número) e
+  endpoint de saúde consideram só as sessões permitidas. Números da API oficial (Cloud) não são afetados.
+- Conversas antigas que já estejam no banco não são apagadas nem escondidas.
+
+Sem migração. Depois de mudar a variável, faça o deploy (ou `php artisan config:clear` se usar cache de configuração).
+
+## Origem: anúncio (click-to-WhatsApp) e lead automático
+
+Quando a primeira mensagem de um contato vem de um anúncio do Meta que abre o WhatsApp, a conversa guarda a origem
+(id do anúncio, link, tipo, título, texto e `ctwa_clid`), e o painel lateral da Inbox mostra o bloco **Origem: anúncio**
+(título, texto, link e id). Só a primeira mensagem de anúncio é guardada; uma posterior não sobrescreve.
+No WAHA/GOWS a origem vem em `contextInfo.externalAdReply` da mensagem; na API oficial, no objeto `referral`.
+
+**Migração nova:** `2026_11_15_000001_add_ad_source_to_whatsapp_conversations` (colunas `ad_*` em `whatsapp_conversations`,
+todas opcionais). Em **cada** CRM: `php artisan migrate --force` no console do serviço.
+
+### Lead automático
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `WHATSAPP_AUTO_LEAD` | `off` | `off` = não cria nada. `ads` = cria lead só para conversa que veio de anúncio. `all` = todo contato novo que escrever vira lead. |
+| `WHATSAPP_AUTO_LEAD_PIPELINE_ID` | vazio | Id do funil. Vazio (ou id inexistente) = funil padrão. |
+| `WHATSAPP_AUTO_LEAD_STAGE_ID` | vazio | Id da etapa (tem que ser do funil acima). |
+| `WHATSAPP_AUTO_LEAD_STAGE` | vazio | Nome da etapa no funil (ex.: `Novo Lead`; não diferencia maiúsculas). Útil porque o id muda de um CRM para outro. Se não achar, usa a 1ª etapa e registra um aviso no log. O id, quando preenchido e válido, tem prioridade. |
+| `WHATSAPP_AUTO_LEAD_SOURCE` | vazio | Nome da origem do lead. Vazio = `WhatsApp Anúncio` quando veio de anúncio e `WhatsApp` nos demais. Criada se não existir. |
+| `WHATSAPP_AUTO_LEAD_TAGS` | vazio | Etiquetas, separadas por vírgula (criadas se não existirem). Vazio = nenhuma. |
+| `WHATSAPP_AUTO_LEAD_USER_ID` | vazio | Responsável quando ninguém assumiu a conversa. Vazio = sem responsável. |
+
+Exemplo (todo número novo vira lead no funil padrão, etapa "Novo Lead"):
+
+```
+WHATSAPP_AUTO_LEAD=all
+WHATSAPP_AUTO_LEAD_STAGE=Novo Lead
+```
+
+Como funciona:
+
+- **Gatilho:** mensagem **recebida** do contato (nunca as enviadas por nós; grupos, status e listas de transmissão nunca
+  viram conversa) numa conversa ainda sem lead. Vale para WAHA e para a API oficial.
+- **Mesmas regras do botão Criar lead** (o código é compartilhado, `Support/ConversationLead`): pessoa encontrada pelo
+  telefone (com ou sem o 9º dígito) ou criada com o nome do WhatsApp; se já existe lead para o número, ele é só vinculado;
+  tipo = o primeiro cadastrado; valor 0; eventos `lead.create.before/after` (automações e webhooks da API disparam).
+- **Título:** `<Nome do contato ou telefone> - WhatsApp (<título do anúncio>)`; sem anúncio, `<Nome> - WhatsApp`.
+  A descrição traz os dados do anúncio (id, link, título, `ctwa_clid`).
+- **Sem duplicar:** trava por número + nova checagem dentro da trava; webhook repetido não cria dois leads.
+- **Nunca derruba o webhook:** se a criação falhar, a mensagem fica salva e o erro vai para o log
+  (`WhatsApp: the automatic lead could not be created`).
+- O padrão é `off`: nada muda em produção até a variável ser ligada em cada CRM.
+
 ## Filtrar conversas por etapa e etiqueta
 
 Abaixo da busca da lista, dois seletores filtram pelo lead da conversa:

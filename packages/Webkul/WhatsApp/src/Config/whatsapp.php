@@ -39,5 +39,26 @@ return [
         'url'         => env('WAHA_API_URL'),
         'api_key'     => env('WAHA_API_KEY'),
         'hmac_secret' => env('WAHA_HMAC_SECRET'),
+
+        // WAHA sessions this installation owns, comma separated (one WAHA server can serve
+        // several CRMs). Empty = every session of the server, as before.
+        'sessions' => env('WAHA_SESSIONS', ''),
+    ],
+
+    // Lead opened automatically when a contact writes in a conversation without a lead.
+    // off = never (default), ads = only conversations that came from a click-to-WhatsApp ad,
+    // all = every new contact.
+    'auto_lead' => [
+        'mode'        => env('WHATSAPP_AUTO_LEAD', 'off'),
+        'pipeline_id' => env('WHATSAPP_AUTO_LEAD_PIPELINE_ID'),
+        // Stage by id, or by name inside the pipeline (the ids differ between installations).
+        'stage_id'    => env('WHATSAPP_AUTO_LEAD_STAGE_ID'),
+        'stage'       => env('WHATSAPP_AUTO_LEAD_STAGE'),
+        // Lead source name; empty = "WhatsApp Anúncio" for ad conversations, "WhatsApp" otherwise.
+        'source'      => env('WHATSAPP_AUTO_LEAD_SOURCE'),
+        // Tag names, comma separated (created when missing).
+        'tags'        => env('WHATSAPP_AUTO_LEAD_TAGS', ''),
+        // Owner when the conversation has no assigned operator; empty = no owner.
+        'user_id'     => env('WHATSAPP_AUTO_LEAD_USER_ID'),
     ],
 ];

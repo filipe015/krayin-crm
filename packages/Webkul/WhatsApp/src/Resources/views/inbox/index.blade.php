@@ -538,6 +538,14 @@
                         </template>
                     </div>
 
+                    <div v-if="current.ad" class="wa-block">
+                        <span class="wa-label">@{{ labels.ad_origin }}</span>
+                        <strong v-if="current.ad.title" style="display:block">@{{ current.ad.title }}</strong>
+                        <span v-if="current.ad.body" class="wa-muted" style="display:block;white-space:pre-line">@{{ current.ad.body }}</span>
+                        <a v-if="current.ad.url" :href="current.ad.url" target="_blank" rel="noopener noreferrer" style="color:var(--wa-accent);word-break:break-all">@{{ labels.ad_open }}</a>
+                        <span v-if="current.ad.source_id" class="wa-muted" style="display:block">@{{ labels.ad_id }}: @{{ current.ad.source_id }}</span>
+                    </div>
+
                     <div v-if="current.lead" class="wa-block">
                         <span class="wa-label">@{{ labels.funnel }}</span>
 

@@ -15,6 +15,7 @@ use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Support\ConversationWindow;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\WahaSessions;
 use Webkul\WhatsApp\Support\InboxPresenter;
 
 class InboxController extends Controller
@@ -35,7 +36,7 @@ class InboxController extends Controller
 
         return view('whatsapp::inbox.index', [
             'initial'  => $initial ? $this->conversationData($initial) : null,
-            'sessions' => Session::query()->when(bouncer()->getAllowedSessionIds(), fn ($query, $ids) => $query->whereIn('id', $ids))->orderBy('name')->get(['id', 'name']),
+            'sessions' => WahaSessions::scope(Session::query())->when(bouncer()->getAllowedSessionIds(), fn ($query, $ids) => $query->whereIn('id', $ids))->orderBy('name')->get(['id', 'name']),
             'funnelFilters' => $this->funnelFilters(),
             'cloudVoice' => \Webkul\WhatsApp\Support\VoiceTranscoder::available(),
             'urls'     => [
@@ -268,6 +269,15 @@ class InboxController extends Controller
                 'title' => $conversation->lead->title,
                 'url'   => route('admin.leads.view', $conversation->lead->id),
                 'stage' => $conversation->lead->stage?->name,
+            ] : null,
+            // Click-to-WhatsApp ad that opened the chat ("Origem: anúncio" in the side panel).
+            'ad'       => $conversation->ad_captured_at !== null ? [
+                'title'     => $conversation->ad_title,
+                'body'      => $conversation->ad_body,
+                'source_id' => $conversation->ad_source_id,
+                // Only http(s) links are rendered as a link.
+                'url'       => preg_match('#^https?://#i', (string) $conversation->ad_source_url) ? $conversation->ad_source_url : null,
+                'type'      => $conversation->ad_source_type,
             ] : null,
             'assigned' => $conversation->assignedUser
                 ? ['id' => $conversation->assignedUser->id, 'name' => $conversation->assignedUser->name]
