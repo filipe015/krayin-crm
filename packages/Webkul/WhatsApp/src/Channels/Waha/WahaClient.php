@@ -5,6 +5,7 @@ namespace Webkul\WhatsApp\Channels\Waha;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Response;
+use Webkul\WhatsApp\Support\WahaSessions;
 
 final class WahaClient
 {
@@ -13,11 +14,30 @@ final class WahaClient
         private readonly ?string $baseUrl,
         private readonly ?string $apiKey,
         private readonly int $timeout = 15,
+        private readonly ?array $sessions = null,
     ) {}
 
     public static function fromConfig(): self
     {
-        return new self(app(Factory::class), config('whatsapp.waha.url'), config('whatsapp.waha.api_key'));
+        return new self(app(Factory::class), config('whatsapp.waha.url'), config('whatsapp.waha.api_key'), 15, WahaSessions::allowed());
+    }
+
+    /**
+     * Whether this installation may use the session (WAHA_SESSIONS; null = every session).
+     */
+    public function allows(string $session): bool
+    {
+        return $this->sessions === null || in_array($session, $this->sessions, true);
+    }
+
+    /**
+     * @throws WahaException
+     */
+    private function ensureAllowed(string $session): void
+    {
+        if (! $this->allows($session)) {
+            throw new WahaException('This WAHA session does not belong to this installation.', 403);
+        }
     }
 
     /**
@@ -27,6 +47,8 @@ final class WahaClient
      */
     public function sendText(string $session, string $chatId, string $text): array
     {
+        $this->ensureAllowed($session);
+
         if (blank($this->baseUrl) || blank($this->apiKey)) {
             throw new WahaException('WAHA_API_URL and WAHA_API_KEY must be configured.');
         }
@@ -58,6 +80,8 @@ final class WahaClient
      */
     public function setPresence(string $session, string $chatId, string $presence): void
     {
+        $this->ensureAllowed($session);
+
         $this->call('POST', '/api/'.rawurlencode($session).'/presence', ['chatId' => $chatId, 'presence' => $presence], 5);
     }
 
@@ -68,6 +92,8 @@ final class WahaClient
      */
     public function subscribePresence(string $session, string $chatId): void
     {
+        $this->ensureAllowed($session);
+
         $this->call('POST', '/api/'.rawurlencode($session).'/presence/'.rawurlencode($chatId).'/subscribe', [], 5);
     }
 
@@ -82,6 +108,8 @@ final class WahaClient
      */
     public function sendMedia(string $session, string $chatId, string $kind, string $mimetype, string $filename, string $base64, ?string $caption = null): array
     {
+        $this->ensureAllowed($session);
+
         $path = ['image' => '/api/sendImage', 'file' => '/api/sendFile', 'voice' => '/api/sendVoice', 'video' => '/api/sendVideo'][$kind] ?? null;
 
         if ($path === null) {
@@ -114,7 +142,10 @@ final class WahaClient
      */
     public function sessions(): array
     {
-        return array_values((array) $this->call('GET', '/api/sessions', ['all' => 'true']));
+        $sessions = array_values((array) $this->call('GET', '/api/sessions', ['all' => 'true']));
+
+        // A shared WAHA server lists the sessions of every installation; keep only ours.
+        return array_values(array_filter($sessions, fn ($remote) => is_array($remote) && $this->allows((string) ($remote['name'] ?? ''))));
     }
 
     /**
@@ -124,6 +155,8 @@ final class WahaClient
      */
     public function controlSession(string $session, string $action): void
     {
+        $this->ensureAllowed($session);
+
         $this->call('POST', '/api/sessions/'.rawurlencode($session).'/'.$action);
     }
 
@@ -137,6 +170,8 @@ final class WahaClient
      */
     public function qrCode(string $session): array
     {
+        $this->ensureAllowed($session);
+
         $json = (array) $this->call('GET', '/api/'.rawurlencode($session).'/auth/qr');
         $data = $json['data'] ?? null;
 
@@ -154,6 +189,8 @@ final class WahaClient
      */
     public function requestPairingCode(string $session, string $phone): string
     {
+        $this->ensureAllowed($session);
+
         $json = (array) $this->call('POST', '/api/'.rawurlencode($session).'/auth/request-code', ['phoneNumber' => $phone]);
         $code = $json['code'] ?? null;
 

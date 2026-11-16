@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Support\VoiceTranscoder;
+use Webkul\WhatsApp\Support\WahaSessions;
 
 /**
  * What the super-admin panel reads from every installation: health and usage counters,
@@ -50,7 +51,7 @@ class ControlHealthController extends Controller
                 'last_run'    => $lastRun,
                 'seconds_ago' => $lastRun ? max(0, now()->getTimestamp() - \Illuminate\Support\Carbon::parse($lastRun)->getTimestamp()) : null,
             ],
-            'numbers' => Session::query()->orderBy('id')->get(['channel', 'name', 'phone', 'status', 'credentials'])
+            'numbers' => WahaSessions::scope(Session::query())->orderBy('id')->get(['channel', 'name', 'phone', 'status', 'credentials'])
                 ->map(fn ($session) => [
                     'channel' => $session->channel,
                     'name'    => $session->name,

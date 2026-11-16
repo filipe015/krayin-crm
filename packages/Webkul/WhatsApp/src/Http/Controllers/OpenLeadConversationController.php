@@ -8,6 +8,7 @@ use Webkul\Lead\Models\Lead;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Support\PhoneNumberMatcher;
+use Webkul\WhatsApp\Support\WahaSessions;
 
 /**
  * "Open WhatsApp" on a lead: takes the operator to that lead's conversation in the Inbox,
@@ -49,7 +50,8 @@ class OpenLeadConversationController extends Controller
         if ($conversation === null) {
             abort_if($phone === null, 422, trans('whatsapp::app.inbox.lead_without_phone'));
 
-            $usable = fn () => Session::query()->when($allowedSessions !== null, fn ($query) => $query->whereIn('id', $allowedSessions ?: [0]));
+            // Only this installation's WAHA sessions (WAHA_SESSIONS) can open a chat.
+            $usable = fn () => WahaSessions::scope(Session::query())->when($allowedSessions !== null, fn ($query) => $query->whereIn('id', $allowedSessions ?: [0]));
 
             $session = $usable()->where('status', 'WORKING')->orderBy('id')->first()
                 ?? $usable()->orderBy('id')->first();

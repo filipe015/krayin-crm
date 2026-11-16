@@ -13,6 +13,7 @@ use Webkul\WhatsApp\Channels\Cloud\EmbeddedSignup;
 use Webkul\WhatsApp\Channels\Waha\WahaClient;
 use Webkul\WhatsApp\Channels\Waha\WahaException;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Support\WahaSessions;
 
 /**
  * Connections screen: shows the WAHA sessions (numbers) and lets an operator pair,
@@ -95,7 +96,8 @@ class ConnectionController extends Controller
 
         return response()->json([
             'error' => $error,
-            'data'  => Session::query()->where('channel', 'waha')->orderBy('name')->get()->map(fn (Session $session) => [
+            // Only this installation's sessions (WAHA_SESSIONS), even if rows of others exist.
+            'data'  => WahaSessions::scope(Session::query()->where('channel', 'waha'))->orderBy('name')->get()->map(fn (Session $session) => [
                 'id'         => $session->id,
                 'name'       => $session->name,
                 'status'     => $session->status,
@@ -393,7 +395,7 @@ class ConnectionController extends Controller
     {
         abort_unless(in_array($action, self::ACTIONS, true), 404);
 
-        $session = Session::query()->where('channel', 'waha')->findOrFail($id);
+        $session = $this->wahaSession($id);
 
         return $this->guard(function () use ($session, $action) {
             WahaClient::fromConfig()->controlSession($session->external_id, $action);
@@ -404,7 +406,7 @@ class ConnectionController extends Controller
 
     public function qr(int $id): JsonResponse
     {
-        $session = Session::query()->where('channel', 'waha')->findOrFail($id);
+        $session = $this->wahaSession($id);
 
         return $this->guard(fn () => WahaClient::fromConfig()->qrCode($session->external_id));
     }
@@ -417,9 +419,17 @@ class ConnectionController extends Controller
 
         abort_unless(strlen($phone) >= 10 && strlen($phone) <= 15, 422, trans('whatsapp::app.connections.invalid_phone'));
 
-        $session = Session::query()->where('channel', 'waha')->findOrFail($id);
+        $session = $this->wahaSession($id);
 
         return $this->guard(fn () => ['code' => WahaClient::fromConfig()->requestPairingCode($session->external_id, $phone)]);
+    }
+
+    /**
+     * A WAHA session of this installation; one outside WAHA_SESSIONS is a 404, like a missing one.
+     */
+    private function wahaSession(int $id): Session
+    {
+        return WahaSessions::scope(Session::query()->where('channel', 'waha'))->findOrFail($id);
     }
 
     /**
