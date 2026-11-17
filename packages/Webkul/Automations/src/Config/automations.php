@@ -23,6 +23,9 @@ return [
     // Most rules one CRM may have.
     'max_rules' => (int) env('AUTOMATIONS_MAX_RULES', 100),
 
+    // Most blocks (gatilho + condições + ações) one flow of the visual builder may have.
+    'max_nodes' => (int) env('AUTOMATIONS_MAX_NODES', 30),
+
     // Outgoing webhook action: short timeouts, a single attempt.
     'webhook_timeout' => (int) env('AUTOMATIONS_WEBHOOK_TIMEOUT', 5),
 

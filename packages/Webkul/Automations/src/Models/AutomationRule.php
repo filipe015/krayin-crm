@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array|null $conditions
  * @property array $actions
  * @property bool $run_once_per_lead
+ * @property array|null $flow graph of the visual builder (null = old "Quando… Se… Então…" rule)
  */
 class AutomationRule extends Model
 {
@@ -44,6 +45,9 @@ class AutomationRule extends Model
 
     public const CONDITIONS = ['pipeline', 'stage', 'source', 'tag', 'owner', 'field'];
 
+    /** Conditions a "Condição" block of the visual builder may use (the old ones + lead value). */
+    public const FLOW_CONDITIONS = [...self::CONDITIONS, 'lead_value'];
+
     public const ACTIONS = [
         'move_stage',
         'transfer_pipeline',
@@ -65,6 +69,7 @@ class AutomationRule extends Model
         'conditions',
         'actions',
         'run_once_per_lead',
+        'flow',
         'created_by',
     ];
 
@@ -72,8 +77,15 @@ class AutomationRule extends Model
         'trigger_config' => 'array',
         'conditions' => 'array',
         'actions' => 'array',
+        'flow' => 'array',
         'run_once_per_lead' => 'boolean',
     ];
+
+    /** Built in (or converted to) the visual builder: the engine walks the graph. */
+    public function isFlow(): bool
+    {
+        return is_array($this->flow) && $this->flow !== [];
+    }
 
     public function runs(): HasMany
     {
