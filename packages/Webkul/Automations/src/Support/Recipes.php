@@ -6,7 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
- * "Usar receita": three ready rules (won → Onboarding and lost → Recuperação are NOT recipes: transferring a won/lost lead drops it from the won/lost reports, use Regras de funil for those). Pipelines are guessed by name (Pré-Vendas, Closer, Onboarding,
+ * "Usar modelo": three ready flows (won → Onboarding and lost → Recuperação are NOT recipes: transferring a won/lost lead drops it from the won/lost reports, use Regras de funil for those). Pipelines are guessed by name (Pré-Vendas, Closer, Onboarding,
  * Recuperação) when this CRM has them; everything else is left for the person to pick. A recipe is
  * always born in test mode, so its first runs only show in the history what it would do.
  */
@@ -46,7 +46,7 @@ final class Recipes
 
     private static function rule(string $key, string $trigger, array $config, array $conditions, array $actions): array
     {
-        return [
+        $rule = [
             'id' => null,
             'name' => trans("automations::app.recipes.$key.name"),
             'status' => 'test',
@@ -56,6 +56,11 @@ final class Recipes
             'actions' => $actions,
             'run_once_per_lead' => true,
         ];
+
+        // "Usar modelo" in the visual builder: the same rule as a ready flow (gatilho → condição → ações).
+        $rule['flow'] = FlowConverter::fromLegacy($rule, 'recipe');
+
+        return $rule;
     }
 
     private static function transfer(?array $pipeline): array
