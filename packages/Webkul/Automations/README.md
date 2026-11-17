@@ -32,12 +32,13 @@ Regras **"Quando… Se… Então…"** que rodam sozinhas nos leads do CRM, conf
   Teste), passos, erro e duração; filtros por regra, status e lead. Só aparecem execuções de leads que o
   usuário pode ver (`bouncer()->getAuthorizedUserIds()` e funis permitidos).
 - **Receitas** ("Usar receita"), sempre criadas em modo **Teste** e com os funis adivinhados pelo nome
-  (Pré-Vendas, Closer, Onboarding, Recuperação) quando existem — confira os seletores antes de salvar:
+  (Pré-Vendas, Closer) quando existem — confira os seletores antes de salvar:
   1. Reunião agendada no Pré-Vendas → transferir para o Closer (1ª etapa);
-  2. Ganho no Closer → transferir para o Onboarding (**leia o risco de relatórios abaixo**);
-  3. Perdido no Pré-Vendas → transferir para a Recuperação;
-  4. Lead novo → atribuir responsável + avisar no WhatsApp;
-  5. Entrou na etapa X → tarefa de follow-up em 1 dia.
+  2. Lead novo → atribuir responsável + avisar no WhatsApp;
+  3. Entrou na etapa X → tarefa de follow-up em 1 dia.
+  **Ganho no Closer → Onboarding** e **Perdido → Recuperação NÃO são receitas** (decisão do usuário,
+  opção A): transferir um lead ganho/perdido tira-o dos relatórios (veja o risco abaixo). Para esses dois
+  casos use **Configurações → Regras de funil**, que abre um card novo no funil seguinte.
 
 ## Variáveis de ambiente
 

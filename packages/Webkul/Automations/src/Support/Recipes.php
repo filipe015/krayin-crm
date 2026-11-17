@@ -6,7 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
- * "Usar receita": five ready rules. Pipelines are guessed by name (Pré-Vendas, Closer, Onboarding,
+ * "Usar receita": three ready rules (won → Onboarding and lost → Recuperação are NOT recipes: transferring a won/lost lead drops it from the won/lost reports, use Regras de funil for those). Pipelines are guessed by name (Pré-Vendas, Closer, Onboarding,
  * Recuperação) when this CRM has them; everything else is left for the person to pick. A recipe is
  * always born in test mode, so its first runs only show in the history what it would do.
  */
@@ -20,23 +20,13 @@ final class Recipes
     {
         $pre = self::find($pipelines, ['pre-venda', 'pre venda', 'prevenda', 'sdr']);
         $closer = self::find($pipelines, ['closer', 'fechamento']);
-        $onboarding = self::find($pipelines, ['onboarding', 'pos-venda', 'pos venda']);
-        $recovery = self::find($pipelines, ['recupera']);
-
+        
         return [
             [
                 'key' => 'meeting_to_closer',
                 'rule' => self::rule('meeting_to_closer', 'activity_created', ['activity_type' => 'meeting'],
                     $pre ? [['type' => 'pipeline', 'pipeline_id' => $pre['id']]] : [['type' => 'pipeline', 'pipeline_id' => null]],
                     [self::transfer($closer)]),
-            ],
-            [
-                'key' => 'won_to_onboarding',
-                'rule' => self::rule('won_to_onboarding', 'stage_entered', self::stageTrigger($closer, 'won'), [], [self::transfer($onboarding)]),
-            ],
-            [
-                'key' => 'lost_to_recovery',
-                'rule' => self::rule('lost_to_recovery', 'stage_entered', self::stageTrigger($pre, 'lost'), [], [self::transfer($recovery)]),
             ],
             [
                 'key' => 'new_lead_owner_notice',
