@@ -1,0 +1,11 @@
+{
+  "src/Resources/assets/js/flow.js": {
+    "file": "assets/flow-BI_7fBUp.js",
+    "name": "flow",
+    "src": "src/Resources/assets/js/flow.js",
+    "isEntry": true,
+    "css": [
+      "assets/flow-CKToD4G0.css"
+    ]
+  }
+}

@@ -12,6 +12,7 @@ use Webkul\Automations\Models\AutomationRule;
 use Webkul\Automations\Models\AutomationRun;
 use Webkul\Automations\Support\ConditionEvaluator;
 use Webkul\Automations\Support\Engine;
+use Webkul\Automations\Support\FlowValidator;
 use Webkul\Automations\Support\Recipes;
 use Webkul\Automations\Support\RulePresenter;
 use Webkul\Automations\Support\RuleValidator;
@@ -57,6 +58,7 @@ class AutomationRuleController extends Controller
                 'lost_reasons' => DB::table('lead_lost_reasons')->where('is_active', 1)->orderBy('sort_order')->get(['id', 'name', 'lead_pipeline_id']),
                 'activity_types' => $activityTypes,
                 'fields' => $fields,
+                'max_nodes' => FlowValidator::maxNodes(),
             ],
             'whatsapp' => class_exists('Webkul\\WhatsApp\\Support\\AgentNotifier') && AgentNotifier::session() !== '',
             'can' => [
@@ -83,7 +85,7 @@ class AutomationRuleController extends Controller
 
         abort_if(AutomationRule::query()->count() >= $max, 422, trans('automations::app.validation.max_rules', ['max' => $max]));
 
-        $data = RuleValidator::validate($request->all());
+        $data = $this->validated($request);
         $rule = AutomationRule::query()->create($data + ['created_by' => auth()->guard('user')->id()]);
 
         return response()->json(['data' => RulePresenter::present($rule)]);
@@ -92,7 +94,7 @@ class AutomationRuleController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $rule = AutomationRule::query()->findOrFail($id);
-        $rule->update(RuleValidator::validate($request->all(), $rule));
+        $rule->update($this->validated($request, $rule));
 
         return response()->json(['data' => RulePresenter::present($rule->refresh())]);
     }
@@ -102,6 +104,12 @@ class AutomationRuleController extends Controller
         $data = $request->validate(['status' => ['required', Rule::in(AutomationRule::STATUSES)]]);
 
         $rule = AutomationRule::query()->findOrFail($id);
+
+        // A flow saved as a draft cannot be turned on (or put in test) while it is invalid.
+        if ($rule->isFlow() && $data['status'] !== AutomationRule::STATUS_OFF) {
+            FlowValidator::assertValid(FlowValidator::sanitize((array) $rule->flow, (array) $rule->flow));
+        }
+
         $rule->update(['status' => $data['status']]);
 
         return response()->json(['data' => RulePresenter::present($rule->refresh())]);
@@ -112,6 +120,24 @@ class AutomationRuleController extends Controller
         AutomationRule::query()->findOrFail($id)->delete();
 
         return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * The visual builder sends "flow"; the old form (and old API clients) send trigger/conditions/actions.
+     *
+     * @return array<string, mixed>
+     */
+    private function validated(Request $request, ?AutomationRule $existing = null): array
+    {
+        if ($request->has('flow')) {
+            return FlowValidator::validateRule($request->all(), $existing);
+        }
+
+        $data = RuleValidator::validate($request->all(), $existing);
+
+        // Saved in the old format (old API clients): the rule goes back to being an old rule, so a
+        // stored flow is not left stale. Untouched when there is no flow (works before the migration).
+        return $existing?->isFlow() ? $data + ['flow' => null] : $data;
     }
 
     /**

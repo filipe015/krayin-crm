@@ -18,6 +18,8 @@
 
     @pushOnce('scripts')
         <style>
+            .au.is-wide{max-width:none}
+            .au-pill.flow{background:#e0e7ff;color:#3730a3}
             .au{--au-bg:#fff;--au-fg:#111827;--au-muted:#6b7280;--au-border:#e5e7eb;--au-soft:#f3f4f6;--au-accent:#0e90d9;display:flex;flex-direction:column;gap:16px;max-width:1100px;color:var(--au-fg);font-size:14px}
             .dark .au{--au-bg:#111827;--au-fg:#e5e7eb;--au-muted:#9ca3af;--au-border:#1f2937;--au-soft:#1f2937}
             .au *{box-sizing:border-box}
@@ -60,11 +62,11 @@
         </style>
 
         <script type="text/x-template" id="v-automations-template">
-            <div class="au">
+            <div class="au" :class="{ 'is-wide': editing }">
                 <div>
                     <h1>@{{ ui.title }}</h1>
                     <p class="au-muted">@{{ ui.intro }}</p>
-                    <p class="au-muted" v-if="! canWrite">@{{ ui.read_only }}</p>
+                    <p class="au-muted" v-if="! can.create && ! can.edit">@{{ ui.read_only }}</p>
                 </div>
 
                 <div class="au-tabs">
@@ -106,7 +108,7 @@
                             </thead>
                             <tbody>
                                 <tr v-for="rule in rules" :key="rule.id">
-                                    <td><strong>@{{ rule.name }}</strong></td>
+                                    <td><strong>@{{ rule.name }}</strong> <span class="au-pill" :class="rule.is_flow ? 'flow' : ''">@{{ rule.is_flow ? labels.flow.ui.kind_flow : labels.flow.ui.kind_legacy }}</span></td>
                                     <td>@{{ labels.triggers[rule.trigger_type] }}</td>
                                     <td>
                                         <div class="au-actions">
@@ -135,276 +137,12 @@
                     </div>
                 </template>
 
-                <!-- Builder -->
-                <form class="au-card" v-if="tab === 'rules' && editing" @submit.prevent="save()">
-                    <div class="au-row">
-                        <label class="au-field">@{{ ui.name }}<input type="text" v-model="editing.name" maxlength="120" required></label>
-                        <label class="au-field" style="max-width:200px">@{{ ui.status }}
-                            <select v-model="editing.status">
-                                <option v-for="status in ['on', 'test', 'off']" :key="status" :value="status">@{{ labels.statuses[status] }}</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <h2>@{{ ui.trigger }}</h2>
-                    <div class="au-block">
-                        <label class="au-field">
-                            <select v-model="editing.trigger_type" @change="resetTrigger()">
-                                <option v-for="(label, key) in triggerOptions" :key="key" :value="key">@{{ label }}</option>
-                            </select>
-                        </label>
-
-                        <div class="au-row" v-if="editing.trigger_type === 'stage_entered'">
-                            <label class="au-field">@{{ ui.pipeline }}
-                                <select v-model.number="editing.trigger_config.pipeline_id" @change="editing.trigger_config.stage_id = null">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="pipeline in options.pipelines" :key="pipeline.id" :value="pipeline.id">@{{ pipeline.name }}</option>
-                                </select>
-                            </label>
-                            <label class="au-field">@{{ ui.stage }}
-                                <select v-model.number="editing.trigger_config.stage_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="stage in stagesOf(editing.trigger_config.pipeline_id)" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
-                                </select>
-                            </label>
-                            <label class="au-field">@{{ ui.from_stage }}
-                                <select v-model.number="editing.trigger_config.from_stage_id">
-                                    <option :value="null">@{{ ui.any }}</option>
-                                    <optgroup v-for="pipeline in options.pipelines" :key="pipeline.id" :label="pipeline.name">
-                                        <option v-for="stage in pipeline.stages" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
-                                    </optgroup>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="au-row" v-if="editing.trigger_type === 'lead_created'">
-                            <label class="au-field">@{{ ui.source }}
-                                <select v-model.number="editing.trigger_config.source_id">
-                                    <option :value="null">@{{ ui.any }}</option>
-                                    <option v-for="source in options.sources" :key="source.id" :value="source.id">@{{ source.name }}</option>
-                                </select>
-                            </label>
-                            <label class="au-field">@{{ ui.channel }}
-                                <select v-model.number="editing.trigger_config.type_id">
-                                    <option :value="null">@{{ ui.any }}</option>
-                                    <option v-for="type in options.types" :key="type.id" :value="type.id">@{{ type.name }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="au-row" v-if="editing.trigger_type === 'tag_added'">
-                            <label class="au-field">@{{ ui.tag }}
-                                <select v-model.number="editing.trigger_config.tag_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="tag in options.tags" :key="tag.id" :value="tag.id">@{{ tag.name }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="au-row" v-if="editing.trigger_type === 'activity_created'">
-                            <label class="au-field">@{{ ui.activity_type }}
-                                <select v-model="editing.trigger_config.activity_type">
-                                    <option :value="null">@{{ ui.any }}</option>
-                                    <option v-for="type in options.activity_types" :key="type.value" :value="type.value">@{{ type.label }}</option>
-                                </select>
-                            </label>
-                        </div>
-                    </div>
-
-                    <h2>@{{ ui.conditions }}</h2>
-                    <div class="au-block" v-for="(condition, index) in editing.conditions" :key="'c' + index">
-                        <div class="au-row">
-                            <label class="au-field">
-                                <select v-model="condition.type">
-                                    <option v-for="(label, key) in labels.conditions" :key="key" :value="key">@{{ label }}</option>
-                                </select>
-                            </label>
-
-                            <label class="au-field" v-if="condition.type === 'pipeline'">@{{ ui.pipeline }}
-                                <select v-model.number="condition.pipeline_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="pipeline in options.pipelines" :key="pipeline.id" :value="pipeline.id">@{{ pipeline.name }}</option>
-                                </select>
-                            </label>
-
-                            <label class="au-field" v-if="condition.type === 'stage'">@{{ ui.stage }}
-                                <select v-model.number="condition.stage_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <optgroup v-for="pipeline in options.pipelines" :key="pipeline.id" :label="pipeline.name">
-                                        <option v-for="stage in pipeline.stages" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
-                                    </optgroup>
-                                </select>
-                            </label>
-
-                            <label class="au-field" v-if="condition.type === 'source'">@{{ labels.conditions.source }}
-                                <select v-model.number="condition.source_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="source in options.sources" :key="source.id" :value="source.id">@{{ source.name }}</option>
-                                </select>
-                            </label>
-
-                            <label class="au-field" v-if="condition.type === 'tag'">@{{ ui.tag }}
-                                <select v-model.number="condition.tag_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="tag in options.tags" :key="tag.id" :value="tag.id">@{{ tag.name }}</option>
-                                </select>
-                            </label>
-
-                            <label class="au-field" v-if="condition.type === 'owner'">@{{ ui.user }}
-                                <select v-model.number="condition.user_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="user in options.users" :key="user.id" :value="user.id">@{{ user.name }}</option>
-                                </select>
-                            </label>
-
-                            <template v-if="condition.type === 'field'">
-                                <label class="au-field">@{{ ui.field }}
-                                    <select v-model="condition.attribute_code">
-                                        <option value="">@{{ ui.choose }}</option>
-                                        <option v-for="field in options.fields" :key="field.code" :value="field.code">@{{ field.name }}</option>
-                                    </select>
-                                </label>
-                                <label class="au-field">@{{ ui.value }}<input type="text" v-model="condition.value" maxlength="255"></label>
-                            </template>
-
-                            <button type="button" class="au-btn is-small" @click="editing.conditions.splice(index, 1)">@{{ ui.remove }}</button>
-                        </div>
-                    </div>
-                    <div><button type="button" class="au-btn is-small" :disabled="editing.conditions.length >= 10" @click="editing.conditions.push({ type: 'pipeline', pipeline_id: null })">@{{ ui.add_condition }}</button></div>
-
-                    <h2>@{{ ui.actions }}</h2>
-                    <div class="au-block" v-for="(action, index) in editing.actions" :key="'a' + index">
-                        <div class="au-row">
-                            <label class="au-field">@{{ (index + 1) + '.' }}
-                                <select v-model="action.type" @change="resetAction(action)">
-                                    <option v-for="(label, key) in labels.actions" :key="key" :value="key">@{{ label }}</option>
-                                </select>
-                            </label>
-                            <button type="button" class="au-btn is-small" :disabled="index === 0" @click="moveUp(index)">@{{ ui.up }}</button>
-                            <button type="button" class="au-btn is-small" :disabled="editing.actions.length === 1" @click="editing.actions.splice(index, 1)">@{{ ui.remove }}</button>
-                        </div>
-
-                        <div class="au-row" v-if="action.type === 'move_stage'">
-                            <label class="au-field">@{{ ui.stage }}
-                                <select v-model.number="action.stage_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <optgroup v-for="pipeline in options.pipelines" :key="pipeline.id" :label="pipeline.name">
-                                        <option v-for="stage in pipeline.stages.filter(s => s.code !== 'lost')" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
-                                    </optgroup>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="au-row" v-if="action.type === 'transfer_pipeline'">
-                            <label class="au-field">@{{ ui.pipeline }}
-                                <select v-model.number="action.pipeline_id" @change="action.stage_id = (stagesOf(action.pipeline_id).find(s => ! ['won', 'lost'].includes(s.code)) || {}).id || null">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="pipeline in options.pipelines" :key="pipeline.id" :value="pipeline.id">@{{ pipeline.name }}</option>
-                                </select>
-                            </label>
-                            <label class="au-field">@{{ ui.stage }}
-                                <select v-model.number="action.stage_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="stage in stagesOf(action.pipeline_id)" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="au-row" v-if="action.type === 'assign_owner'">
-                            <label class="au-field">@{{ ui.user }}
-                                <select v-model.number="action.user_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="user in options.users" :key="user.id" :value="user.id">@{{ user.name }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="au-row" v-if="action.type === 'add_tag'">
-                            <label class="au-field">@{{ ui.tag }}
-                                <select v-model.number="action.tag_id">
-                                    <option :value="null">@{{ ui.choose }}</option>
-                                    <option v-for="tag in options.tags" :key="tag.id" :value="tag.id">@{{ tag.name }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <template v-if="action.type === 'create_task'">
-                            <div class="au-row">
-                                <label class="au-field">@{{ ui.task_title }}<input type="text" v-model="action.title" maxlength="200"></label>
-                                <label class="au-field" style="max-width:160px">@{{ ui.due_in_days }}<input type="number" min="0" max="365" v-model.number="action.due_in_days"></label>
-                            </div>
-                            <div class="au-row">
-                                <label class="au-field">@{{ ui.assignee }}
-                                    <select v-model="action.assignee">
-                                        <option value="owner">@{{ ui.assignee_owner }}</option>
-                                        <option value="fixed">@{{ ui.assignee_fixed }}</option>
-                                    </select>
-                                </label>
-                                <label class="au-field" v-if="action.assignee === 'fixed'">@{{ ui.user }}
-                                    <select v-model.number="action.user_id">
-                                        <option :value="null">@{{ ui.choose }}</option>
-                                        <option v-for="user in options.users" :key="user.id" :value="user.id">@{{ user.name }}</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <p class="au-muted">@{{ ui.placeholders }}</p>
-                        </template>
-
-                        <template v-if="action.type === 'notify_whatsapp'">
-                            <div class="au-warn" v-if="! whatsapp">@{{ ui.whatsapp_off }}</div>
-                            <label class="au-field">@{{ ui.whatsapp_to }}<input type="text" v-model="action.to" maxlength="300"></label>
-                            <label class="au-field">@{{ ui.message }}<textarea v-model="action.message" maxlength="1000"></textarea></label>
-                            <p class="au-muted">@{{ ui.placeholders }}</p>
-                        </template>
-
-                        <template v-if="action.type === 'webhook'">
-                            <label class="au-field">@{{ ui.url }}<input type="url" v-model="action.url" maxlength="500" placeholder="https://"></label>
-                            <label class="au-field">@{{ ui.secret }}<input type="password" v-model="action.secret" maxlength="200" autocomplete="new-password"></label>
-                            <p class="au-muted" v-if="action.secret === '__keep__'">@{{ ui.secret_kept }}</p>
-                        </template>
-
-                        <div class="au-row" v-if="action.type === 'mark_lost'">
-                            <label class="au-field">@{{ ui.reason }}
-                                <select v-model.number="action.reason_id">
-                                    <option :value="null">—</option>
-                                    <option v-for="reason in options.lost_reasons" :key="reason.id" :value="reason.id">@{{ reason.name }} (@{{ pipelineName(reason.lead_pipeline_id) }})</option>
-                                </select>
-                            </label>
-                        </div>
-                    </div>
-                    <div><button type="button" class="au-btn is-small" :disabled="editing.actions.length >= 10" @click="editing.actions.push(newAction('move_stage'))">@{{ ui.add_action }}</button></div>
-
-                    <div class="au-warn" v-if="transfersWon">@{{ ui.won_warning }}</div>
-
-                    <div>
-                        <label class="au-check"><input type="checkbox" v-model="editing.run_once_per_lead"> @{{ ui.run_once }}</label>
-                        <p class="au-muted">@{{ ui.run_once_hint }}</p>
-                    </div>
-
-                    <div class="au-ok" v-if="saved">@{{ ui.saved }}</div>
-                    <div class="au-alert" v-if="problem">@{{ problem }}</div>
-
-                    <div class="au-actions">
-                        <button type="submit" class="au-btn is-primary" v-if="canWrite" :disabled="busy">@{{ ui.save }}</button>
-                        <button type="button" class="au-btn" @click="closeEditor()">@{{ ui.cancel }}</button>
-                    </div>
-
-                    <div class="au-block" v-if="editing.id && can.edit">
-                        <h2>@{{ ui.simulate }}</h2>
-                        <p class="au-muted">@{{ ui.simulate_hint }}</p>
-                        <div class="au-row">
-                            <label class="au-field" style="max-width:200px">@{{ ui.simulate_lead }}<input type="number" min="1" v-model.number="simulation.lead_id"></label>
-                            <button type="button" class="au-btn" :disabled="simulation.busy || ! simulation.lead_id" @click="simulate()">@{{ ui.simulate_run }}</button>
-                        </div>
-                        <div class="au-alert" v-if="simulation.problem">@{{ simulation.problem }}</div>
-                        <div v-if="simulation.result">
-                            <span class="au-pill" :class="simulation.result.status">@{{ labels.run_statuses[simulation.result.status] }}</span>
-                            <ul class="au-steps">
-                                <li v-for="(step, i) in simulation.result.steps" :key="i">@{{ stepLabel(step) }}: @{{ step.detail }}</li>
-                            </ul>
-                        </div>
-                    </div>
-                </form>
+                <!-- Construtor visual (app Vue isolado com Vue Flow, montado neste elemento) -->
+                <div class="au-flow" v-if="tab === 'rules' && editing">
+                    <div class="au-alert" v-if="flowProblem">@{{ flowProblem }}</div>
+                    <p class="au-muted" v-else-if="! flowReady">@{{ labels.flow.ui.loading }}</p>
+                    <div ref="flowHost" v-once></div>
+                </div>
 
                 <!-- History -->
                 <template v-if="tab === 'history'">
@@ -453,6 +191,7 @@
                                             <li v-for="(step, i) in run.steps" :key="i">@{{ stepLabel(step) }}: @{{ step.detail }}</li>
                                         </ul>
                                         <div class="au-muted" v-if="run.error">@{{ run.error }}</div>
+                                        <button type="button" class="au-btn is-small" v-if="run.steps.some(step => step.node) && rules.find(rule => rule.id === run.rule_id)" @click="showPath(run)">@{{ labels.flow.ui.view_in_flow }}</button>
                                     </td>
                                     <td>@{{ run.duration_ms }} ms</td>
                                 </tr>
@@ -467,6 +206,9 @@
                 </template>
             </div>
         </script>
+
+        {{-- Construtor visual: build próprio do módulo (Vue Flow), carregado só nesta tela. --}}
+        {{ vite()->set(['src/Resources/assets/js/flow.js'], 'automations') }}
 
         <script type="module">
             app.component('v-automations', {
@@ -489,11 +231,9 @@
                         rules: this.initial.map(rule => ({ ...rule, busy: false })),
                         editing: null,
                         showRecipes: false,
-                        busy: false,
-                        saved: false,
-                        problem: '',
                         listProblem: '',
-                        simulation: { lead_id: null, busy: false, result: null, problem: '' },
+                        flowReady: false,
+                        flowProblem: '',
                         filters: { rule_id: '', status: '', lead_id: '' },
                         runs: [],
                         meta: { page: 1, last_page: 1, total: 0 },
@@ -504,26 +244,10 @@
                     ui() {
                         return this.labels.ui;
                     },
+                },
 
-                    canWrite() {
-                        return this.editing && this.editing.id ? this.can.edit : this.can.create;
-                    },
-
-                    triggerOptions() {
-                        const { simulation, ...triggers } = this.labels.triggers;
-
-                        return triggers;
-                    },
-
-                    transfersWon() {
-                        if (! this.editing || this.editing.trigger_type !== 'stage_entered') {
-                            return false;
-                        }
-
-                        const stage = this.stagesOf(this.editing.trigger_config.pipeline_id).find(s => s.id === this.editing.trigger_config.stage_id);
-
-                        return !! stage && stage.code === 'won' && this.editing.actions.some(a => a.type === 'transfer_pipeline');
-                    },
+                beforeUnmount() {
+                    this.unmountFlow();
                 },
 
                 methods: {
@@ -531,19 +255,19 @@
                         return JSON.parse(JSON.stringify(value));
                     },
 
-                    stagesOf(pipelineId) {
-                        return this.options.pipelines.find(pipeline => pipeline.id === pipelineId)?.stages ?? [];
-                    },
-
-                    pipelineName(pipelineId) {
-                        return this.options.pipelines.find(pipeline => pipeline.id === pipelineId)?.name ?? '';
-                    },
-
                     stepLabel(step) {
                         const action = String(step.action || '');
 
                         if (action.startsWith('condition:')) {
                             return this.labels.conditions[action.slice(10)] || action;
+                        }
+
+                        if (action === 'trigger') {
+                            return this.labels.flow.blocks.trigger;
+                        }
+
+                        if (action === 'branch' || action === 'end') {
+                            return this.labels.flow.blocks.condition;
                         }
 
                         return this.labels.actions[action] || action;
@@ -555,106 +279,106 @@
                         return isNaN(date) ? value : date.toLocaleString();
                     },
 
-                    newAction(type) {
-                        const defaults = {
-                            move_stage: { stage_id: null },
-                            transfer_pipeline: { pipeline_id: null, stage_id: null },
-                            assign_owner: { user_id: null },
-                            add_tag: { tag_id: null },
-                            create_task: { title: '', due_in_days: 1, assignee: 'owner', user_id: null },
-                            notify_whatsapp: { to: '', message: '' },
-                            webhook: { url: '', secret: '' },
-                            mark_lost: { reason_id: null },
-                        };
-
-                        return { type, ...(defaults[type] || {}) };
-                    },
-
-                    resetAction(action) {
-                        const fresh = this.newAction(action.type);
-
-                        Object.keys(action).forEach(key => { if (key !== 'type') delete action[key]; });
-                        Object.assign(action, fresh);
-                    },
-
-                    resetTrigger() {
-                        this.editing.trigger_config = {
-                            stage_entered: { pipeline_id: null, stage_id: null, from_stage_id: null },
-                            lead_created: { source_id: null, type_id: null },
-                            tag_added: { tag_id: null },
-                            activity_created: { activity_type: null },
-                        }[this.editing.trigger_type] || {};
-                    },
-
                     startNew() {
                         this.open({
-                            id: null, name: '', status: 'test', trigger_type: 'stage_entered',
-                            trigger_config: { pipeline_id: null, stage_id: null, from_stage_id: null },
-                            conditions: [], actions: [this.newAction('create_task')], run_once_per_lead: true,
+                            id: null, name: '', status: 'off', run_once_per_lead: true, is_flow: true,
+                            flow: { version: 1, nodes: [{ id: 'trigger', type: 'trigger', config: { trigger_type: 'stage_entered', pipeline_id: null, stage_id: null, from_stage_id: null }, position: { x: 0, y: 0 } }], edges: [] },
                         });
                     },
 
                     useRecipe(recipe) {
                         this.showRecipes = false;
-                        this.open(this.clone(recipe.rule));
+                        this.open({ ...this.clone(recipe.rule), id: null, is_flow: true });
                     },
 
-                    edit(rule) {
+                    edit(rule, highlight = []) {
                         const { busy, runs_count, last_run_at, last_status, ...data } = this.clone(rule);
 
-                        this.open(data);
+                        this.open(data, highlight);
                     },
 
-                    open(data) {
-                        data.trigger_config = { ...(data.trigger_config || {}) };
-                        data.conditions = data.conditions || [];
+                    showPath(run) {
+                        const rule = this.rules.find(item => item.id === run.rule_id);
+
+                        if (rule) {
+                            this.tab = 'rules';
+                            this.edit(rule, [...new Set(run.steps.map(step => step.node).filter(Boolean))]);
+                        }
+                    },
+
+                    /**
+                     * Opens the visual builder: an isolated Vue app (its own Vite build with Vue Flow)
+                     * mounted in the empty element below. The bundle is a module script of this page,
+                     * so it may still be loading on a slow connection: wait for its "ready" event.
+                     */
+                    open(data, highlight = []) {
+                        this.unmountFlow();
                         this.editing = data;
-                        this.saved = false;
-                        this.problem = '';
-                        this.simulation = { lead_id: null, busy: false, result: null, problem: '' };
+                        this.flowProblem = '';
+                        this.flowReady = false;
+
+                        this.$nextTick(() => {
+                            if (window.KrayinAutomationsFlow) {
+                                return this.mountFlow(data, highlight);
+                            }
+
+                            const ready = () => this.editing === data && this.mountFlow(data, highlight);
+
+                            window.addEventListener('krayin-automations-flow:ready', ready, { once: true });
+
+                            setTimeout(() => {
+                                if (! window.KrayinAutomationsFlow && this.editing === data) {
+                                    this.flowProblem = this.labels.flow.ui.load_error;
+                                }
+                            }, 15000);
+                        });
+                    },
+
+                    mountFlow(data, highlight) {
+                        if (! this.$refs.flowHost) {
+                            return;
+                        }
+
+                        this.flowEditor = window.KrayinAutomationsFlow.mount(this.$refs.flowHost, {
+                            rule: data,
+                            options: this.options,
+                            labels: this.labels,
+                            urls: this.urls,
+                            can: this.can,
+                            whatsapp: this.whatsapp,
+                            maxNodes: this.options.max_nodes || 30,
+                            http: this.$axios,
+                            highlight,
+                            onSaved: (rule) => this.saved(rule),
+                            onClose: () => this.closeEditor(),
+                        });
+
+                        this.flowReady = true;
+                    },
+
+                    unmountFlow() {
+                        if (this.flowEditor) {
+                            this.flowEditor.unmount();
+                            this.flowEditor = null;
+                        }
+                    },
+
+                    saved(rule) {
+                        const item = { ...rule, busy: false };
+                        const index = this.rules.findIndex(existing => existing.id === item.id);
+
+                        index >= 0 ? this.rules.splice(index, 1, item) : this.rules.push(item);
                     },
 
                     closeEditor() {
+                        this.unmountFlow();
                         this.editing = null;
-                    },
-
-                    moveUp(index) {
-                        const [action] = this.editing.actions.splice(index, 1);
-
-                        this.editing.actions.splice(index - 1, 0, action);
                     },
 
                     errorOf(error) {
                         const body = error.response && error.response.data;
 
                         return (body && (Object.values(body.errors || {}).flat()[0] || body.message)) || this.ui.error;
-                    },
-
-                    async save() {
-                        this.busy = true;
-                        this.saved = false;
-                        this.problem = '';
-
-                        const { id, ...payload } = this.clone(this.editing);
-
-                        try {
-                            const response = id
-                                ? await this.$axios.put(this.urls.update.replace('__ID__', id), payload)
-                                : await this.$axios.post(this.urls.store, payload);
-
-                            const rule = { ...response.data.data, busy: false };
-                            const index = this.rules.findIndex(item => item.id === rule.id);
-
-                            index >= 0 ? this.rules.splice(index, 1, rule) : this.rules.push(rule);
-
-                            this.editing.id = rule.id;
-                            this.editing.actions = this.clone(rule.actions);
-                            this.saved = true;
-                        } catch (error) {
-                            this.problem = this.errorOf(error);
-                        } finally {
-                            this.busy = false;
-                        }
                     },
 
                     async setStatus(rule, status) {
@@ -670,7 +394,7 @@
 
                             rule.status = response.data.data.status;
                         } catch (error) {
-                            this.listProblem = this.errorOf(error);
+                            this.listProblem = rule.name + ': ' + this.errorOf(error);
                         } finally {
                             rule.busy = false;
                         }
@@ -692,23 +416,8 @@
                         }
                     },
 
-                    async simulate() {
-                        this.simulation.busy = true;
-                        this.simulation.problem = '';
-                        this.simulation.result = null;
-
-                        try {
-                            const response = await this.$axios.post(this.urls.simulate.replace('__ID__', this.editing.id), { lead_id: this.simulation.lead_id });
-
-                            this.simulation.result = response.data.data;
-                        } catch (error) {
-                            this.simulation.problem = this.errorOf(error);
-                        } finally {
-                            this.simulation.busy = false;
-                        }
-                    },
-
                     openHistory() {
+                        this.closeEditor();
                         this.tab = 'history';
                         this.loadRuns(1);
                     },

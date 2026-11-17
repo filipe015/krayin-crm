@@ -28,18 +28,45 @@ final class RulePresenter
             'trigger_type' => $rule->trigger_type,
             'trigger_config' => (object) ((array) $rule->trigger_config),
             'conditions' => array_values((array) $rule->conditions),
-            'actions' => array_map(function ($action) {
-                if (($action['type'] ?? null) === 'webhook') {
-                    $action['secret'] = filled($action['secret'] ?? null) ? self::KEEP_SECRET : '';
-                }
-
-                return $action;
-            }, array_values((array) $rule->actions)),
+            'actions' => array_map(fn ($action) => self::maskAction((array) $action), array_values((array) $rule->actions)),
+            // Old rules are shown in the builder as their straight-line flow (saved as a flow on the next save).
+            'is_flow' => $rule->isFlow(),
+            'flow' => self::maskFlow($rule->isFlow() ? (array) $rule->flow : FlowConverter::fromRule($rule)),
             'run_once_per_lead' => (bool) $rule->run_once_per_lead,
             'runs_count' => (int) ($stats['runs'] ?? 0),
             'last_run_at' => $stats['last'] ?? null,
             'last_status' => $stats['last_status'] ?? null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>
+     */
+    public static function maskAction(array $action): array
+    {
+        if (($action['type'] ?? null) === 'webhook') {
+            $action['secret'] = filled($action['secret'] ?? null) ? self::KEEP_SECRET : '';
+        }
+
+        return $action;
+    }
+
+    /**
+     * @param  array<string, mixed>  $flow
+     * @return array<string, mixed>
+     */
+    public static function maskFlow(array $flow): array
+    {
+        $flow['nodes'] = array_map(function ($node) {
+            if (($node['type'] ?? null) === FlowGraph::ACTION) {
+                $node['config'] = self::maskAction((array) ($node['config'] ?? []));
+            }
+
+            return $node;
+        }, array_values((array) ($flow['nodes'] ?? [])));
+
+        return $flow;
     }
 
     /**

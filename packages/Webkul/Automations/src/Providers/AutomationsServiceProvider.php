@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Webkul\Automations\Console\ConvertRulesToFlows;
 use Webkul\Automations\Console\PurgeAutomationRuns;
 use Webkul\Automations\Http\Middleware\EnsureAutomationsEnabled;
 use Webkul\Automations\Models\AutomationRule;
@@ -22,6 +23,13 @@ class AutomationsServiceProvider extends ServiceProvider
 
         // The ACL is always known, so the routes are always guarded by it (even if the switch changes).
         $this->mergeConfigFrom(__DIR__.'/../Config/acl.php', 'acl');
+
+        // The visual builder's own Vite build (Vue Flow), loaded only on the automations screen.
+        $this->app['config']->set('krayin-vite.viters.automations', [
+            'hot_file' => 'automations-vite.hot',
+            'build_directory' => 'automations/build',
+            'package_assets_directory' => 'src/Resources/assets',
+        ]);
 
         // Off (the default): no menu entry.
         if ($this->app['config']->get('automations.enabled')) {
@@ -43,7 +51,7 @@ class AutomationsServiceProvider extends ServiceProvider
         $this->listen();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([PurgeAutomationRuns::class]);
+            $this->commands([PurgeAutomationRuns::class, ConvertRulesToFlows::class]);
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {

@@ -66,7 +66,12 @@ final class RuleValidator
         ];
     }
 
-    private static function trigger(string $type, array $config, array &$errors): array
+    /**
+     * The config of a trigger (also the "Gatilho" block of the visual builder).
+     *
+     * @param  array<string, string>  $errors  filled with field => message
+     */
+    public static function trigger(string $type, array $config, array &$errors): array
     {
         switch ($type) {
             case AutomationRule::TRIGGER_STAGE_ENTERED:
@@ -123,7 +128,12 @@ final class RuleValidator
         return [];
     }
 
-    private static function condition(array $condition, string $path, array &$errors): array
+    /**
+     * One condition (also a rule of a "Condição" block). $condition['type'] must be known.
+     *
+     * @param  array<string, string>  $errors
+     */
+    public static function condition(array $condition, string $path, array &$errors): array
     {
         $type = (string) $condition['type'];
 
@@ -165,13 +175,35 @@ final class RuleValidator
 
                 $known ?: $errors["$path.attribute_code"] = trans('automations::app.validation.field');
 
-                return ['type' => $type, 'attribute_code' => $code, 'value' => mb_substr((string) ($condition['value'] ?? ''), 0, 255)];
+                $field = ['type' => $type, 'attribute_code' => $code, 'value' => mb_substr((string) ($condition['value'] ?? ''), 0, 255)];
+
+                // "contém" (visual builder): kept only when asked, so old rules keep their exact shape.
+                if (($condition['operator'] ?? null) === 'contains') {
+                    $field['operator'] = 'contains';
+                    trim($field['value']) !== '' ?: $errors["$path.value"] = trans('automations::app.validation.value');
+                }
+
+                return $field;
+
+            case 'lead_value':
+                $operator = in_array($condition['operator'] ?? null, ConditionEvaluator::VALUE_OPERATORS, true) ? $condition['operator'] : null;
+                $value = $condition['value'] ?? null;
+
+                $operator ?: $errors["$path.operator"] = trans('automations::app.validation.operator');
+                (is_numeric($value) && abs((float) $value) < 1e13) ?: $errors["$path.value"] = trans('automations::app.validation.value');
+
+                return ['type' => $type, 'operator' => $operator ?? 'gte', 'value' => is_numeric($value) ? (float) $value : null];
         }
 
         return ['type' => $type];
     }
 
-    private static function action(array $action, string $path, array &$errors, ?array $previous): array
+    /**
+     * One action (also an "Ação" block). $action['type'] must be known.
+     *
+     * @param  array<string, string>  $errors
+     */
+    public static function action(array $action, string $path, array &$errors, ?array $previous): array
     {
         $type = (string) $action['type'];
 
