@@ -8,6 +8,7 @@ use Webkul\Activity\Providers\ActivityServiceProvider;
 use Webkul\Admin\Providers\AdminServiceProvider;
 use Webkul\Attribute\Providers\AttributeServiceProvider;
 use Webkul\Automation\Providers\WorkflowServiceProvider;
+use Webkul\Automations\Providers\AutomationsServiceProvider;
 use Webkul\Contact\Providers\ContactServiceProvider;
 use Webkul\Core\Providers\CoreServiceProvider;
 use Webkul\DataGrid\Providers\DataGridServiceProvider;
@@ -63,6 +64,7 @@ return [
     WarehouseServiceProvider::class,
     WhatsAppServiceProvider::class,
     GoalsServiceProvider::class,
+    AutomationsServiceProvider::class,
     NotificationsServiceProvider::class,
     WebFormServiceProvider::class,
 ];
