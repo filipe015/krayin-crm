@@ -125,6 +125,6 @@ final class FlowConverter
             return $result;
         }
 
-        return ['conditions' => $conditions, 'actions' => $actions] + $result;
+        return array_replace($result, ['conditions' => $conditions, 'actions' => $actions]);
     }
 }

@@ -20,7 +20,7 @@ final class Recipes
     {
         $pre = self::find($pipelines, ['pre-venda', 'pre venda', 'prevenda', 'sdr']);
         $closer = self::find($pipelines, ['closer', 'fechamento']);
-        
+
         return [
             [
                 'key' => 'meeting_to_closer',
