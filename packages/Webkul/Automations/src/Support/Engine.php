@@ -18,6 +18,13 @@ use Webkul\Lead\Models\Lead;
  *  - "once:<rule>:<lead>"                     a live run of a "once per lead" rule (whatever the event);
  *  - "dry:<sha1…>" / "skip:<sha1…>"           test-mode runs and condition misses of one event.
  * Simulations from the screen have no key.
+ *
+ * Flows (rules built in the visual builder, AutomationRule::isFlow()) use the same keys and the same
+ * claim, with the trigger block's id in the event hash; the walk follows the links from the trigger,
+ * a condition picks its "yes"/"no" branch and every step in the history carries the id of the block
+ * it came from ("node"), so the history shows the path the lead took. The run is claimed right before
+ * the first action: a walk that ends before any action is recorded as "Ignorada" (skip:…), like an
+ * old rule whose conditions did not hold.
  */
 class Engine
 {
@@ -48,6 +55,10 @@ class Engine
         $eventHash = sha1(implode('|', [$rule->id, $lead->id, $trigger, json_encode(self::sorted($context))]));
         $dry = $rule->isTest();
 
+        if ($rule->isFlow()) {
+            return $this->runFlow($rule, $lead, $trigger, $eventHash, $dry, $depth, $chain);
+        }
+
         [$passes, $checks] = ConditionEvaluator::evaluate((array) $rule->conditions, $lead);
 
         if (! $passes) {
@@ -77,6 +88,10 @@ class Engine
      */
     public function simulate(AutomationRule $rule, Lead $lead): AutomationRun
     {
+        if ($rule->isFlow()) {
+            return $this->simulateFlow($rule, $lead);
+        }
+
         [$passes, $checks] = ConditionEvaluator::evaluate((array) $rule->conditions, $lead);
 
         if (! $passes) {
@@ -147,6 +162,201 @@ class Engine
         }
 
         return $run;
+    }
+
+    // ------------------------------------------------------------------ flows
+
+    /**
+     * @param  list<string>  $chain
+     */
+    private function runFlow(AutomationRule $rule, Lead $lead, string $trigger, string $eventHash, bool $dry, int $depth, array $chain): ?AutomationRun
+    {
+        $flow = (array) $rule->flow;
+        $start = FlowGraph::trigger($flow);
+
+        if (! $start) {
+            return null;
+        }
+
+        // The trigger block is part of the event's identity (a future flow may have more than one entry).
+        $eventHash = sha1($eventHash.'|node:'.$start['id']);
+
+        [$first, $steps] = $this->walk($flow, $start, $lead, $rule, true, false);
+
+        if ($first === null) {
+            $this->record($rule, $lead, $trigger, AutomationRun::STATUS_SKIPPED, $steps, self::endReason($steps), $depth, 'skip:'.$eventHash, 0);
+
+            return null;
+        }
+
+        $key = match (true) {
+            $dry => 'dry:'.$eventHash,
+            $rule->run_once_per_lead => 'once:'.$rule->id.':'.$lead->id,
+            default => 'evt:'.$eventHash,
+        };
+
+        $run = $this->claim($rule, $lead, $trigger, $depth, $key);
+
+        if (! $run) {
+            return null;
+        }
+
+        return $this->executeFlow($run, $flow, $first, $steps, $rule, $lead, $dry, $depth, $chain);
+    }
+
+    private function simulateFlow(AutomationRule $rule, Lead $lead): AutomationRun
+    {
+        $flow = (array) $rule->flow;
+        $start = FlowGraph::trigger($flow);
+        [$first, $steps] = $start ? $this->walk($flow, $start, $lead, $rule, true, true) : [null, []];
+
+        if ($first === null) {
+            return $this->record($rule, $lead, 'simulation', AutomationRun::STATUS_SKIPPED, $steps, self::endReason($steps), 0, null, 0);
+        }
+
+        $run = AutomationRun::query()->create([
+            'rule_id' => $rule->id, 'lead_id' => $lead->id, 'trigger' => 'simulation',
+            'status' => AutomationRun::STATUS_RUNNING, 'depth' => 0, 'created_at' => now(),
+        ]);
+
+        return $this->executeFlow($run, $flow, $first, $steps, $rule, $lead, true, 0, []);
+    }
+
+    /**
+     * @param  array<string, mixed>  $flow
+     * @param  array<string, mixed>  $first  the first action block (the walk up to it is in $steps)
+     * @param  list<array<string, mixed>>  $steps
+     * @param  list<string>  $chain
+     */
+    private function executeFlow(AutomationRun $run, array $flow, array $first, array $steps, AutomationRule $rule, Lead $lead, bool $dry, int $depth, array $chain): AutomationRun
+    {
+        $started = microtime(true);
+        $error = null;
+
+        try {
+            AutomationContext::run($depth + 1, [...$chain, AutomationContext::key($rule->id, $lead->id)], $rule->name, function () use ($flow, $first, $lead, $rule, $dry, &$steps, &$error) {
+                [, $more, $error] = $this->walk($flow, $first, $lead, $rule, false, $dry);
+                $steps = [...$steps, ...$more];
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+            $error = $exception->getMessage();
+        }
+
+        $status = match (true) {
+            $dry => AutomationRun::STATUS_DRY_RUN,
+            $error !== null => AutomationRun::STATUS_FAILED,
+            default => AutomationRun::STATUS_OK,
+        };
+
+        try {
+            $run->forceFill([
+                'status' => $status,
+                'steps' => $steps,
+                'error' => $error !== null ? mb_substr($error, 0, 2000) : null,
+                'duration_ms' => (int) round((microtime(true) - $started) * 1000),
+            ])->save();
+        } catch (Throwable $exception) {
+            Log::warning('Automations: run could not be saved.', ['run_id' => $run->id, 'error' => $exception->getMessage()]);
+        }
+
+        return $run;
+    }
+
+    /**
+     * Walks the graph from $node. With $untilAction it stops at the first action block (not run) and
+     * returns it; otherwise it runs every block on the way (actions too) until the end or the first
+     * failed action. A visited set and a step cap make sure a bad graph can never loop.
+     *
+     * @param  array<string, mixed>  $flow
+     * @param  array<string, mixed>  $node
+     * @return array{0: array<string, mixed>|null, 1: list<array<string, mixed>>, 2: string|null}
+     */
+    private function walk(array $flow, array $node, Lead $lead, AutomationRule $rule, bool $untilAction, bool $dry): array
+    {
+        $nodes = FlowGraph::nodes($flow);
+        $steps = [];
+        $visited = [];
+        $limit = count($nodes) + 1;
+
+        while ($node !== null && $limit-- > 0 && ! isset($visited[$node['id']])) {
+            $visited[$node['id']] = true;
+            $id = (string) $node['id'];
+            $branch = null;
+
+            switch ($node['type']) {
+                case FlowGraph::TRIGGER:
+                    $steps[] = [
+                        'node' => $id, 'action' => 'trigger', 'status' => 'ok',
+                        'detail' => trans('automations::app.engine.flow_trigger', ['trigger' => trans('automations::app.triggers.'.($node['config']['trigger_type'] ?? ''))]),
+                    ];
+                    break;
+
+                case FlowGraph::CONDITION:
+                    $lead->refresh();
+                    [$passes, $checks] = ConditionEvaluator::evaluateGroup((array) ($node['config']['rules'] ?? []), (string) ($node['config']['match'] ?? 'all'), $lead);
+                    $branch = $passes ? 'yes' : 'no';
+
+                    foreach ($checks as $check) {
+                        $steps[] = ['node' => $id] + $check;
+                    }
+
+                    $steps[] = [
+                        'node' => $id, 'action' => 'branch', 'branch' => $branch, 'status' => $passes ? 'ok' : 'skipped',
+                        'detail' => trans('automations::app.engine.flow_branch_'.$branch),
+                    ];
+                    break;
+
+                case FlowGraph::ACTION:
+                    if ($untilAction) {
+                        return [$node, $steps, null];
+                    }
+
+                    $action = (array) ($node['config'] ?? []);
+
+                    try {
+                        $lead->refresh();
+                        $result = $this->actions->run($action, $lead, $rule, $dry);
+                    } catch (Throwable $exception) {
+                        report($exception);
+                        $result = ['status' => 'failed', 'detail' => $exception->getMessage()];
+                    }
+
+                    $steps[] = ['node' => $id, 'action' => (string) ($action['type'] ?? '')] + $result;
+
+                    if (($result['status'] ?? '') === 'failed') {
+                        // The next blocks may depend on this one: stop here.
+                        return [null, $steps, (string) ($result['detail'] ?? 'failed')];
+                    }
+                    break;
+
+                default:
+                    return [null, $steps, null];
+            }
+
+            $next = FlowGraph::next($flow, $id, $branch);
+
+            if ($next === null && $node['type'] === FlowGraph::CONDITION) {
+                $steps[] = ['node' => $id, 'action' => 'end', 'status' => 'skipped', 'detail' => trans('automations::app.engine.flow_end')];
+            }
+
+            $node = $next !== null ? ($nodes[$next] ?? null) : null;
+        }
+
+        return [null, $steps, null];
+    }
+
+    /**
+     * Why a walk reached no action: a condition that went to "Não" (like an old rule's conditions not
+     * holding) or a flow with no action on the path taken.
+     *
+     * @param  list<array<string, mixed>>  $steps
+     */
+    private static function endReason(array $steps): string
+    {
+        $branch = collect($steps)->last(fn ($step) => ($step['action'] ?? null) === 'branch');
+
+        return trans(($branch['branch'] ?? null) === 'no' ? 'automations::app.engine.conditions_not_met' : 'automations::app.engine.flow_no_action');
     }
 
     /**

@@ -10,7 +10,9 @@ use Webkul\Lead\Models\Lead;
  * runs (not when the event happened).
  *
  *  - pipeline {pipeline_id}            - stage {stage_id}          - source {source_id}
- *  - tag {tag_id} (the lead has it)    - owner {user_id}           - field {attribute_code, value}
+ *  - tag {tag_id} (the lead has it)    - owner {user_id}
+ *  - field {attribute_code, value, operator?: equals (default) | contains}
+ *  - lead_value {operator: gt | gte | lt | lte | eq, value} (only in "Condição" blocks of the visual builder)
  */
 final class ConditionEvaluator
 {
@@ -52,9 +54,68 @@ final class ConditionEvaluator
             'source' => (int) $lead->lead_source_id === (int) ($condition['source_id'] ?? 0),
             'owner' => (int) $lead->user_id === (int) ($condition['user_id'] ?? 0),
             'tag' => DB::table('lead_tags')->where('lead_id', $lead->id)->where('tag_id', (int) ($condition['tag_id'] ?? 0))->exists(),
-            'field' => self::fieldEquals($lead, (string) ($condition['attribute_code'] ?? ''), (string) ($condition['value'] ?? '')),
+            'field' => ($condition['operator'] ?? 'equals') === 'contains'
+                ? self::fieldContains($lead, (string) ($condition['attribute_code'] ?? ''), (string) ($condition['value'] ?? ''))
+                : self::fieldEquals($lead, (string) ($condition['attribute_code'] ?? ''), (string) ($condition['value'] ?? '')),
+            'lead_value' => self::compareValue((float) $lead->lead_value, (string) ($condition['operator'] ?? 'eq'), (float) ($condition['value'] ?? 0)),
             default => false,
         };
+    }
+
+    /**
+     * A "Condição" block of the visual builder: its rules joined by "all" (AND, like the old
+     * "Se…") or "any" (OR). The checks are the same rows the old rules wrote in the history.
+     *
+     * @param  list<array<string, mixed>>  $rules
+     * @return array{0: bool, 1: list<array<string, mixed>>}
+     */
+    public static function evaluateGroup(array $rules, string $match, Lead $lead): array
+    {
+        [$all, $checks] = self::evaluate($rules, $lead);
+
+        if ($match !== 'any') {
+            return [$all, $checks];
+        }
+
+        return [collect($checks)->contains(fn ($check) => $check['status'] === 'ok'), $checks];
+    }
+
+    /** Operators of the "lead value" condition. */
+    public const VALUE_OPERATORS = ['gt', 'gte', 'lt', 'lte', 'eq'];
+
+    public static function compareValue(float $value, string $operator, float $expected): bool
+    {
+        return match ($operator) {
+            'gt' => $value > $expected,
+            'gte' => $value >= $expected,
+            'lt' => $value < $expected,
+            'lte' => $value <= $expected,
+            default => abs($value - $expected) < 0.00001,
+        };
+    }
+
+    /**
+     * Text "contains" (UTM, origem escrita etc.), ignoring case. An empty value never matches.
+     */
+    public static function fieldContains(Lead $lead, string $code, string $needle): bool
+    {
+        $needle = self::normalize($needle);
+
+        if ($code === '' || $needle === '') {
+            return false;
+        }
+
+        $candidates = in_array($code, self::LEAD_COLUMNS, true)
+            ? [$lead->getRawOriginal($code)]
+            : self::attributeValues($lead->id, $code);
+
+        foreach ($candidates as $value) {
+            if (str_contains(self::normalize((string) $value), $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
