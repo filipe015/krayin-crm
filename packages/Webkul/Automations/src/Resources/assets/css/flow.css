@@ -1,0 +1,153 @@
+/* Construtor visual de automações. Mesmas cores/variáveis da tela (.au), com tema escuro do Admin. */
+.afl {
+    --afl-bg: #fff;
+    --afl-fg: #111827;
+    --afl-muted: #6b7280;
+    --afl-border: #e5e7eb;
+    --afl-soft: #f3f4f6;
+    --afl-canvas: #f9fafb;
+    --afl-accent: #0e90d9;
+    --afl-trigger: #6366f1;
+    --afl-condition: #f59e0b;
+    --afl-action: #10b981;
+    --afl-danger: #dc2626;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--afl-fg);
+    font-size: 14px;
+}
+
+.dark .afl {
+    --afl-bg: #111827;
+    --afl-fg: #e5e7eb;
+    --afl-muted: #9ca3af;
+    --afl-border: #374151;
+    --afl-soft: #1f2937;
+    --afl-canvas: #0b1220;
+}
+
+.afl *, .afl *::before, .afl *::after { box-sizing: border-box; }
+.afl h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.afl-muted { color: var(--afl-muted); font-size: 12px; margin: 0; }
+
+.afl-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 12px; border: 1px solid var(--afl-border); border-radius: 8px; background: var(--afl-bg); }
+.afl-name { flex: 1; min-width: 200px; }
+.afl-top-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+
+.afl-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--afl-muted); }
+.afl-field input, .afl-field select, .afl-field textarea, .afl-rule select, .afl-rule input, .afl-inline input, .afl-inline select {
+    width: 100%; padding: 7px 9px; border: 1px solid var(--afl-border); border-radius: 6px; background: var(--afl-bg); color: var(--afl-fg); font: inherit; font-weight: 400; font-size: 13px;
+}
+.afl-field textarea { min-height: 70px; }
+.afl-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--afl-fg); }
+.afl-check.is-small { font-size: 12px; }
+.afl-inline { display: flex; gap: 6px; align-items: center; }
+
+.afl-btn { padding: 6px 12px; border: 1px solid var(--afl-border); border-radius: 6px; background: var(--afl-bg); color: inherit; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.afl-btn:hover { background: var(--afl-soft); }
+.afl-btn:disabled { opacity: .5; cursor: default; }
+.afl-btn.is-primary { background: var(--afl-accent); border-color: var(--afl-accent); color: #fff; }
+.afl-btn.is-test { border-color: #ca8a04; color: #854d0e; }
+.dark .afl-btn.is-test { color: #fde68a; }
+.afl-btn.is-danger { border-color: var(--afl-danger); color: var(--afl-danger); }
+.afl-btn.is-small { padding: 3px 8px; font-size: 12px; }
+
+.afl-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--afl-soft); }
+.afl-pill.on, .afl-pill.ok { background: #dcfce7; color: #14532d; }
+.afl-pill.test, .afl-pill.dry_run { background: #fef9c3; color: #713f12; }
+.afl-pill.failed { background: #fee2e2; color: #991b1b; }
+
+.afl-alert, .afl-warn, .afl-ok, .afl-legacy, .afl-problems { padding: 9px 12px; border-radius: 6px; font-size: 13px; }
+.afl-alert, .afl-problems { background: #fee2e2; color: #991b1b; }
+.afl-warn { background: #fef9c3; color: #713f12; }
+.afl-ok { background: #dcfce7; color: #14532d; }
+.afl-legacy { background: #e0f2fe; color: #075985; }
+.afl-problems { display: flex; flex-direction: column; gap: 2px; }
+
+/* Layout: paleta | tela | painel */
+.afl-main { display: grid; grid-template-columns: 210px minmax(0, 1fr) 320px; gap: 10px; min-height: 560px; height: calc(100vh - 260px); }
+.afl-palette, .afl-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--afl-border); border-radius: 8px; background: var(--afl-bg); overflow-y: auto; }
+.afl-group { display: flex; flex-direction: column; gap: 4px; }
+.afl-group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+.afl-group-title.is-trigger { color: var(--afl-trigger); }
+.afl-group-title.is-condition { color: #b45309; }
+.afl-group-title.is-action { color: #047857; }
+.afl-palette-item { text-align: left; padding: 6px 8px; border: 1px solid var(--afl-border); border-left: 4px solid var(--afl-muted); border-radius: 6px; background: var(--afl-bg); color: var(--afl-fg); font: inherit; font-size: 12px; cursor: grab; touch-action: manipulation; }
+.afl-palette-item:hover { background: var(--afl-soft); }
+.afl-palette-item.is-trigger { border-left-color: var(--afl-trigger); }
+.afl-palette-item.is-condition { border-left-color: var(--afl-condition); }
+.afl-palette-item.is-action { border-left-color: var(--afl-action); }
+
+.afl-canvas { position: relative; border: 1px solid var(--afl-border); border-radius: 8px; background: var(--afl-canvas); overflow: hidden; min-height: 420px; }
+.afl-canvas .vue-flow { width: 100%; height: 100%; }
+.afl-canvas-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 6px; background: var(--afl-bg); border: 1px solid var(--afl-border); z-index: 5; }
+.afl-canvas-hint { position: absolute; left: 50px; bottom: 6px; right: 8px; pointer-events: none; z-index: 4; }
+
+/* Blocos */
+.afl-node { width: 210px; padding: 8px 10px 10px; border: 1px solid var(--afl-border); border-top: 4px solid var(--afl-muted); border-radius: 8px; background: var(--afl-bg); color: var(--afl-fg); box-shadow: 0 1px 3px rgba(0,0,0,.08); font-size: 12px; }
+.afl-node.is-trigger { border-top-color: var(--afl-trigger); }
+.afl-node.is-condition { border-top-color: var(--afl-condition); }
+.afl-node.is-action { border-top-color: var(--afl-action); }
+.afl-node.is-selected { box-shadow: 0 0 0 2px var(--afl-accent); }
+.afl-node.has-error { border-color: var(--afl-danger); }
+.afl-node.is-path { box-shadow: 0 0 0 3px #22c55e; }
+.afl-node-head { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--afl-muted); }
+.afl-icon { display: inline-flex; width: 18px; height: 18px; border-radius: 4px; align-items: center; justify-content: center; }
+.afl-icon svg { width: 13px; height: 13px; fill: #fff; stroke: #fff; }
+.is-trigger .afl-icon { background: var(--afl-trigger); }
+.is-condition .afl-icon { background: var(--afl-condition); }
+.is-condition .afl-icon svg { fill: none; }
+.is-action .afl-icon { background: var(--afl-action); }
+.afl-badge { margin-left: auto; display: inline-flex; width: 16px; height: 16px; border-radius: 999px; align-items: center; justify-content: center; background: var(--afl-danger); color: #fff; font-size: 11px; }
+.afl-node-title { margin-top: 4px; font-weight: 600; font-size: 13px; line-height: 1.3; }
+.afl-node-summary { margin-top: 2px; color: var(--afl-muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.afl-branches { display: flex; justify-content: space-around; margin-top: 6px; font-size: 11px; font-weight: 700; }
+.afl-yes { color: #16a34a; }
+.afl-no { color: var(--afl-danger); }
+.afl-branches em { font-style: normal; font-weight: 400; color: var(--afl-muted); }
+.afl-handle { width: 12px; height: 12px; background: var(--afl-muted); border: 2px solid var(--afl-bg); }
+.afl-handle-yes { background: #16a34a; }
+.afl-handle-no { background: var(--afl-danger); }
+
+/* Painel */
+.afl-panel-body { display: flex; flex-direction: column; gap: 8px; }
+.afl-panel-kind { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--afl-muted); }
+.afl-panel-kind.is-trigger { color: var(--afl-trigger); }
+.afl-panel-kind.is-condition { color: #b45309; }
+.afl-panel-kind.is-action { color: #047857; }
+.afl-rule { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px dashed var(--afl-border); border-radius: 6px; }
+.afl-rule-head { display: flex; gap: 6px; }
+.afl-simulate { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--afl-border); }
+.afl-path-title { display: block; margin-top: 6px; font-size: 12px; }
+.afl-steps { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+.afl-steps li.failed { color: var(--afl-danger); }
+
+/* Dark mode for the Vue Flow pieces */
+.dark .afl .vue-flow__controls-button { background: var(--afl-bg); border-color: var(--afl-border); fill: var(--afl-fg); }
+.dark .afl .vue-flow__minimap { background: var(--afl-bg); }
+.dark .afl .vue-flow__edge-textbg { fill: var(--afl-bg); }
+
+/* Telas médias (o menu lateral do Krayin come espaço): paleta vira uma faixa rolável em cima */
+@media (max-width: 1279px) {
+    .afl-main { grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto minmax(480px, 1fr); }
+    .afl-palette { grid-column: 1 / -1; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; align-items: flex-start; }
+    .afl-palette > h3, .afl-palette > .afl-muted { display: none; }
+    .afl-group { flex-direction: row; flex-wrap: nowrap; align-items: center; }
+    .afl-group-title { margin: 0 4px 0 8px; white-space: nowrap; }
+    .afl-palette-item { white-space: nowrap; }
+}
+
+/* Tela pequena: paleta em faixa rolável, tela e painel um embaixo do outro */
+@media (max-width: 1023px) {
+    .afl-main { grid-template-columns: 1fr; grid-template-rows: none; height: auto; min-height: 0; }
+    .afl-palette { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; align-items: flex-start; }
+    .afl-palette > h3, .afl-palette > .afl-muted { display: none; }
+    .afl-group { flex-direction: row; flex-wrap: nowrap; align-items: center; }
+    .afl-group-title { margin: 0 4px 0 8px; white-space: nowrap; }
+    .afl-palette-item { white-space: nowrap; }
+    .afl-canvas { height: 60vh; }
+    .afl-canvas-hint { display: none; }
+    .afl-top-actions { margin-left: 0; width: 100%; }
+    .afl-top-actions .afl-btn { flex: 1; }
+}
