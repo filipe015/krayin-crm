@@ -2,16 +2,13 @@
 
 namespace Webkul\Automations\Support;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Webkul\Lead\Models\Lead;
+use Webkul\Lead\Services\PipelineTransfer;
 
 /**
- * Changes a lead the way the board and the lead page do: the "lead.update.before/after" events go
- * out (native workflows, outgoing API webhooks), the model events fire (Goals' lead_events, the
- * lead's history, the automations themselves), "stage_entered_at" is stamped on a real stage change
- * and "closed_at" follows LeadRepository::update — set on won/lost, cleared on an open stage —
- * except when $keepClosedAt asks to keep it (a transfer of an already won/lost lead).
+ * Changes a lead the way the board and the lead page do. The logic now lives in the Lead package
+ * (Webkul\Lead\Services\PipelineTransfer), shared with the quick pipeline/stage switcher of the board
+ * and the lead page; this class stays as the automations' entry point so nothing else changes here.
  */
 final class LeadWriter
 {
@@ -20,24 +17,6 @@ final class LeadWriter
      */
     public static function update(Lead $lead, array $data, bool $keepClosedAt = false): Lead
     {
-        if (array_key_exists('lead_pipeline_stage_id', $data) && (int) $data['lead_pipeline_stage_id'] !== (int) $lead->lead_pipeline_stage_id) {
-            $code = DB::table('lead_pipeline_stages')->where('id', $data['lead_pipeline_stage_id'])->value('code');
-
-            $data['stage_entered_at'] = now();
-
-            if (in_array($code, ['won', 'lost'], true)) {
-                $data['closed_at'] = $data['closed_at'] ?? now();
-            } elseif (! $keepClosedAt) {
-                $data['closed_at'] = null;
-            }
-        }
-
-        Event::dispatch('lead.update.before', $lead->id);
-
-        $lead->forceFill($data)->save();
-
-        Event::dispatch('lead.update.after', $lead);
-
-        return $lead;
+        return PipelineTransfer::write($lead, $data, $keepClosedAt);
     }
 }
