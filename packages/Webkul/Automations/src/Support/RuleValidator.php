@@ -123,9 +123,52 @@ final class RuleValidator
                 }
 
                 return ['activity_type' => filled($activityType) ? (string) $activityType : null];
+
+            case AutomationRule::TRIGGER_STAGE_STALE:
+            case AutomationRule::TRIGGER_NO_ACTIVITY:
+                // Fase 2: "parado na etapa há X" / "sem atividade há X". Funil e etapa são filtros opcionais.
+                $pipeline = filled($config['pipeline_id'] ?? null) ? self::pipeline($config['pipeline_id']) : null;
+                $stage = filled($config['stage_id'] ?? null) ? self::stage($config['stage_id']) : null;
+
+                if (filled($config['pipeline_id'] ?? null) && ! $pipeline) {
+                    $errors['trigger_config.pipeline_id'] = trans('automations::app.validation.pipeline');
+                }
+
+                if (filled($config['stage_id'] ?? null) && (! $stage || ($pipeline && (int) $stage->lead_pipeline_id !== (int) $pipeline) || in_array($stage->code, ['won', 'lost'], true))) {
+                    $errors['trigger_config.stage_id'] = trans('automations::app.validation.time_stage');
+                }
+
+                $duration = self::duration($config, 365, 'trigger_config', $errors);
+
+                return [
+                    'pipeline_id' => $pipeline ?? ($stage ? (int) $stage->lead_pipeline_id : null),
+                    'stage_id' => $stage ? (int) $stage->id : null,
+                ] + $duration;
         }
 
         return [];
+    }
+
+    /**
+     * "amount + unit" of a wait block or a time trigger: a whole number > 0 of minutes/hours/days,
+     * at most $maxDays days in all.
+     *
+     * @param  array<string, string>  $errors
+     * @return array{amount: int|null, unit: string}
+     */
+    public static function duration(array $config, int $maxDays, string $path, array &$errors): array
+    {
+        $unit = array_key_exists((string) ($config['unit'] ?? ''), FlowGraph::UNITS) ? (string) $config['unit'] : 'hours';
+        $amount = $config['amount'] ?? null;
+        $seconds = FlowGraph::seconds(['amount' => $amount, 'unit' => $unit]);
+
+        if ($seconds === 0) {
+            $errors["$path.amount"] = trans('automations::app.validation.amount');
+        } elseif ($seconds > $maxDays * 86400) {
+            $errors["$path.amount"] = trans('automations::app.validation.amount_max', ['days' => $maxDays]);
+        }
+
+        return ['amount' => is_numeric($amount) ? (int) $amount : null, 'unit' => $unit];
     }
 
     /**

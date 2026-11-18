@@ -17,7 +17,8 @@ use Webkul\Automations\Models\AutomationRule;
  *    action/condition/trigger type, bad or repeated ids, links to blocks that do not exist;
  *  - soft (a draft may be saved with them, but the flow cannot be turned on or put in test):
  *    not exactly 1 trigger, loose/unreachable blocks, cycles, a condition branch with no link
- *    and not marked as "end", no action, required config missing or pointing at nothing.
+ *    and not marked as "end", no action, required config missing or pointing at nothing, an
+ *    "Esperar" block with no exit, on a cycle or longer than AUTOMATIONS_MAX_WAIT_DAYS.
  */
 final class FlowValidator
 {
@@ -26,6 +27,12 @@ final class FlowValidator
     public static function maxNodes(): int
     {
         return max(2, min(200, (int) config('automations.max_nodes', 30)));
+    }
+
+    /** Longest "Esperar" block (AUTOMATIONS_MAX_WAIT_DAYS, 1 to 365 days). */
+    public static function maxWaitDays(): int
+    {
+        return max(1, min(365, (int) config('automations.max_wait_days', 30)));
     }
 
     /**
@@ -257,6 +264,22 @@ final class FlowValidator
             }
         }
 
+        // "Esperar" needs a way out (a pause at the very end would do nothing) and can never sit on a
+        // cycle (a loop with a pause would run forever, one wait after the other).
+        foreach ($nodes as $id => $node) {
+            if ($node['type'] !== FlowGraph::WAIT) {
+                continue;
+            }
+
+            if (FlowGraph::next($flow, (string) $id) === null) {
+                $errors[$id][] = trans('automations::app.flow.errors.wait_exit');
+            }
+
+            if (self::reaches($out, (string) $id, (string) $id)) {
+                $errors[$id][] = trans('automations::app.flow.errors.wait_cycle');
+            }
+        }
+
         if ($triggers !== []) {
             $reached = [];
             $stack = [$triggers[0]['id']];
@@ -314,6 +337,34 @@ final class FlowValidator
     }
 
     /**
+     * Whether $to can be reached from the blocks after $from.
+     *
+     * @param  array<string, list<string>>  $out
+     */
+    private static function reaches(array $out, string $from, string $to): bool
+    {
+        $stack = $out[$from] ?? [];
+        $seen = [];
+
+        while ($stack !== []) {
+            $id = (string) array_pop($stack);
+
+            if ($id === $to) {
+                return true;
+            }
+
+            if (isset($seen[$id])) {
+                continue;
+            }
+
+            $seen[$id] = true;
+            array_push($stack, ...($out[$id] ?? []));
+        }
+
+        return false;
+    }
+
+    /**
      * @param  array<string, mixed>  $config
      * @param  array<string, string>  $errors
      * @param  array<string, mixed>|null  $previous  the same block before this edit
@@ -357,6 +408,11 @@ final class FlowValidator
             }
 
             return ['match' => ($config['match'] ?? 'all') === 'any' ? 'any' : 'all', 'rules' => $clean];
+        }
+
+        if ($type === FlowGraph::WAIT) {
+            return RuleValidator::duration($config, self::maxWaitDays(), 'config', $errors)
+                + ['cancel_on_stage_change' => filter_var($config['cancel_on_stage_change'] ?? true, FILTER_VALIDATE_BOOLEAN)];
         }
 
         if (! in_array($config['type'] ?? null, AutomationRule::ACTIONS, true)) {

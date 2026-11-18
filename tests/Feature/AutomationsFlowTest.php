@@ -365,7 +365,8 @@ it('refuses hard problems even in a draft', function (callable $break) {
     expect(fn () => FlowValidator::sanitize($flow))->toThrow(ValidationException::class);
 })->with([
     'unknown block type' => [function (&$flow) {
-        $flow['nodes'][2]['type'] = 'wait';
+        // "wait" exists since Fase 2; the conversation bot (Fase 3) does not.
+        $flow['nodes'][2]['type'] = 'bot';
     }],
     'unknown action' => [function (&$flow) {
         $flow['nodes'][2]['config']['type'] = 'delete_lead';
