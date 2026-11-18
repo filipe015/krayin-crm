@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Webkul\Admin\Http\Controllers\Lead\ActivityController;
 use Webkul\Admin\Http\Controllers\Lead\EmailController;
 use Webkul\Admin\Http\Controllers\Lead\LeadController;
+use Webkul\Admin\Http\Controllers\Lead\PipelineMoveController;
 use Webkul\Admin\Http\Controllers\Lead\QuoteController;
 use Webkul\Admin\Http\Controllers\Lead\TagController;
 
@@ -27,6 +28,11 @@ Route::controller(LeadController::class)->prefix('leads')->group(function () {
     Route::get('attributes/list', 'attributesList')->name('admin.leads.attributes.list');
 
     Route::put('stage/edit/{id}', 'updateStage')->name('admin.leads.stage.update');
+
+    // Troca rápida de funil/etapa (menu do card no Kanban e seletor da página do lead).
+    Route::get('{id}/pipeline-move', [PipelineMoveController::class, 'options'])->whereNumber('id')->name('admin.leads.pipeline_move.options');
+
+    Route::put('{id}/pipeline-move', [PipelineMoveController::class, 'update'])->whereNumber('id')->name('admin.leads.pipeline_move.update');
 
     Route::get('search', 'search')->name('admin.leads.search');
 
