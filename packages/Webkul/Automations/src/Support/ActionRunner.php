@@ -10,6 +10,7 @@ use Throwable;
 use Webkul\Activity\Repositories\ActivityRepository;
 use Webkul\Automations\Models\AutomationRule;
 use Webkul\Lead\Models\Lead;
+use Webkul\Lead\Services\PipelineTransfer;
 
 /**
  * The "Então…" part. Each action returns ['status' => ok|skipped|failed, 'detail' => text]; in test
@@ -79,11 +80,13 @@ class ActionRunner
             return self::skipped('already_in_stage', ['stage' => $stage->name]);
         }
 
+        $move = PipelineTransfer::describe($lead, $stage);
+
         $replace = [
-            'from_pipeline' => (string) DB::table('lead_pipelines')->where('id', $lead->lead_pipeline_id)->value('name'),
-            'from_stage' => (string) DB::table('lead_pipeline_stages')->where('id', $lead->lead_pipeline_stage_id)->value('name'),
-            'to_pipeline' => (string) DB::table('lead_pipelines')->where('id', $stage->lead_pipeline_id)->value('name'),
-            'to_stage' => (string) $stage->name,
+            'from_pipeline' => $move['from_pipeline'],
+            'from_stage' => $move['from_stage'],
+            'to_pipeline' => $move['to_pipeline'],
+            'to_stage' => $move['to_stage'],
             'rule' => $rule->name,
         ];
 
@@ -91,10 +94,7 @@ class ActionRunner
             return self::ok('would_transfer', $replace);
         }
 
-        LeadWriter::update($lead, [
-            'lead_pipeline_id' => (int) $stage->lead_pipeline_id,
-            'lead_pipeline_stage_id' => (int) $stage->id,
-        ], keepClosedAt: true);
+        PipelineTransfer::move($lead, $stage, keepClosedAt: true);
 
         $this->note($lead, $rule, trans('automations::app.engine.transfer_note', $replace));
 

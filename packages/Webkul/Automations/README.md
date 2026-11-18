@@ -294,6 +294,9 @@ com log `info`). `WHATSAPP_NOTIFY_TO`/`EVENTS` não são usados aqui: o destino 
   etapa antiga = `getOriginal`). Isso cobre Kanban, página do lead, edição, API, Inbox do WhatsApp, regras de botão
   e as próprias transferências feitas por automação — inclusive caminhos que não disparam `lead.update.before/after`.
   Não cobre alterações feitas direto no banco (`DB::table('leads')->update`), como a importação CSV e a exclusão de etapa.
+- **Escrita compartilhada**: mover/transferir lead usa `Webkul\Lead\Services\PipelineTransfer` (pacote Lead), o
+  mesmo serviço da troca rápida de funil/etapa do Kanban (menu "⋯" do card) e da página do lead. O `LeadWriter`
+  daqui só delega a ele. Por isso uma troca feita à mão pelo menu rápido dispara "entrou na etapa" como o arrastar.
 - **Lead criado**: evento `lead.create.after` (formulário, criação rápida, API, WebForm, WhatsApp, Regras de funil).
   Um lead criado direto numa etapa **não** dispara "entrou na etapa" — use o gatilho "Lead criado".
 - **Etiqueta / atividade**: eventos `lead.tag.attached` e `lead.activity.attached` (pivôs `LeadTag`/`LeadActivity`).

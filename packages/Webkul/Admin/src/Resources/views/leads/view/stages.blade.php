@@ -1,6 +1,20 @@
 <!-- Stages Navigation -->
 {!! view_render_event('admin.leads.view.stages.before', ['lead' => $lead]) !!}
 
+@if (bouncer()->hasPermission('leads.edit'))
+    <!-- Troca rápida de funil e etapa (a barra de etapas abaixo continua igual) -->
+    <v-lead-pipeline-move
+        variant="inline"
+        :lead-id="{{ $lead->id }}"
+        :initial-pipeline-id="{{ (int) $lead->lead_pipeline_id }}"
+        :initial-stage-id="{{ (int) $lead->lead_pipeline_stage_id }}"
+        initial-pipeline-name="{{ $lead->pipeline?->name }}"
+        initial-stage-name="{{ $lead->stage?->name }}"
+    ></v-lead-pipeline-move>
+
+    @include('admin::leads.common.pipeline-move')
+@endif
+
 <!-- Stages Vue Component -->
 <v-lead-stages>
     <x-admin::shimmer.leads.view.stages :count="$lead->pipeline->stages->count() - 1" />
@@ -218,6 +232,32 @@
 
                     stageToggler: '',
                 }
+            },
+
+            mounted() {
+                // Funil/etapa trocados pelos seletores do topo: a barra acompanha. Outro funil (ou o lead saiu
+                // da visão do usuário) muda a página inteira: recarrega (ou volta para a lista).
+                this.$emitter.on('lead-pipeline-moved', (data) => {
+                    if (data.lead_id !== {{ (int) $lead->id }} || ! data.changed) {
+                        return;
+                    }
+
+                    if (data.still_visible === false) {
+                        window.location.href = "{{ route('admin.leads.index') }}";
+
+                        return;
+                    }
+
+                    if (data.move?.pipeline_changed) {
+                        window.location.reload();
+
+                        return;
+                    }
+
+                    this.currentStage = this.stages.find(stage => stage.id === data.lead.stage_id) ?? this.currentStage;
+
+                    this.$parent.$refs.activities?.get();
+                });
             },
 
             methods: {
