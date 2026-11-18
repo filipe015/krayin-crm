@@ -10,6 +10,11 @@
 
 {!! view_render_event('admin.leads.index.kanban.after') !!}
 
+@if (bouncer()->hasPermission('leads.edit'))
+    <!-- Troca rápida de funil/etapa: o "⋯" do card -->
+    @include('admin::leads.common.pipeline-move')
+@endif
+
 @pushOnce('scripts')
     <script
         type="text/x-template"
@@ -97,7 +102,7 @@
                             :class="{ 'justify-center': stage.leads.data.length === 0 }"
                             ghost-class="draggable-ghost"
                             handle=".lead-item"
-                            v-bind="{animation: 200}"
+                            v-bind="{animation: 200, filter: '.lead-move-trigger', preventOnFilter: false}"
                             :list="stage.leads.data"
                             item-key="id"
                             group="leads"
@@ -183,6 +188,15 @@
                                         </div>
 
                                         <div class="flex items-center gap-1">
+                                            @if (bouncer()->hasPermission('leads.edit'))
+                                                <!-- Mudar funil / etapa (não arrasta o card nem abre o lead) -->
+                                                <v-lead-pipeline-move
+                                                    :lead-id="element.id"
+                                                    variant="icon"
+                                                    @moved="onLeadMoved"
+                                                ></v-lead-pipeline-move>
+                                            @endif
+
                                             <!-- Stage Alert Indicator -->
                                             <div
                                                 class="group relative"
@@ -1062,6 +1076,25 @@
                                 });
 
                             this.$emitter.emit('add-flash', { type: 'error', message: error.response.data.message });
+                        });
+                },
+
+                /**
+                 * Funil/etapa trocados pelo "⋯" do card: o quadro recarrega, e o card aparece na coluna
+                 * nova (ou sai do quadro, se foi para outro funil ou para Ganho/Perdido escondidos).
+                 *
+                 * @returns {void}
+                 */
+                onLeadMoved(data) {
+                    if (! data?.changed) {
+                        return;
+                    }
+
+                    this.get()
+                        .then(response => {
+                            for (let [sortOrder, data] of Object.entries(response.data)) {
+                                this.stageLeads[sortOrder] = data;
+                            }
                         });
                 },
 
