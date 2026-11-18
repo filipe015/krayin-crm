@@ -69,6 +69,54 @@
                     <option v-for="t in o.activity_types" :key="t.value" :value="t.value">{{ t.label }}</option>
                 </select>
             </label>
+
+            <!-- Gatilhos de tempo (Fase 2) -->
+            <template v-if="TIME_TRIGGERS.includes(c.trigger_type)">
+                <div class="afl-inline">
+                    <label class="afl-field">{{ ui.time_amount }}
+                        <input type="number" min="1" step="1" v-model.number="c.amount" :disabled="readOnly">
+                    </label>
+                    <label class="afl-field">{{ ui.wait_unit }}
+                        <select v-model="c.unit" :disabled="readOnly">
+                            <option v-for="unit in units" :key="unit" :value="unit">{{ ui.unit_labels[unit] }}</option>
+                        </select>
+                    </label>
+                </div>
+                <label class="afl-field">{{ ui.time_pipeline }}
+                    <select v-model.number="c.pipeline_id" @change="c.stage_id = null" :disabled="readOnly">
+                        <option :value="null">{{ old.any }}</option>
+                        <option v-for="p in o.pipelines" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    </select>
+                </label>
+                <label class="afl-field">{{ ui.time_stage }}
+                    <select v-model.number="c.stage_id" :disabled="readOnly || ! c.pipeline_id">
+                        <option :value="null">{{ old.any }}</option>
+                        <option v-for="s in e.stagesOf(c.pipeline_id).filter(s => ! ['won', 'lost'].includes(s.code))" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                </label>
+                <p class="afl-muted">{{ ui['time_hint_' + c.trigger_type] }}</p>
+                <p class="afl-muted">{{ ui.time_run_once_hint }}</p>
+            </template>
+        </template>
+
+        <!-- Esperar (Fase 2) -->
+        <template v-if="node.data.kind === 'wait'">
+            <div class="afl-inline">
+                <label class="afl-field">{{ ui.wait_amount }}
+                    <input type="number" min="1" step="1" v-model.number="c.amount" :disabled="readOnly">
+                </label>
+                <label class="afl-field">{{ ui.wait_unit }}
+                    <select v-model="c.unit" :disabled="readOnly">
+                        <option v-for="unit in units" :key="unit" :value="unit">{{ ui.unit_labels[unit] }}</option>
+                    </select>
+                </label>
+            </div>
+            <p class="afl-muted">{{ ui.wait_max.replace(':days', e.maxWaitDays) }}</p>
+            <label class="afl-check">
+                <input type="checkbox" v-model="c.cancel_on_stage_change" :disabled="readOnly"> {{ ui.wait_cancel_on_stage }}
+            </label>
+            <p class="afl-muted">{{ ui.wait_cancel_hint }}</p>
+            <div class="afl-info">{{ ui.wait_hint.replace(':days', e.maxWaitDays) }}</div>
         </template>
 
         <!-- Condição -->
@@ -237,7 +285,7 @@
 
 <script setup>
 import { computed, inject } from "vue";
-import { ACTIONS, CONDITIONS, TRIGGERS, actionConfig, conditionRule, triggerConfig } from "../graph.js";
+import { ACTIONS, CONDITIONS, TIME_TRIGGERS, TRIGGERS, UNITS, actionConfig, conditionRule, triggerConfig } from "../graph.js";
 
 const props = defineProps({
     node: { type: Object, required: true },
@@ -250,6 +298,7 @@ const old = e.labels.ui;
 const o = e.options;
 
 const c = computed(() => props.node.data.config);
+const units = Object.keys(UNITS);
 const problems = computed(() => e.problemsOf(props.node.id));
 
 function setTrigger(type) {

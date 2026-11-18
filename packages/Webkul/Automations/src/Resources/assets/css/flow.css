@@ -10,6 +10,7 @@
     --afl-trigger: #6366f1;
     --afl-condition: #f59e0b;
     --afl-action: #10b981;
+    --afl-wait: #0891b2;
     --afl-danger: #dc2626;
     display: flex;
     flex-direction: column;
@@ -73,11 +74,13 @@
 .afl-group-title.is-trigger { color: var(--afl-trigger); }
 .afl-group-title.is-condition { color: #b45309; }
 .afl-group-title.is-action { color: #047857; }
+.afl-group-title.is-wait { color: #0e7490; }
 .afl-palette-item { text-align: left; padding: 6px 8px; border: 1px solid var(--afl-border); border-left: 4px solid var(--afl-muted); border-radius: 6px; background: var(--afl-bg); color: var(--afl-fg); font: inherit; font-size: 12px; cursor: grab; touch-action: manipulation; }
 .afl-palette-item:hover { background: var(--afl-soft); }
 .afl-palette-item.is-trigger { border-left-color: var(--afl-trigger); }
 .afl-palette-item.is-condition { border-left-color: var(--afl-condition); }
 .afl-palette-item.is-action { border-left-color: var(--afl-action); }
+.afl-palette-item.is-wait { border-left-color: var(--afl-wait); }
 
 .afl-canvas { position: relative; border: 1px solid var(--afl-border); border-radius: 8px; background: var(--afl-canvas); overflow: hidden; min-height: 420px; }
 .afl-canvas .vue-flow { width: 100%; height: 100%; }
@@ -89,6 +92,7 @@
 .afl-node.is-trigger { border-top-color: var(--afl-trigger); }
 .afl-node.is-condition { border-top-color: var(--afl-condition); }
 .afl-node.is-action { border-top-color: var(--afl-action); }
+.afl-node.is-wait { border-top-color: var(--afl-wait); background: linear-gradient(180deg, rgba(8,145,178,.06), transparent 60%), var(--afl-bg); }
 .afl-node.is-selected { box-shadow: 0 0 0 2px var(--afl-accent); }
 .afl-node.has-error { border-color: var(--afl-danger); }
 .afl-node.is-path { box-shadow: 0 0 0 3px #22c55e; }
@@ -99,6 +103,8 @@
 .is-condition .afl-icon { background: var(--afl-condition); }
 .is-condition .afl-icon svg { fill: none; }
 .is-action .afl-icon { background: var(--afl-action); }
+.is-wait .afl-icon { background: var(--afl-wait); }
+.is-wait .afl-icon svg { fill: none; }
 .afl-badge { margin-left: auto; display: inline-flex; width: 16px; height: 16px; border-radius: 999px; align-items: center; justify-content: center; background: var(--afl-danger); color: #fff; font-size: 11px; }
 .afl-node-title { margin-top: 4px; font-weight: 600; font-size: 13px; line-height: 1.3; }
 .afl-node-summary { margin-top: 2px; color: var(--afl-muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -116,6 +122,10 @@
 .afl-panel-kind.is-trigger { color: var(--afl-trigger); }
 .afl-panel-kind.is-condition { color: #b45309; }
 .afl-panel-kind.is-action { color: #047857; }
+.afl-panel-kind.is-wait { color: #0e7490; }
+.afl-pill.waiting { background: #cffafe; color: #155e75; }
+.afl-info { padding: 9px 12px; border-radius: 6px; font-size: 13px; background: #ecfeff; color: #155e75; }
+.dark .afl-info { background: #083344; color: #a5f3fc; }
 .afl-rule { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px dashed var(--afl-border); border-radius: 6px; }
 .afl-rule-head { display: flex; gap: 6px; }
 .afl-simulate { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--afl-border); }
