@@ -50,6 +50,7 @@
             .au-pill.on,.au-pill.ok{background:#dcfce7;color:#14532d}
             .au-pill.test,.au-pill.dry_run{background:#fef9c3;color:#713f12}
             .au-pill.failed{background:#fee2e2;color:#991b1b}
+            .au-pill.waiting{background:#cffafe;color:#155e75}
             .au-block{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px dashed var(--au-border);border-radius:6px}
             .au-alert{padding:10px 12px;border-radius:6px;background:#fee2e2;color:#991b1b;font-size:13px}
             .au-warn{padding:10px 12px;border-radius:6px;background:#fef9c3;color:#713f12;font-size:13px}
@@ -103,6 +104,7 @@
                                     <th>@{{ ui.status }}</th>
                                     <th>@{{ ui.runs }}</th>
                                     <th>@{{ ui.last_run }}</th>
+                                    <th>@{{ labels.flow.ui.pending_waits }}</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -124,6 +126,13 @@
                                         <span class="au-muted" v-else>@{{ ui.never }}</span>
                                     </td>
                                     <td>
+                                        <div class="au-actions" v-if="rule.pending_waits">
+                                            <span class="au-pill waiting">@{{ labels.flow.ui.pending_waits_count.replace(':count', rule.pending_waits) }}</span>
+                                            <button type="button" class="au-btn is-small" v-if="can.edit" :disabled="rule.busy" @click="cancelWaits(rule)">@{{ labels.flow.ui.cancel_waits }}</button>
+                                        </div>
+                                        <span class="au-muted" v-else>—</span>
+                                    </td>
+                                    <td>
                                         <div class="au-actions">
                                             <button type="button" class="au-btn is-small" @click="edit(rule)">@{{ ui.edit }}</button>
                                             <button type="button" class="au-btn is-small" @click="historyOf(rule)">@{{ ui.tab_history }}</button>
@@ -134,6 +143,7 @@
                             </tbody>
                         </table>
                         <div class="au-alert" v-if="listProblem">@{{ listProblem }}</div>
+                        <div class="au-ok" v-if="listMessage">@{{ listMessage }}</div>
                     </div>
                 </template>
 
@@ -232,6 +242,7 @@
                         editing: null,
                         showRecipes: false,
                         listProblem: '',
+                        listMessage: '',
                         flowReady: false,
                         flowProblem: '',
                         filters: { rule_id: '', status: '', lead_id: '' },
@@ -268,6 +279,14 @@
 
                         if (action === 'branch' || action === 'end') {
                             return this.labels.flow.blocks.condition;
+                        }
+
+                        if (action === 'time_check') {
+                            return this.labels.flow.blocks.trigger;
+                        }
+
+                        if (action.startsWith('wait')) {
+                            return this.labels.flow.blocks.wait;
                         }
 
                         return this.labels.actions[action] || action;
@@ -347,6 +366,7 @@
                             can: this.can,
                             whatsapp: this.whatsapp,
                             maxNodes: this.options.max_nodes || 30,
+                            maxWaitDays: this.options.max_wait_days || 30,
                             http: this.$axios,
                             highlight,
                             onSaved: (rule) => this.saved(rule),
@@ -393,6 +413,31 @@
                             const response = await this.$axios.patch(this.urls.status.replace('__ID__', rule.id), { status });
 
                             rule.status = response.data.data.status;
+                            rule.pending_waits = response.data.data.pending_waits || 0;
+                        } catch (error) {
+                            this.listProblem = rule.name + ': ' + this.errorOf(error);
+                        } finally {
+                            rule.busy = false;
+                        }
+                    },
+
+                    /**
+                     * Fase 2: "Cancelar esperas pendentes" of one flow (with confirmation).
+                     */
+                    async cancelWaits(rule) {
+                        if (! window.confirm(this.labels.flow.ui.confirm_cancel_waits.replace(':count', rule.pending_waits))) {
+                            return;
+                        }
+
+                        rule.busy = true;
+                        this.listProblem = '';
+                        this.listMessage = '';
+
+                        try {
+                            const response = await this.$axios.post(this.urls.cancel_waits.replace('__ID__', rule.id));
+
+                            rule.pending_waits = response.data.data.pending_waits || 0;
+                            this.listMessage = rule.name + ': ' + this.labels.flow.ui.waits_cancelled.replace(':count', response.data.cancelled_waits);
                         } catch (error) {
                             this.listProblem = rule.name + ': ' + this.errorOf(error);
                         } finally {

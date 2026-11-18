@@ -21,9 +21,12 @@ namespace Webkul\Automations\Support;
  *     "meta": {"source": "builder" | "legacy" | "recipe"}
  *   }
  *
- * Gatilho e ação têm no máximo 1 saída (branch null); a condição tem uma saída "yes" e uma "no" — um
- * ramo sem ligação precisa estar em "end" (fim explícito do fluxo). Novos tipos de nó (espera,
- * bot) entram em NODE_TYPES numa fase futura sem mudar o formato.
+ * Gatilho, ação e espera têm no máximo 1 saída (branch null); a condição tem uma saída "yes" e uma
+ * "no" — um ramo sem ligação precisa estar em "end" (fim explícito do fluxo).
+ *
+ * Fase 2: bloco "Esperar" ({"type": "wait", "config": {"amount": 2, "unit": "hours",
+ * "cancel_on_stage_change": true}}) pausa o fluxo (automation_waits) e o agendador o retoma pela saída
+ * do bloco. Novos tipos de nó (bot de conversa, Fase 3) entram em NODE_TYPES sem mudar o formato.
  */
 final class FlowGraph
 {
@@ -35,7 +38,12 @@ final class FlowGraph
 
     public const ACTION = 'action';
 
-    public const NODE_TYPES = [self::TRIGGER, self::CONDITION, self::ACTION];
+    public const WAIT = 'wait';
+
+    public const NODE_TYPES = [self::TRIGGER, self::CONDITION, self::ACTION, self::WAIT];
+
+    /** Units of a wait block and of the time triggers, in seconds. */
+    public const UNITS = ['minutes' => 60, 'hours' => 3600, 'days' => 86400];
 
     public const BRANCHES = ['yes', 'no'];
 
@@ -83,5 +91,48 @@ final class FlowGraph
         }
 
         return null;
+    }
+
+    /**
+     * Seconds of an "amount + unit" config (wait block, time triggers). 0 when it is not valid.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    public static function seconds(array $config): int
+    {
+        $amount = $config['amount'] ?? null;
+        $unit = self::UNITS[(string) ($config['unit'] ?? '')] ?? null;
+
+        if (! $unit || ! is_numeric($amount) || (int) $amount != $amount || (int) $amount <= 0) {
+            return 0;
+        }
+
+        return (int) $amount * $unit;
+    }
+
+    /**
+     * What the flow DOES (blocks, their config and the links), without positions and labels: a wait
+     * that paused on one hash is cancelled if the flow was changed meanwhile (see Engine::resume).
+     *
+     * @param  array<string, mixed>  $flow
+     */
+    public static function hash(array $flow): string
+    {
+        $nodes = collect((array) ($flow['nodes'] ?? []))
+            ->map(fn ($node) => [(string) ($node['id'] ?? ''), (string) ($node['type'] ?? ''), self::sortKeys((array) ($node['config'] ?? [])), array_values((array) ($node['end'] ?? []))])
+            ->sortBy(fn ($node) => $node[0])->values()->all();
+
+        $edges = collect((array) ($flow['edges'] ?? []))
+            ->map(fn ($edge) => [(string) ($edge['source'] ?? ''), (string) ($edge['target'] ?? ''), $edge['branch'] ?? null])
+            ->sortBy(fn ($edge) => $edge[0].'|'.$edge[2].'|'.$edge[1])->values()->all();
+
+        return sha1(json_encode([$nodes, $edges]));
+    }
+
+    private static function sortKeys(array $value): array
+    {
+        ksort($value);
+
+        return array_map(fn ($item) => is_array($item) ? self::sortKeys($item) : $item, $value);
     }
 }

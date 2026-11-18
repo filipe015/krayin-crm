@@ -36,11 +36,19 @@ class AutomationRule extends Model
 
     public const TRIGGER_ACTIVITY_CREATED = 'activity_created';
 
+    /** Fase 2: time triggers, checked every minute by automations:tick (not by lead events). */
+    public const TRIGGER_STAGE_STALE = 'stage_stale';
+
+    public const TRIGGER_NO_ACTIVITY = 'no_activity';
+
+    public const TIME_TRIGGERS = [self::TRIGGER_STAGE_STALE, self::TRIGGER_NO_ACTIVITY];
+
     public const TRIGGERS = [
         self::TRIGGER_STAGE_ENTERED,
         self::TRIGGER_LEAD_CREATED,
         self::TRIGGER_TAG_ADDED,
         self::TRIGGER_ACTIVITY_CREATED,
+        ...self::TIME_TRIGGERS,
     ];
 
     public const CONDITIONS = ['pipeline', 'stage', 'source', 'tag', 'owner', 'field'];
@@ -90,6 +98,16 @@ class AutomationRule extends Model
     public function runs(): HasMany
     {
         return $this->hasMany(AutomationRun::class, 'rule_id');
+    }
+
+    public function waits(): HasMany
+    {
+        return $this->hasMany(AutomationWait::class, 'rule_id');
+    }
+
+    public function isTimeTriggered(): bool
+    {
+        return in_array($this->trigger_type, self::TIME_TRIGGERS, true);
     }
 
     public function isLive(): bool

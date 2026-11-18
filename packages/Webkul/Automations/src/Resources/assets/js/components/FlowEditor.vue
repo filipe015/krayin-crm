@@ -10,6 +10,7 @@
             </label>
             <span class="afl-pill" :class="status">{{ labels.statuses[status] }}</span>
             <span class="afl-muted">{{ ui.nodes_count.replace(':count', nodes.length).replace(':max', maxNodes) }}</span>
+            <span class="afl-pill waiting" v-if="pendingWaits">{{ ui.pending_waits_count.replace(':count', pendingWaits) }}</span>
 
             <div class="afl-top-actions">
                 <button type="button" class="afl-btn" @click="close()">{{ ui.back }}</button>
@@ -105,6 +106,7 @@
                 <div class="afl-simulate" v-if="canSimulate">
                     <h3>{{ old.simulate }}</h3>
                     <p class="afl-muted">{{ old.simulate_hint }}</p>
+                    <p class="afl-muted" v-if="timeTriggered">{{ ui.simulate_time_hint }}</p>
                     <p class="afl-muted" v-if="! ruleId">{{ ui.simulate_save_first }}</p>
                     <div class="afl-inline" v-else>
                         <input type="number" min="1" v-model.number="simulation.leadId" :placeholder="old.simulate_lead">
@@ -132,7 +134,7 @@ import { Controls } from "@vue-flow/controls";
 import { MiniMap } from "@vue-flow/minimap";
 import FlowNode from "./FlowNode.vue";
 import NodePanel from "./NodePanel.vue";
-import { ACTIONS, CONDITIONS, TRIGGERS, actionConfig, conditionRule, edgeFor, newId, toServer, toVueFlow, triggerConfig, validate } from "../graph.js";
+import { ACTIONS, CONDITIONS, TIME_TRIGGERS, TRIGGERS, actionConfig, conditionRule, edgeFor, newId, semanticKey, toServer, toVueFlow, triggerConfig, validate, waitConfig } from "../graph.js";
 
 const props = defineProps({
     rule: { type: Object, required: true },
@@ -142,6 +144,7 @@ const props = defineProps({
     can: { type: Object, required: true },
     whatsapp: { type: Boolean, default: false },
     maxNodes: { type: Number, default: 30 },
+    maxWaitDays: { type: Number, default: 30 },
     http: { type: [Object, Function], required: true },
     highlight: { type: Array, default: () => [] },
     onSaved: { type: Function, default: () => {} },
@@ -172,6 +175,8 @@ const minimap = ref(window.innerWidth >= 1440);
 const path = ref([...props.highlight]);
 const simulation = ref({ leadId: null, busy: false, result: null, problem: "" });
 const canvas = ref(null);
+const pendingWaits = ref(Number(props.rule.pending_waits) || 0);
+let savedKey = semanticKey(nodes.value, edges.value);
 
 const readOnly = computed(() => (ruleId.value ? ! props.can.edit : ! props.can.create));
 const canSimulate = computed(() => props.can.edit);
@@ -190,6 +195,7 @@ function title(data) {
 
     if (data.kind === "trigger") return labels.triggers[c.trigger_type] || c.trigger_type;
     if (data.kind === "action") return labels.actions[c.type] || c.type;
+    if (data.kind === "wait") return labels.flow.blocks.wait;
 
     const rules = c.rules || [];
 
@@ -220,9 +226,19 @@ function ruleSummary(rule) {
     }[rule.type]?.() || null;
 }
 
+const duration = (c) => (Number(c.amount) > 0 && ui.unit_labels[c.unit] ? c.amount + " " + (Number(c.amount) === 1 ? ui.unit_labels_one : ui.unit_labels)[c.unit] : "");
+
 function summary(data) {
     const c = data.config || {};
     const o = props.options;
+
+    if (data.kind === "wait") {
+        return [duration(c), c.cancel_on_stage_change ? ui.wait_cancel_on_stage : ""].filter(Boolean).join(" · ");
+    }
+
+    if (data.kind === "trigger" && TIME_TRIGGERS.includes(c.trigger_type)) {
+        return [duration(c), c.stage_id ? stageName(c.stage_id) : findName(o.pipelines, c.pipeline_id)].filter(Boolean).join(" · ");
+    }
 
     if (data.kind === "trigger") {
         return {
@@ -251,7 +267,9 @@ function summary(data) {
 
 // ---------------------------------------------------------------- validation
 
-const client = computed(() => validate(nodes.value, edges.value, labels, props.maxNodes));
+const client = computed(() => validate(nodes.value, edges.value, labels, props.maxNodes, props.maxWaitDays));
+
+const timeTriggered = computed(() => TIME_TRIGGERS.includes(nodes.value.find((n) => n.data.kind === "trigger")?.data.config.trigger_type));
 
 function problemsOf(id) {
     return [...new Set([...(client.value.byNode[id] || []), ...(serverErrors.value.byNode[id] || [])])];
@@ -281,10 +299,11 @@ const palette = [
     { kind: "trigger", items: TRIGGERS.map((t) => ({ key: t, value: t, label: labels.triggers[t] })) },
     { kind: "condition", items: CONDITIONS.map((t) => ({ key: t, value: t, label: labels.conditions[t] })) },
     { kind: "action", items: ACTIONS.map((t) => ({ key: t, value: t, label: labels.actions[t] })) },
+    { kind: "wait", items: [{ key: "wait", value: "wait", label: labels.flow.blocks.wait }] },
 ];
 
 function makeNode(kind, value, position) {
-    const config = kind === "trigger" ? triggerConfig(value) : kind === "condition" ? { match: "all", rules: [conditionRule(value)] } : actionConfig(value);
+    const config = kind === "trigger" ? triggerConfig(value) : kind === "condition" ? { match: "all", rules: [conditionRule(value)] } : kind === "wait" ? waitConfig() : actionConfig(value);
 
     return { id: newId(), type: "automation", position, data: { kind, config, label: "", end: [] } };
 }
@@ -476,6 +495,13 @@ async function save(target) {
         return;
     }
 
+    // Fase 2: saving a changed flow (or a draft) cancels the flows paused by it.
+    const changes = semanticKey(nodes.value, edges.value) !== savedKey;
+
+    if (ruleId.value && pendingWaits.value > 0 && (changes || target === "off") && ! window.confirm(ui.save_cancels_waits.replace(":count", pendingWaits.value))) {
+        return;
+    }
+
     busy.value = true;
     serverErrors.value = { general: [], byNode: {} };
 
@@ -490,9 +516,13 @@ async function save(target) {
 
         ruleId.value = rule.id;
         status.value = rule.status;
+        pendingWaits.value = Number(rule.pending_waits) || 0;
+        savedKey = semanticKey(nodes.value, edges.value);
+
+        if (response.data.cancelled_waits) message.value = ui.waits_cancelled.replace(":count", response.data.cancelled_waits) + " ";
         legacy.value = false;
         dirty = false;
-        message.value = { off: ui.draft_saved, test: ui.tested, on: ui.activated }[rule.status];
+        message.value = (message.value || "") + { off: ui.draft_saved, test: ui.tested, on: ui.activated }[rule.status];
 
         // Secrets come back masked ("__keep__"): keep the blocks in step with what was stored.
         const fresh = toVueFlow(rule.flow, labels);
@@ -545,6 +575,8 @@ function stepLabel(step) {
     if (action.startsWith("condition:")) return labels.conditions[action.slice(10)] || action;
     if (action === "trigger") return labels.flow.blocks.trigger;
     if (action === "branch" || action === "end") return labels.flow.blocks.condition;
+    if (action === "time_check") return labels.flow.blocks.trigger;
+    if (action.startsWith("wait")) return labels.flow.blocks.wait;
 
     return labels.actions[action] || action;
 }
@@ -557,13 +589,14 @@ function close() {
 }
 
 function minimapColor(node) {
-    return { trigger: "#6366f1", condition: "#f59e0b", action: "#10b981" }[node.data?.kind] || "#9ca3af";
+    return { trigger: "#6366f1", condition: "#f59e0b", action: "#10b981", wait: "#0891b2" }[node.data?.kind] || "#9ca3af";
 }
 
 provide("automationEditor", {
     labels,
     options: props.options,
     whatsapp: props.whatsapp,
+    maxWaitDays: props.maxWaitDays,
     path,
     title,
     summary,

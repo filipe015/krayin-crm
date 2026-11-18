@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Webkul\Automations\Console\AutomationsTick;
 use Webkul\Automations\Console\ConvertRulesToFlows;
 use Webkul\Automations\Console\PurgeAutomationRuns;
 use Webkul\Automations\Http\Middleware\EnsureAutomationsEnabled;
@@ -51,11 +52,14 @@ class AutomationsServiceProvider extends ServiceProvider
         $this->listen();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([PurgeAutomationRuns::class, ConvertRulesToFlows::class]);
+            $this->commands([PurgeAutomationRuns::class, ConvertRulesToFlows::class, AutomationsTick::class]);
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('automations:purge')->dailyAt('03:30')->withoutOverlapping();
+
+            // Fase 2: esperas vencidas + gatilhos de tempo. Sai na hora com o módulo desligado.
+            $schedule->command('automations:tick')->everyMinute()->withoutOverlapping(10);
         });
     }
 

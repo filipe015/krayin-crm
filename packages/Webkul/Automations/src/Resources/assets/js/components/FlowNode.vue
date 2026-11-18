@@ -9,6 +9,7 @@
             <span class="afl-icon" aria-hidden="true">
                 <svg v-if="data.kind === 'trigger'" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
                 <svg v-else-if="data.kind === 'condition'" viewBox="0 0 24 24"><path d="M12 3v6m0 0-6 6v6m6-12 6 6v6" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                <svg v-else-if="data.kind === 'wait'" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke-width="2.4" /><path d="M12 7.5V12l3 2" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 <svg v-else viewBox="0 0 24 24"><path d="M7 4v16l13-8z" /></svg>
             </span>
             <span class="afl-kind">{{ editor.labels.flow.blocks[data.kind] }}</span>

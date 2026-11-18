@@ -1,10 +1,16 @@
 /**
  * Conversões entre o formato salvo no servidor (FlowGraph.php) e o do Vue Flow, e a validação
  * "ao vivo" na tela. O servidor valida tudo de novo (FlowValidator.php): aqui é só para mostrar os
- * problemas nos blocos enquanto a pessoa monta o fluxo.
+ * problemas nos blocos enquanto a pessoa monta o fluxo. Fase 2: bloco "wait" (Esperar) e gatilhos de
+ * tempo (stage_stale / no_activity), com quantidade + unidade.
  */
 
-export const TRIGGERS = ["stage_entered", "lead_created", "tag_added", "activity_created"];
+export const TRIGGERS = ["stage_entered", "lead_created", "tag_added", "activity_created", "stage_stale", "no_activity"];
+
+/** Fase 2: gatilhos de tempo (verificados a cada minuto pelo servidor). */
+export const TIME_TRIGGERS = ["stage_stale", "no_activity"];
+
+export const UNITS = { minutes: 60, hours: 3600, days: 86400 };
 
 export const CONDITIONS = ["pipeline", "stage", "source", "tag", "owner", "lead_value", "field"];
 
@@ -20,7 +26,37 @@ export function triggerConfig(type) {
         lead_created: { trigger_type: type, source_id: null, type_id: null },
         tag_added: { trigger_type: type, tag_id: null },
         activity_created: { trigger_type: type, activity_type: null },
+        stage_stale: { trigger_type: type, pipeline_id: null, stage_id: null, amount: 3, unit: "days" },
+        no_activity: { trigger_type: type, pipeline_id: null, stage_id: null, amount: 24, unit: "hours" },
     }[type] || { trigger_type: type };
+}
+
+/** Bloco "Esperar" (Fase 2). */
+export function waitConfig() {
+    return { amount: 1, unit: "hours", cancel_on_stage_change: true };
+}
+
+/** Seconds of an "amount + unit" config; 0 when it is not a whole number > 0. */
+export function seconds(config) {
+    const amount = Number(config?.amount);
+    const unit = UNITS[config?.unit];
+
+    return unit && Number.isInteger(amount) && amount > 0 ? amount * unit : 0;
+}
+
+/**
+ * What the flow does (blocks, config, links), without positions and labels: the same idea as
+ * FlowGraph::hash() on the server, used to warn that saving cancels the pending waits.
+ */
+export function semanticKey(nodes, edges) {
+    const sort = (value) => (Array.isArray(value) ? value.map(sort) : value && typeof value === "object"
+        ? Object.keys(value).sort().reduce((out, key) => ({ ...out, [key]: sort(value[key]) }), {})
+        : value);
+
+    return JSON.stringify([
+        nodes.map((n) => [n.id, n.data.kind, sort(n.data.config || {}), n.data.kind === "condition" ? [...(n.data.end || [])].sort() : []]).sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+        edges.map((e) => [e.source, e.target, e.data?.branch ?? null]).sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1)),
+    ]);
 }
 
 export function conditionRule(type) {
@@ -109,7 +145,15 @@ export function toServer(nodes, edges) {
 
 const filled = (value) => value !== null && value !== undefined && String(value).trim() !== "";
 
-function configProblems(node, labels) {
+function durationProblems(config, maxDays, labels, problems) {
+    const v = labels.validation;
+    const total = seconds(config);
+
+    if (! total) problems.push(v.amount);
+    else if (total > maxDays * 86400) problems.push(v.amount_max.replace(":days", maxDays));
+}
+
+function configProblems(node, labels, maxWaitDays) {
     const v = labels.validation;
     const c = node.data.config || {};
     const problems = [];
@@ -117,7 +161,10 @@ function configProblems(node, labels) {
     if (node.data.kind === "trigger") {
         if (c.trigger_type === "stage_entered" && (! filled(c.pipeline_id) || ! filled(c.stage_id))) problems.push(v.stage);
         if (c.trigger_type === "tag_added" && ! filled(c.tag_id)) problems.push(v.tag);
+        if (TIME_TRIGGERS.includes(c.trigger_type)) durationProblems(c, 365, labels, problems);
     }
+
+    if (node.data.kind === "wait") durationProblems(c, maxWaitDays, labels, problems);
 
     if (node.data.kind === "condition") {
         if (! (c.rules || []).length) problems.push(labels.flow.errors.no_rules);
@@ -155,7 +202,7 @@ function configProblems(node, labels) {
 /**
  * The same soft checks as the server: { general: [..], byNode: { id: [..] } }.
  */
-export function validate(nodes, edges, labels, maxNodes) {
+export function validate(nodes, edges, labels, maxNodes, maxWaitDays = 30) {
     const e = labels.flow.errors;
     const general = [];
     const byNode = {};
@@ -182,7 +229,9 @@ export function validate(nodes, edges, labels, maxNodes) {
     });
 
     nodes.forEach((node) => {
-        configProblems(node, labels).forEach((message) => add(node.id, message));
+        configProblems(node, labels, maxWaitDays).forEach((message) => add(node.id, message));
+
+        if (node.data.kind === "wait" && ! edges.some((edge) => edge.source === node.id)) add(node.id, e.wait_exit);
 
         if (node.data.kind === "condition") {
             ["yes", "no"].forEach((branch) => {
@@ -222,6 +271,25 @@ export function validate(nodes, edges, labels, maxNodes) {
     nodes.forEach((node) => { if (! color[node.id]) visit(node.id); });
 
     if (cycle) general.push(e.cycle);
+
+    // A wait block can never sit on a cycle (it would pause forever, one wait after the other).
+    nodes.filter((node) => node.data.kind === "wait").forEach((node) => {
+        const seen = new Set();
+        const stack = [...(out[node.id] || [])];
+
+        while (stack.length) {
+            const id = stack.pop();
+
+            if (id === node.id) {
+                add(node.id, e.wait_cycle);
+                break;
+            }
+
+            if (seen.has(id)) continue;
+            seen.add(id);
+            stack.push(...(out[id] || []));
+        }
+    });
 
     return { general, byNode };
 }

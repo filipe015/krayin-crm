@@ -31,4 +31,19 @@ return [
 
     // Queue that runs the automations (null = the default one).
     'queue' => env('AUTOMATIONS_QUEUE'),
+
+    // Fase 2 (tempo) — bloco "Esperar" e gatilhos de tempo, avaliados por automations:tick (a cada minuto).
+
+    // Longest pause a "Esperar" block may ask for.
+    'max_wait_days' => (int) env('AUTOMATIONS_MAX_WAIT_DAYS', 30),
+
+    // Most pending waits (paused flows) one CRM may hold; a new wait beyond it fails the run (history).
+    'max_pending_waits' => (int) env('AUTOMATIONS_MAX_PENDING_WAITS', 10000),
+
+    // How many due waits are queued per minute, and how many leads one time trigger fires per minute.
+    'wait_batch' => (int) env('AUTOMATIONS_WAIT_BATCH', 200),
+    'time_trigger_batch' => (int) env('AUTOMATIONS_TIME_TRIGGER_BATCH', 200),
+
+    // Finished waits (resumed / cancelled / expired) older than this are deleted by automations:purge.
+    'waits_retention_days' => (int) env('AUTOMATIONS_WAITS_RETENTION_DAYS', 30),
 ];

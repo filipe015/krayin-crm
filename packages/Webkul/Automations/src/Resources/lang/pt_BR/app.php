@@ -32,6 +32,7 @@ return [
         'skipped' => 'Ignorada',
         'failed' => 'Falhou',
         'dry_run' => 'Teste (nada alterado)',
+        'waiting' => 'Esperando',
     ],
 
     'triggers' => [
@@ -40,6 +41,9 @@ return [
         'tag_added' => 'Etiqueta adicionada',
         'activity_created' => 'Atividade criada',
         'simulation' => 'Simulação',
+        'stage_stale' => 'Lead parado na etapa há…',
+        'no_activity' => 'Lead sem atividade/contato há…',
+        'resume' => 'Retomada de espera',
     ],
 
     'conditions' => [
@@ -84,7 +88,29 @@ return [
         'person_id' => 'Contato (id)',
     ],
 
+    'units' => [
+        'minutes' => ':count minuto|:count minutos',
+        'hours' => ':count hora|:count horas',
+        'days' => ':count dia|:count dias',
+    ],
+
     'engine' => [
+        'would_wait' => 'Esperaria :duration (até :date). Em Teste/Simular o fluxo não espera de verdade e segue.',
+        'waiting_until' => 'Esperando até :date (:duration).',
+        'wait_limit' => 'Limite de :max esperas pendentes do CRM atingido: a espera não foi criada e o fluxo parou aqui.',
+        'wait_resumed' => 'Espera concluída: fluxo retomado.',
+        'wait_cancelled_rule_deleted' => 'Espera cancelada: a automação foi excluída.',
+        'wait_cancelled_rule_off' => 'Espera cancelada: a automação foi desligada (ou não está mais Ligada).',
+        'wait_cancelled_flow_changed' => 'Espera cancelada: o fluxo foi alterado depois da pausa.',
+        'wait_cancelled_lead_deleted' => 'Espera cancelada: o lead foi excluído.',
+        'wait_cancelled_stage_changed' => 'Espera cancelada: o lead mudou de etapa durante a espera.',
+        'wait_cancelled_manual' => 'Espera cancelada manualmente ("Cancelar esperas pendentes").',
+        'wait_expired' => 'Espera abandonada depois de :attempts tentativas de retomada sem sucesso (veja o log).',
+        'stale_unknown' => 'A data de entrada na etapa deste lead não é conhecida: o gatilho não dispara para ele.',
+        'stale_since' => 'Na etapa atual desde :date (dispara depois de :after).',
+        'contact_since' => 'Último contato/atividade em :date (dispara depois de :after sem contato).',
+        'time_due' => 'Hoje o gatilho dispararia para este lead.',
+        'time_not_due' => 'Hoje o gatilho ainda NÃO dispararia para este lead.',
         'actor' => 'Automação: :rule',
         'conditions_not_met' => 'As condições não foram atendidas.',
         'flow_trigger' => 'Gatilho: :trigger',
@@ -130,6 +156,9 @@ return [
     ],
 
     'validation' => [
+        'time_stage' => 'Escolha uma etapa aberta (não ganho/perdido) do funil escolhido.',
+        'amount' => 'Informe um tempo inteiro maior que zero.',
+        'amount_max' => 'O tempo máximo é de :days dias.',
         'pipeline' => 'Escolha um funil existente.',
         'stage' => 'Escolha uma etapa existente do funil escolhido.',
         'source' => 'Escolha uma origem existente.',
@@ -158,6 +187,7 @@ return [
             'trigger' => 'Gatilho',
             'condition' => 'Condição',
             'action' => 'Ação',
+            'wait' => 'Esperar',
         ],
 
         'errors' => [
@@ -177,6 +207,8 @@ return [
             'cycle' => 'O fluxo tem um ciclo (um caminho que volta para um bloco anterior).',
             'no_rules' => 'Adicione pelo menos uma regra à condição.',
             'invalid' => 'O fluxo tem problemas. Corrija os blocos marcados para ativar ou testar (rascunho pode ser salvo).',
+            'wait_exit' => 'Ligue a saída do bloco Esperar (uma espera no fim do fluxo não faz nada).',
+            'wait_cycle' => 'O bloco Esperar não pode ficar dentro de um ciclo.',
         ],
 
         'ui' => [
@@ -235,6 +267,27 @@ return [
             'loading' => 'Carregando o construtor…',
             'load_error' => 'Não foi possível carregar o construtor visual. Recarregue a página.',
             'simulate_save_first' => 'Salve o fluxo antes de simular.',
+            'wait_amount' => 'Esperar quanto tempo',
+            'wait_unit' => 'Unidade',
+            'unit_labels_one' => ['minutes' => 'minuto', 'hours' => 'hora', 'days' => 'dia'],
+            'unit_labels' => ['minutes' => 'minutos', 'hours' => 'horas', 'days' => 'dias'],
+            'wait_cancel_on_stage' => 'Cancelar se o lead mudar de etapa',
+            'wait_cancel_hint' => 'Ligado (padrão): se o lead sair da etapa em que estava quando a espera começou (inclusive ganho/perdido), o resto do fluxo não roda.',
+            'wait_hint' => 'O fluxo pausa aqui e continua pela saída do bloco depois do tempo (máximo :days dias). Em Teste/Simular não espera: só registra "esperaria". Condições depois da espera usam os dados do lead no momento da retomada.',
+            'wait_max' => 'Máximo: :days dias.',
+            'time_amount' => 'Há quanto tempo',
+            'time_pipeline' => 'Funil (opcional)',
+            'time_stage' => 'Etapa (opcional)',
+            'time_hint_stage_stale' => 'Verificado a cada minuto. Dispara uma vez por permanência na etapa (reentrar na etapa permite um novo disparo). Etapas de ganho/perdido ficam de fora.',
+            'time_hint_no_activity' => 'Verificado a cada minuto. Contato = atividade ligada ao lead (exceto tarefas e registros do sistema) ou mensagem de WhatsApp. Dispara uma vez por período sem contato.',
+            'time_run_once_hint' => 'Com gatilho de tempo, desmarque "Rodar só uma vez por lead" para disparar de novo quando o lead voltar à etapa ou ficar sem contato outra vez.',
+            'pending_waits' => 'Esperas',
+            'pending_waits_count' => ':count esperando',
+            'cancel_waits' => 'Cancelar esperas pendentes',
+            'confirm_cancel_waits' => 'Cancelar as :count esperas pendentes desta automação? O resto do fluxo não rodará para esses leads (fica registrado no histórico).',
+            'waits_cancelled' => ':count esperas canceladas.',
+            'save_cancels_waits' => 'Este fluxo tem :count esperas pendentes. Salvar alterações nos blocos/ligações cancela essas esperas (o resto do fluxo não rodará para esses leads). Continuar?',
+            'simulate_time_hint' => 'Gatilho de tempo: a simulação diz se este lead dispararia agora e percorre o fluxo mesmo assim.',
         ],
     ],
 
@@ -243,6 +296,18 @@ return [
     ],
 
     'recipes' => [
+        'no_reply_follow_up' => [
+            'name' => 'Follow-up: lead sem resposta em 24h → tarefa + aviso',
+            'description' => 'Lead novo espera 24 horas; se continuar na mesma etapa, cria uma tarefa de follow-up para o responsável e avisa a equipe no WhatsApp.',
+            'task' => 'Follow-up: {{lead}} sem resposta há 24h',
+            'message' => 'Lead {{lead}} ({{nome}}) está há 24h sem avançar na etapa {{etapa}}. Abrir: {{link}}',
+        ],
+        'stage_stale_alert' => [
+            'name' => 'Lead parado 3 dias na etapa → avisar responsável',
+            'description' => 'Quando um lead fica 3 dias parado na etapa escolhida, cria uma tarefa para o responsável e avisa a equipe no WhatsApp. Acrescente um bloco "Mover de etapa" se quiser movê-lo.',
+            'task' => 'Lead parado há 3 dias: {{lead}}',
+            'message' => 'Lead {{lead}} ({{nome}}) está parado há 3 dias em {{funil}} › {{etapa}} (responsável: {{responsavel}}). Abrir: {{link}}',
+        ],
         'meeting_to_closer' => [
             'name' => 'Reunião agendada no Pré-Vendas → Closer',
             'description' => 'Quando uma reunião é criada para um lead do Pré-Vendas, transfere o mesmo lead para a 1ª etapa do Closer.',
@@ -293,7 +358,7 @@ return [
         'cancel' => 'Cancelar',
         'saved' => 'Salvo.',
         'error' => 'Não foi possível salvar. Tente de novo.',
-        'confirm_delete' => 'Excluir esta automação e o histórico dela?',
+        'confirm_delete' => 'Excluir esta automação, o histórico e as esperas pendentes dela?',
         'add_condition' => '+ condição',
         'add_action' => '+ ação',
         'remove' => 'remover',
