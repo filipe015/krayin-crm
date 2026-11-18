@@ -19,7 +19,7 @@ final class RulePresenter
      */
     public static function present(AutomationRule $rule, ?array $stats = null): array
     {
-        $stats ??= self::stats([$rule->id])[$rule->id] ?? null;
+        $stats ??= self::stats([$rule->id])[$rule->id] ?? [];
 
         return [
             'id' => $rule->id,
@@ -36,6 +36,8 @@ final class RulePresenter
             'runs_count' => (int) ($stats['runs'] ?? 0),
             'last_run_at' => $stats['last'] ?? null,
             'last_status' => $stats['last_status'] ?? null,
+            // Fase 2: flows paused by an "Esperar" block on this rule (not started yet).
+            'pending_waits' => (int) ($stats['pending_waits'] ?? self::pendingWaits($rule->id)),
         ];
     }
 
@@ -67,6 +69,11 @@ final class RulePresenter
         }, array_values((array) ($flow['nodes'] ?? [])));
 
         return $flow;
+    }
+
+    private static function pendingWaits(int $ruleId): int
+    {
+        return \Illuminate\Support\Facades\Schema::hasTable('automation_waits') ? (WaitScheduler::pendingByRule([$ruleId])[$ruleId] ?? 0) : 0;
     }
 
     /**

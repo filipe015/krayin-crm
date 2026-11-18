@@ -32,6 +32,7 @@ return [
         'skipped' => 'Skipped',
         'failed' => 'Failed',
         'dry_run' => 'Test (nothing changed)',
+        'waiting' => 'Waiting',
     ],
 
     'triggers' => [
@@ -40,6 +41,9 @@ return [
         'tag_added' => 'Tag added',
         'activity_created' => 'Activity created',
         'simulation' => 'Simulation',
+        'stage_stale' => 'Lead stuck in a stage for…',
+        'no_activity' => 'Lead with no activity/contact for…',
+        'resume' => 'Wait resumed',
     ],
 
     'conditions' => [
@@ -84,7 +88,29 @@ return [
         'person_id' => 'Contact (id)',
     ],
 
+    'units' => [
+        'minutes' => ':count minute|:count minutes',
+        'hours' => ':count hour|:count hours',
+        'days' => ':count day|:count days',
+    ],
+
     'engine' => [
+        'would_wait' => 'Would wait :duration (until :date). In Test/Simulate the flow does not really wait and goes on.',
+        'waiting_until' => 'Waiting until :date (:duration).',
+        'wait_limit' => 'The CRM limit of :max pending waits was reached: the wait was not created and the flow stopped here.',
+        'wait_resumed' => 'Wait over: flow resumed.',
+        'wait_cancelled_rule_deleted' => 'Wait cancelled: the automation was deleted.',
+        'wait_cancelled_rule_off' => 'Wait cancelled: the automation was turned off (or is no longer On).',
+        'wait_cancelled_flow_changed' => 'Wait cancelled: the flow was changed after the pause.',
+        'wait_cancelled_lead_deleted' => 'Wait cancelled: the lead was deleted.',
+        'wait_cancelled_stage_changed' => 'Wait cancelled: the lead changed stage during the wait.',
+        'wait_cancelled_manual' => 'Wait cancelled by hand ("Cancel pending waits").',
+        'wait_expired' => 'Wait given up after :attempts failed attempts to resume it (see the log).',
+        'stale_unknown' => 'When this lead entered its stage is unknown: the trigger does not fire for it.',
+        'stale_since' => 'In the current stage since :date (fires after :after).',
+        'contact_since' => 'Last contact/activity on :date (fires after :after without contact).',
+        'time_due' => 'Today the trigger would fire for this lead.',
+        'time_not_due' => 'Today the trigger would NOT fire for this lead yet.',
         'actor' => 'Automation: :rule',
         'conditions_not_met' => 'The conditions were not met.',
         'flow_trigger' => 'Trigger: :trigger',
@@ -130,6 +156,9 @@ return [
     ],
 
     'validation' => [
+        'time_stage' => 'Choose an open stage (not won/lost) of the chosen pipeline.',
+        'amount' => 'Enter a whole time greater than zero.',
+        'amount_max' => 'The longest time is :days days.',
         'pipeline' => 'Choose an existing pipeline.',
         'stage' => 'Choose an existing stage of the chosen pipeline.',
         'source' => 'Choose an existing source.',
@@ -158,6 +187,7 @@ return [
             'trigger' => 'Trigger',
             'condition' => 'Condition',
             'action' => 'Action',
+            'wait' => 'Wait',
         ],
 
         'errors' => [
@@ -177,6 +207,8 @@ return [
             'cycle' => 'The flow has a cycle (a path that goes back to an earlier block).',
             'no_rules' => 'Add at least one rule to the condition.',
             'invalid' => 'The flow has problems. Fix the marked blocks to turn it on or test it (a draft can be saved).',
+            'wait_exit' => 'Link the exit of the Wait block (a wait at the end of the flow does nothing).',
+            'wait_cycle' => 'A Wait block cannot sit inside a cycle.',
         ],
 
         'ui' => [
@@ -235,6 +267,26 @@ return [
             'loading' => 'Loading the builder…',
             'load_error' => 'The visual builder could not be loaded. Reload the page.',
             'simulate_save_first' => 'Save the flow before simulating.',
+            'wait_amount' => 'Wait for',
+            'wait_unit' => 'Unit',
+            'unit_labels' => ['minutes' => 'minutes', 'hours' => 'hours', 'days' => 'days'],
+            'wait_cancel_on_stage' => 'Cancel if the lead changes stage',
+            'wait_cancel_hint' => 'On (default): if the lead leaves the stage it was in when the wait started (won/lost included), the rest of the flow does not run.',
+            'wait_hint' => 'The flow pauses here and goes on through the block\'s exit after the time (at most :days days). In Test/Simulate it does not wait: it only records "would wait". Conditions after the wait use the lead as it is when it resumes.',
+            'wait_max' => 'Longest: :days days.',
+            'time_amount' => 'For how long',
+            'time_pipeline' => 'Pipeline (optional)',
+            'time_stage' => 'Stage (optional)',
+            'time_hint_stage_stale' => 'Checked every minute. Fires once per stay in the stage (re-entering the stage allows a new firing). Won/lost stages are left out.',
+            'time_hint_no_activity' => 'Checked every minute. Contact = an activity linked to the lead (except tasks and system records) or a WhatsApp message. Fires once per period without contact.',
+            'time_run_once_hint' => 'With a time trigger, untick "Run only once per lead" to fire again when the lead comes back to the stage or goes quiet again.',
+            'pending_waits' => 'Waits',
+            'pending_waits_count' => ':count waiting',
+            'cancel_waits' => 'Cancel pending waits',
+            'confirm_cancel_waits' => 'Cancel the :count pending waits of this automation? The rest of the flow will not run for those leads (it stays in the history).',
+            'waits_cancelled' => ':count waits cancelled.',
+            'save_cancels_waits' => 'This flow has :count pending waits. Saving changes to blocks/links cancels those waits (the rest of the flow will not run for those leads). Go on?',
+            'simulate_time_hint' => 'Time trigger: the simulation says whether this lead would fire now and walks the flow anyway.',
         ],
     ],
 
@@ -243,6 +295,18 @@ return [
     ],
 
     'recipes' => [
+        'no_reply_follow_up' => [
+            'name' => 'Follow-up: lead with no reply in 24h → task + notice',
+            'description' => 'A new lead waits 24 hours; if it is still in the same stage, a follow-up task is created for the owner and the team is told on WhatsApp.',
+            'task' => 'Follow-up: {{lead}} with no reply for 24h',
+            'message' => 'Lead {{lead}} ({{nome}}) has not moved on from stage {{etapa}} in 24h. Open: {{link}}',
+        ],
+        'stage_stale_alert' => [
+            'name' => 'Lead stuck 3 days in a stage → tell the owner',
+            'description' => 'When a lead stays 3 days in the chosen stage, a task is created for the owner and the team is told on WhatsApp. Add a "Move stage" block if you want to move it.',
+            'task' => 'Lead stuck for 3 days: {{lead}}',
+            'message' => 'Lead {{lead}} ({{nome}}) has been stuck for 3 days in {{funil}} › {{etapa}} (owner: {{responsavel}}). Open: {{link}}',
+        ],
         'meeting_to_closer' => [
             'name' => 'Meeting scheduled in Pre-sales → Closer',
             'description' => 'When a meeting is created for a Pre-sales lead, transfers the same lead to the Closer\'s first stage.',

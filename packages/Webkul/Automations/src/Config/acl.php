@@ -18,7 +18,7 @@ return [
     ], [
         'key' => 'settings.automation.automations.edit',
         'name' => 'automations::app.acl.edit',
-        'route' => ['admin.automations.update', 'admin.automations.status', 'admin.automations.simulate'],
+        'route' => ['admin.automations.update', 'admin.automations.status', 'admin.automations.simulate', 'admin.automations.waits.cancel'],
         'sort' => 2,
     ], [
         'key' => 'settings.automation.automations.delete',

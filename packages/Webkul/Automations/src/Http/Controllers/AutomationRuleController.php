@@ -7,15 +7,18 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Webkul\Automations\Models\AutomationRule;
 use Webkul\Automations\Models\AutomationRun;
 use Webkul\Automations\Support\ConditionEvaluator;
 use Webkul\Automations\Support\Engine;
+use Webkul\Automations\Support\FlowGraph;
 use Webkul\Automations\Support\FlowValidator;
 use Webkul\Automations\Support\Recipes;
 use Webkul\Automations\Support\RulePresenter;
 use Webkul\Automations\Support\RuleValidator;
+use Webkul\Automations\Support\WaitScheduler;
 use Webkul\Lead\Models\Lead;
 use Webkul\WhatsApp\Support\AgentNotifier;
 
@@ -38,6 +41,7 @@ class AutomationRuleController extends Controller
 
         $rules = AutomationRule::query()->orderBy('id')->get();
         $stats = RulePresenter::stats($rules->pluck('id')->all());
+        $pending = $this->pendingWaits($rules->pluck('id')->all());
 
         $activityTypes = collect(RuleValidator::activityTypes())->map(fn ($type) => ['value' => $type, 'label' => trans('automations::app.activity_types.'.$type)])->values();
 
@@ -47,7 +51,7 @@ class AutomationRuleController extends Controller
             ->values();
 
         return view('automations::index', [
-            'rules' => $rules->map(fn (AutomationRule $rule) => RulePresenter::present($rule, $stats[$rule->id] ?? []))->values(),
+            'rules' => $rules->map(fn (AutomationRule $rule) => RulePresenter::present($rule, ($stats[$rule->id] ?? []) + ['pending_waits' => $pending[$rule->id] ?? 0]))->values(),
             'recipes' => Recipes::all($pipelines),
             'options' => [
                 'pipelines' => $pipelines,
@@ -59,6 +63,8 @@ class AutomationRuleController extends Controller
                 'activity_types' => $activityTypes,
                 'fields' => $fields,
                 'max_nodes' => FlowValidator::maxNodes(),
+                'max_wait_days' => FlowValidator::maxWaitDays(),
+                'units' => array_keys(FlowGraph::UNITS),
             ],
             'whatsapp' => class_exists('Webkul\\WhatsApp\\Support\\AgentNotifier') && AgentNotifier::session() !== '',
             'can' => [
@@ -73,6 +79,7 @@ class AutomationRuleController extends Controller
                 'status' => route('admin.automations.status', ['id' => '__ID__']),
                 'simulate' => route('admin.automations.simulate', ['id' => '__ID__']),
                 'delete' => route('admin.automations.delete', ['id' => '__ID__']),
+                'cancel_waits' => route('admin.automations.waits.cancel', ['id' => '__ID__']),
                 'runs' => route('admin.automations.runs'),
                 'lead' => route('admin.leads.view', ['id' => '__ID__']),
             ],
@@ -94,9 +101,45 @@ class AutomationRuleController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $rule = AutomationRule::query()->findOrFail($id);
-        $rule->update($this->validated($request, $rule));
+        $before = $rule->isFlow() ? FlowGraph::hash((array) $rule->flow) : null;
 
-        return response()->json(['data' => RulePresenter::present($rule->refresh())]);
+        $rule->update($this->validated($request, $rule));
+        $rule->refresh();
+
+        // Fase 2: a pending wait never runs a flow that changed under it (Engine::resume also checks).
+        $cancelled = 0;
+
+        if ($before !== null && (! $rule->isFlow() || FlowGraph::hash((array) $rule->flow) !== $before)) {
+            $cancelled = $this->cancelPending($rule->id, 'flow_changed');
+        }
+
+        if ($rule->status === AutomationRule::STATUS_OFF) {
+            $cancelled += $this->cancelPending($rule->id, 'rule_off');
+        }
+
+        return response()->json(['data' => RulePresenter::present($rule), 'cancelled_waits' => $cancelled]);
+    }
+
+    /**
+     * "Cancelar esperas pendentes" of one flow: nothing of the rest of the flow runs for those leads.
+     */
+    public function cancelWaits(int $id): JsonResponse
+    {
+        $rule = AutomationRule::query()->findOrFail($id);
+        $cancelled = $this->cancelPending($rule->id, 'manual');
+
+        return response()->json(['data' => RulePresenter::present($rule), 'cancelled_waits' => $cancelled]);
+    }
+
+    private function cancelPending(int $ruleId, string $reason): int
+    {
+        return Schema::hasTable('automation_waits') ? WaitScheduler::cancelForRule($ruleId, $reason) : 0;
+    }
+
+    /** @return array<int, int> */
+    private function pendingWaits(array $ruleIds): array
+    {
+        return Schema::hasTable('automation_waits') ? WaitScheduler::pendingByRule($ruleIds) : [];
     }
 
     public function status(Request $request, int $id): JsonResponse
@@ -112,7 +155,10 @@ class AutomationRuleController extends Controller
 
         $rule->update(['status' => $data['status']]);
 
-        return response()->json(['data' => RulePresenter::present($rule->refresh())]);
+        // Turned off: the flows paused by it are cancelled (and say so in the history).
+        $cancelled = $data['status'] === AutomationRule::STATUS_OFF ? $this->cancelPending($rule->id, 'rule_off') : 0;
+
+        return response()->json(['data' => RulePresenter::present($rule->refresh()), 'cancelled_waits' => $cancelled]);
     }
 
     public function destroy(int $id): JsonResponse
