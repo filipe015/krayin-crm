@@ -96,6 +96,16 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('leads')) {
+            // MySQL drops the foreign key's own index on lead_pipeline_stage_id when the composite index
+            // above is created (the composite one serves the key). Give the key its index back first,
+            // or the composite index cannot be dropped ("needed in a foreign key constraint").
+            $covered = collect(Schema::getIndexes('leads'))->contains(fn ($index) => $index['name'] !== 'leads_automation_stage_entered_index'
+                && ($index['columns'][0] ?? null) === 'lead_pipeline_stage_id');
+
+            if (! $covered && Schema::hasIndex('leads', 'leads_automation_stage_entered_index')) {
+                Schema::table('leads', fn (Blueprint $table) => $table->index('lead_pipeline_stage_id', 'leads_lead_pipeline_stage_id_foreign'));
+            }
+
             Schema::table('leads', function (Blueprint $table) {
                 if (Schema::hasIndex('leads', 'leads_automation_stage_entered_index')) {
                     $table->dropIndex('leads_automation_stage_entered_index');
