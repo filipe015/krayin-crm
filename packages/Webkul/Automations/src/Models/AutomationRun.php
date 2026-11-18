@@ -20,7 +20,10 @@ class AutomationRun extends Model
 
     public const STATUS_DRY_RUN = 'dry_run';
 
-    public const STATUSES = [self::STATUS_OK, self::STATUS_SKIPPED, self::STATUS_FAILED, self::STATUS_DRY_RUN, self::STATUS_RUNNING];
+    /** Fase 2: the flow is paused by an "Esperar" block (automation_waits); the same row gets the rest. */
+    public const STATUS_WAITING = 'waiting';
+
+    public const STATUSES = [self::STATUS_OK, self::STATUS_SKIPPED, self::STATUS_FAILED, self::STATUS_DRY_RUN, self::STATUS_RUNNING, self::STATUS_WAITING];
 
     public const UPDATED_AT = null;
 
