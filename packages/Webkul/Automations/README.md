@@ -1,4 +1,4 @@
-# Automações (Fase 1 + construtor visual)
+# Automações (Fase 1 + construtor visual + Fase 2: tempo)
 
 Fluxos que rodam sozinhos nos leads do CRM, configurados em **Configurações → Automação → Automações**.
 Desde a "Fase 1 do construtor visual" cada regra é editada num **canvas de arrastar e soltar** (Vue Flow,
@@ -43,6 +43,100 @@ O que cada bloco faz é o mesmo das regras "Quando… Se… Então…" da Fase 1
   **Ganho no Closer → Onboarding** e **Perdido → Recuperação NÃO são receitas** (decisão do usuário,
   opção A): transferir um lead ganho/perdido tira-o dos relatórios (veja o risco abaixo). Para esses dois
   casos use **Configurações → Regras de funil**, que abre um card novo no funil seguinte.
+
+## Fase 2 do construtor: espera e gatilhos de tempo
+
+### Bloco "Esperar" (`type: "wait"`)
+
+- Config: `{"amount": 2, "unit": "minutes|hours|days", "cancel_on_stage_change": true}`. Quantidade inteira > 0,
+  no máximo `AUTOMATIONS_MAX_WAIT_DAYS` (30) dias. Precisa de uma saída (ligação para o próximo bloco), não pode ficar
+  num ciclo e conta no limite de blocos (`AUTOMATIONS_MAX_NODES`). Pode ser usado várias vezes no mesmo fluxo, antes ou
+  depois de condições e ações. Na tela: ícone de relógio, cor ciano, painel com quantidade/unidade e a opção
+  **"Cancelar se o lead mudar de etapa"** (ligada por padrão).
+- **Ao vivo**: o motor reserva a execução (mesma chave de idempotência de antes — a reserva acontece antes da 1ª ação
+  **ou espera**, então o mesmo evento nunca cria duas esperas), grava uma linha em `automation_waits` (regra, lead,
+  bloco, `resume_at`, `run_id`, hash do grafo, contexto mínimo: gatilho, profundidade/cadeia do loop guard, etapa e
+  `stage_entered_at` do lead no momento da pausa) e a execução fica **"Esperando"** no histórico com o passo
+  **"Esperando até dd/mm/aaaa hh:mm"**. Na retomada o **mesmo** registro do histórico recebe "Espera concluída: fluxo
+  retomado" e os passos seguintes (outra espera pausa de novo).
+- **Teste e Simular não esperam**: registram "Esperaria X (até …)" e seguem o fluxo (nenhuma linha em `automation_waits`).
+
+### Retomada (agendador)
+
+- `automations:tick` roda **a cada minuto** (registrado no `Schedule` pelo service provider, como os comandos do
+  WhatsApp, `withoutOverlapping`). Ele:
+  1. **recupera** esperas reservadas (`queued`/`running`) há mais de 10 min que nunca chegaram a rodar o resto do fluxo
+     (fila parada, worker morto): voltam para `pending` com backoff de 1, 2, 4, 8 min; na 5ª tentativa viram
+     `expired` (registrado no histórico). Nada se perde se a fila cair;
+  2. **despacha** até `AUTOMATIONS_WAIT_BATCH` (200) esperas vencidas, mais antigas primeiro. Cada uma é reservada com
+     um `UPDATE … WHERE status = 'pending'` atômico + `claim_token` novo antes de ir para a fila; o job
+     (`ResumeAutomationWait`, 1 tentativa) só roda se o token bater e troca `queued → running` também de forma atômica:
+     dois ticks/servidores ou um job entregue duas vezes **nunca** executam a mesma espera duas vezes;
+  3. avalia os **gatilhos de tempo** (abaixo).
+- Na retomada a espera é marcada `resumed` **antes** de rodar o resto do fluxo: uma queda no meio não repete ações
+  (mesma filosofia do `tries = 1`). Falhas antes disso (banco fora, etc.) voltam para `pending` com backoff.
+- **Precisa do cron do container**: o `Dockerfile` já instala `docker/laravel-scheduler.cron`
+  (`* * * * * … php artisan schedule:run`), o mesmo que roda `whatsapp:send-scheduled` (mensagens agendadas) — no
+  Easypanel não há nada novo a configurar; confira em `storage/logs/scheduler.log` que o `automations:tick` aparece.
+  E do **worker da fila** (`QUEUE_WORKER=true`): o trabalho em si roda em jobs.
+
+### Segurança da retomada (tudo é rechecado com os dados de AGORA)
+
+| Situação na hora de retomar | O que acontece |
+|---|---|
+| Módulo desligado (`AUTOMATIONS_ENABLED=false`) | nada roda; a espera volta a `pending` e retoma quando religar |
+| Regra excluída | as esperas somem junto (FK em cascata, como o histórico) |
+| Regra desligada (ou em Teste) | **cancelada** + motivo no histórico. Desligar pela lista/editor já cancela na hora |
+| Fluxo editado depois da pausa | **cancelada** ("o fluxo foi alterado"). Salvar mudanças em blocos/ligações cancela as esperas pendentes na hora (o editor avisa e pede confirmação); mover blocos ou renomear **não** cancela. Decisão: nunca rodar uma versão do fluxo que não existe mais |
+| Lead excluído | as esperas somem com o lead (FK em cascata); por segurança, a retomada também cancela se não achar o lead |
+| Lead mudou de etapa (inclusive ganho/perdido, ou saiu e voltou) com "Cancelar se o lead mudar de etapa" ligado | **cancelada** + motivo no histórico. Desligada: segue o fluxo |
+| Condições depois da espera | avaliadas com o lead recarregado (dados atuais) |
+
+Loop guard (profundidade/cadeia), idempotência e "uma vez por lead" continuam valendo: a retomada usa a mesma
+profundidade e cadeia da execução que pausou.
+
+### Gatilhos de tempo
+
+- **"Lead parado na etapa há…"** (`stage_stale`): `leads.stage_entered_at <= agora − X`, em etapa aberta (nunca
+  ganho/perdido), com filtros opcionais de funil e etapa. Fonte: `stage_entered_at`, que o Krayin já carimba em toda
+  mudança real de etapa (Kanban, página do lead, API, automações). Dispara **uma vez por permanência**: reentrar na
+  etapa grava um novo `stage_entered_at` e permite novo disparo. Leads com `stage_entered_at` vazio (anteriores a essa
+  coluna) são ignorados.
+- **"Lead sem atividade/contato há…"** (`no_activity`): último contato = atividade mais recente ligada ao lead
+  (`lead_activities` → `activities`, **exceto** `system` e `task` — tarefa é trabalho planejado e a própria automação cria
+  tarefas, então não "zera" o silêncio) ou mensagem de WhatsApp (entrada/saída, via `whatsapp_conversations.lead_id`), ou
+  a criação do lead. Escolhido por ser a fonte mais confiável e barata (índices de FK existentes); `updated_at` foi
+  descartado (muda com qualquer edição). Dispara uma vez por período sem contato; um contato novo abre outro período.
+  Notas automáticas de transferência contam como atividade.
+- Memória dos disparos em `automation_time_marks` (único por regra × lead × âncora × modo Teste), consultada com
+  `NOT EXISTS` na própria busca: um lead que já disparou não ocupa o lote do minuto seguinte. Cada regra dispara no máximo
+  `AUTOMATIONS_TIME_TRIGGER_BATCH` (200) leads por minuto. Disparos em **Teste** não impedem o disparo real depois.
+- Índices novos em `leads`: `(lead_pipeline_stage_id, stage_entered_at)` e `(stage_entered_at)`.
+- O job rechecka antes de rodar (o lead pode ter mudado entre o tick e o job). Profundidade 0, cadeia vazia.
+- Ao ligar uma regra de tempo, leads **já** parados há mais de X disparam também (no ritmo do lote). Comece em Teste.
+- Com gatilho de tempo, desmarque "Rodar só uma vez por lead" se quiser novos disparos na reentrada/novo silêncio
+  (os modelos já vêm assim quando faz sentido).
+- **Simular** num lead escolhido: diz se o lead dispararia agora ("Na etapa atual desde …") e percorre o fluxo mesmo assim.
+
+### Tela
+
+- Coluna **"Esperas"** na lista com o número de esperas pendentes por fluxo e **"Cancelar esperas pendentes"** (com
+  confirmação, permissão de edição). O editor mostra "N esperando" no topo.
+- Histórico: status **"Esperando"** (filtro incluso), passos "Esperando até …", "Espera concluída: fluxo retomado" e
+  "Espera cancelada: <motivo>".
+- Modelos novos: **"Follow-up: lead sem resposta em 24h → tarefa + aviso"** (Lead criado → Esperar 24h, cancela se
+  mudar de etapa → tarefa → aviso no WhatsApp) e **"Lead parado 3 dias na etapa → avisar responsável"** (gatilho de tempo
+  → tarefa para o responsável → aviso; acrescente "Mover de etapa" se quiser).
+
+### Limites e custo
+
+- Até `AUTOMATIONS_MAX_PENDING_WAITS` (10.000) esperas pendentes por CRM. Acima disso a espera não é criada: a execução
+  fica **"Falhou"** com "Limite de N esperas pendentes do CRM atingido" e um aviso no log.
+- Custo: uma linha de ~300 bytes por espera (+ índices) e uma de ~50 bytes por disparo de gatilho de tempo. 10.000
+  esperas ≈ 5 MB. Por minuto: 1 consulta indexada por regra de tempo + ≤ 200 jobs; esperas vencidas: ≤ 200 jobs.
+- `automations:purge` (diário) apaga também esperas **concluídas/canceladas/expiradas** com mais de
+  `AUTOMATIONS_WAITS_RETENTION_DAYS` (30) dias; pendentes nunca. Execuções "Esperando" não são apagadas pelo purge do
+  histórico. As marcas dos gatilhos de tempo ficam (são a memória do "uma vez por permanência") e somem com o lead/regra.
 
 ## Construtor visual (fluxos)
 
@@ -90,8 +184,8 @@ O que cada bloco faz é o mesmo das regras "Quando… Se… Então…" da Fase 1
   da condição = `match` (`all`/`any`) + `rules` (as condições antigas + `lead_value`); da ação = a ação antiga.
 - Ligações: gatilho e ação têm no máximo 1 saída (`branch: null`); a condição tem `yes` e `no`. Um ramo sem
   ligação precisa estar em `end` (fim explícito).
-- Extensível: blocos de espera/tempo e bot de conversa **não existem nesta fase**; entram como novos `type`
-  (o validador hoje recusa tipos desconhecidos).
+- `type` `wait` = bloco Esperar (Fase 2, acima). Extensível: o bot de conversa (Fase 3) entra como novo `type`
+  (o validador recusa tipos desconhecidos).
 - As colunas antigas continuam preenchidas: `trigger_type`/`trigger_config` sempre (é por elas que o evento
   encontra as regras) e `conditions`/`actions` quando o fluxo é uma linha reta (gatilho → 1 condição "todas"
   com "Não" = fim → ações). Fluxos com ramificação ficam com `actions = []`.
@@ -160,6 +254,11 @@ antiga na tela já mostra o fluxo equivalente (ela vira fluxo ao salvar).
 | `AUTOMATIONS_MAX_NODES` | `30` | Limite de blocos por fluxo do construtor visual. |
 | `AUTOMATIONS_WEBHOOK_TIMEOUT` | `5` | Timeout (s) da ação webhook (máx. 15). |
 | `AUTOMATIONS_QUEUE` | vazio | Fila dos jobs (vazio = fila padrão). |
+| `AUTOMATIONS_MAX_WAIT_DAYS` | `30` | Espera mais longa de um bloco Esperar (1 a 365). |
+| `AUTOMATIONS_MAX_PENDING_WAITS` | `10000` | Limite de esperas pendentes por CRM. |
+| `AUTOMATIONS_WAIT_BATCH` | `200` | Esperas vencidas despachadas por minuto. |
+| `AUTOMATIONS_TIME_TRIGGER_BATCH` | `200` | Leads disparados por minuto por regra de tempo. |
+| `AUTOMATIONS_WAITS_RETENTION_DAYS` | `30` | Esperas finalizadas mais velhas que isso são apagadas pelo purge. |
 
 O aviso no WhatsApp precisa de `WHATSAPP_NOTIFY_SESSION` e do WAHA (`WAHA_API_URL`/`WAHA_API_KEY` ou
 `WHATSAPP_NOTIFY_WAHA_*`). Sem isso, a ação é registrada como **Ignorada** e a regra continua (falha silenciosa,
@@ -175,7 +274,8 @@ com log `info`). `WHATSAPP_NOTIFY_TO`/`EVENTS` não são usados aqui: o destino 
    runuser -u www-data -- php artisan automations:convert-rules --dry-run
    runuser -u www-data -- php artisan automations:convert-rules
    ```
-   Cria `automation_rules`/`automation_runs` (1ª vez) e a coluna `automation_rules.flow` (construtor visual), e
+   Cria `automation_rules`/`automation_runs` (1ª vez), a coluna `automation_rules.flow` (construtor visual), as tabelas
+   `automation_waits`/`automation_time_marks` e os índices em `leads.stage_entered_at` (Fase 2), e
    converte as regras existentes em fluxos. Sem a migration, com o módulo ligado, os eventos só geram aviso no log
    (nada quebra o salvamento dos leads), mas a tela dá erro ao salvar. A conversão é opcional (regras antigas
    continuam rodando) e pode ser repetida.
@@ -184,7 +284,8 @@ com log `info`). `WHATSAPP_NOTIFY_TO`/`EVENTS` não são usados aqui: o destino 
 4. Dar a permissão "Automações" (Configurações → Usuários → Perfis) a quem vai configurar. Perfis "todas as
    permissões" já têm. A permissão aparece no editor de perfis mesmo com o módulo desligado.
 5. Conferir se o **worker da fila** (`QUEUE_WORKER=true`, fila `database`) está rodando: as regras rodam em jobs.
-   O **scheduler** já roda a cada minuto (o `automations:purge` entra nele).
+   O **scheduler** já roda a cada minuto pelo cron do container (`schedule:run`); `automations:purge` (diário) e
+   `automations:tick` (a cada minuto, Fase 2) entram nele. Teste à mão: `runuser -u www-data -- php artisan automations:tick`.
 6. Criar as regras em modo **Teste**, olhar o Histórico por alguns dias e só então mudar para **Ligada**.
 
 ## Como funciona por dentro
@@ -231,8 +332,11 @@ para o Onboarding duas vezes (o original transferido + o clone). Use só uma das
 
 ## Limitações (Fase 1)
 
-- Sem gatilhos de tempo, blocos de espera, bot de conversa, rodízio de responsável nem envio de WhatsApp
-  **ao lead** (Fases 2/3).
+- Sem bot de conversa / "esperar resposta" do WhatsApp, rodízio de responsável nem envio de WhatsApp **ao lead** (Fase 3).
+- Fase 2: a espera tem resolução de 1 minuto (o tick) e pode atrasar se houver mais de 200 vencidas no mesmo minuto ou
+  se o worker estiver parado; esperas não são "reagendadas" se o fluxo mudar (são canceladas). "Parado na etapa" depende
+  de `stage_entered_at` (mudanças feitas direto no banco, como a importação CSV, carimbam a data mas não disparam
+  "entrou na etapa").
 - Um fluxo com ramificação não pode ser editado por clientes antigos da API (formato `actions`): salvar no formato
   antigo transforma a regra de novo em regra antiga.
 - O canvas não atualiza sozinho se outra pessoa editar o mesmo fluxo ao mesmo tempo (vale o último a salvar).
@@ -257,6 +361,11 @@ para o Onboarding duas vezes (o original transferido + o clone). Use só uma das
   com ramificação (ficariam sem ações no formato antigo); os demais voltam a rodar pelo formato antigo, que sempre
   foi mantido preenchido. Nada do histórico é apagado. Voltar o código para a versão anterior sem esse rollback
   também funciona: o código antigo ignora a coluna `flow`.
+- **Fase 2**: cancelar as esperas de um fluxo pela lista ("Cancelar esperas pendentes") ou desligá-lo; desligar o módulo
+  pausa tudo (as esperas ficam pendentes e retomam ao religar — para descartá-las, cancele antes). Desfazer no banco:
+  `php artisan migrate:rollback --step=1 --force` (só `2026_11_19_000001_create_automation_waits_table`): **desliga** as
+  regras com gatilho de tempo ou bloco Esperar, apaga `automation_waits`/`automation_time_marks` (as esperas pendentes
+  não rodam mais) e os índices de `leads`; o histórico fica. O código anterior ignora esses blocos.
 - Remover as tabelas (apaga regras e histórico): `php artisan migrate:rollback --path=packages/Webkul/Automations/src/Database/Migrations --force`.
 - As mudanças já feitas nos leads (transferências, etiquetas, tarefas) **não** são revertidas automaticamente; o
   histórico de cada execução e as notas "Automação: …" mostram o que foi feito em cada lead.
@@ -264,5 +373,5 @@ para o Onboarding duas vezes (o original transferido + o clone). Use só uma das
 ## Testes
 
 ```bash
-php artisan test tests/Feature/AutomationsEngineTest.php tests/Feature/AutomationsScreenTest.php tests/Feature/AutomationsFlowTest.php tests/Unit/Automations
+php artisan test tests/Feature/AutomationsEngineTest.php tests/Feature/AutomationsScreenTest.php tests/Feature/AutomationsFlowTest.php tests/Feature/AutomationsWaitTest.php tests/Unit/Automations
 ```
