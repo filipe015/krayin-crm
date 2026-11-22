@@ -10,7 +10,9 @@ use Webkul\Lead\Models\Pipeline;
 use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
 use Webkul\WhatsApp\Models\ReminderSetting;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Models\TemplateVariableMap;
 use Webkul\WhatsApp\Support\AppointmentReminders;
+use Webkul\WhatsApp\Support\TemplateVariables;
 
 class ReminderSettingController extends Controller
 {
@@ -56,9 +58,20 @@ class ReminderSettingController extends Controller
             return response()->json(['data' => [], 'message' => trans('whatsapp::app.connections.reminder_no_number')], 200);
         }
 
+        $customNames = collect(TemplateVariables::customFields())->pluck('name', 'code')->all();
+
         try {
             $templates = collect(CloudTemplateController::approved($session))
                 ->filter(fn ($template) => $template['supported'])
+                ->map(function ($template) use ($customNames) {
+                    $sources = TemplateVariableMap::sourcesFor($template['name'], $template['language']);
+                    $mapped = count($sources) === $template['variables'] ? $sources : [];
+
+                    return $template + [
+                        'sources'       => $mapped,
+                        'source_labels' => array_map(fn ($source) => TemplateVariables::label($source, $customNames), $mapped),
+                    ];
+                })
                 ->values();
         } catch (CloudApiException $exception) {
             return response()->json(['message' => $exception->getMessage()], 502);
@@ -127,7 +140,9 @@ class ReminderSettingController extends Controller
         }
 
         abort_if($template === null || ! $template['supported'], 422, trans('whatsapp::app.inbox.template_unavailable'));
-        abort_if(count($data['variables'] ?? []) !== $template['variables'], 422, trans('whatsapp::app.connections.reminder_variables'));
+        $mapped = count(TemplateVariableMap::sourcesFor($template['name'], $template['language']));
+
+        abort_if($mapped !== $template['variables'] && count($data['variables'] ?? []) !== $template['variables'], 422, trans('whatsapp::app.connections.reminder_variables'));
     }
 
     private function session(): ?Session

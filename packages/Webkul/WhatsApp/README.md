@@ -447,6 +447,15 @@ e cria modelos novos (`POST /{waba_id}/message_templates`: nome, categoria Utili
 idioma, cabeçalho e rodapé opcionais, corpo com `{{1}}`, `{{2}}`… e um exemplo de cada variável).
 O envio continua na Inbox, botão **Enviar modelo**.
 
+**Variáveis com significado no CRM** (2026-11-22): em Modelos de mensagem, cada `{{n}}` pode ser ligado a uma
+origem: primeiro nome / nome do contato, responsável (profissional), nome da clínica (`APP_NAME`),
+data/hora/local do agendamento, título do lead, campo personalizado do lead (`custom:<código>`) ou texto
+fixo (`text:...`). O mapa fica só no CRM (tabela `whatsapp_template_variables`, chave nome+idioma), então vale
+também para modelos já aprovados (botão "Definir variáveis" no card). A Inbox pré-preenche o **Enviar modelo**
+com os valores do lead da conversa (editáveis) e os lembretes da Agenda usam o mesmo mapa (o mapa do modelo
+vence a lista de variáveis da configuração do lembrete). Resolvedor: `Support/TemplateVariables.php`.
+**Tem migration nova** → rodar `php artisan migrate --force` no console após o deploy.
+
 #### Variáveis de ambiente novas (serviço `krayin`)
 
 | Variável | Para quê |

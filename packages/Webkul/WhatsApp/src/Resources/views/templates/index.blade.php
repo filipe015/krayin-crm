@@ -8,6 +8,8 @@
         :labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.templates')) }}"
         :categories="{{ Illuminate\Support\Js::from($categories) }}"
         :languages="{{ Illuminate\Support\Js::from($languages) }}"
+        :source-options="{{ Illuminate\Support\Js::from($sourceOptions) }}"
+        :source-labels="{{ Illuminate\Support\Js::from(trans('whatsapp::app.connections.reminder_sources')) }}"
     >
         <div class="p-6 text-sm text-gray-500">
             @lang('whatsapp::app.templates.loading')
@@ -116,6 +118,27 @@
                         </div>
                     </template>
 
+                    <template v-if="variableCount">
+                        <span class="wa-tpl-muted">@{{ labels.sources_help }}</span>
+
+                        <div class="wa-tpl-grid">
+                            <label v-for="n in variableCount" :key="'s' + n">
+                                @{{ labels.source_label.replace(':n', n) }}
+                                <select v-model="form.sel[n - 1]" :required="false">
+                                    <option value="">@{{ labels.source_pick }}</option>
+                                    <optgroup :label="labels.source_group_base">
+                                        <option v-for="source in sourceOptions.base" :key="source" :value="source">@{{ sourceLabels[source] || source }}</option>
+                                    </optgroup>
+                                    <optgroup v-if="sourceOptions.custom.length" :label="labels.source_group_custom">
+                                        <option v-for="field in sourceOptions.custom" :key="field.code" :value="'custom:' + field.code">@{{ field.name }}</option>
+                                    </optgroup>
+                                    <option value="__text">@{{ labels.source_text }}</option>
+                                </select>
+                                <input v-if="form.sel[n - 1] === '__text'" type="text" v-model="form.txt[n - 1]" maxlength="200" :placeholder="labels.source_text_ph" required>
+                            </label>
+                        </div>
+                    </template>
+
                     <label>
                         @{{ labels.footer }}
                         <input type="text" v-model="form.footer" maxlength="60">
@@ -152,6 +175,41 @@
                     <pre class="wa-tpl-body">@{{ template.body }}</pre>
                     <div v-if="template.footer" class="wa-tpl-muted">@{{ template.footer }}</div>
                     <div v-if="template.reason" class="wa-tpl-muted" style="color:#b91c1c">@{{ labels.reason }}: @{{ template.reason }}</div>
+
+                    <template v-if="template.variables && template.status === 'APPROVED'">
+                        <div v-if="editing !== keyOf(template)" class="wa-tpl-muted">
+                            <template v-if="template.sources.length">
+                                <div v-for="(source, index) in template.sources" :key="index">&#123;&#123;@{{ index + 1 }}&#125;&#125; → @{{ describe(source) }}</div>
+                            </template>
+                            <div v-else>@{{ labels.map_none }}</div>
+                            <div class="wa-tpl-actions" style="margin-top:6px">
+                                <button type="button" class="wa-tpl-btn" @click="openMap(template)">@{{ template.sources.length ? labels.map_edit : labels.map }}</button>
+                            </div>
+                        </div>
+
+                        <form v-else class="wa-tpl-form" @submit.prevent="saveMap(template)">
+                            <div class="wa-tpl-grid">
+                                <label v-for="n in template.variables" :key="'m' + n">
+                                    @{{ labels.source_label.replace(':n', n) }}
+                                    <select v-model="mapForm.sel[n - 1]" :required="true">
+                                    <option value="">@{{ labels.source_pick }}</option>
+                                    <optgroup :label="labels.source_group_base">
+                                        <option v-for="source in sourceOptions.base" :key="source" :value="source">@{{ sourceLabels[source] || source }}</option>
+                                    </optgroup>
+                                    <optgroup v-if="sourceOptions.custom.length" :label="labels.source_group_custom">
+                                        <option v-for="field in sourceOptions.custom" :key="field.code" :value="'custom:' + field.code">@{{ field.name }}</option>
+                                    </optgroup>
+                                    <option value="__text">@{{ labels.source_text }}</option>
+                                </select>
+                                <input v-if="mapForm.sel[n - 1] === '__text'" type="text" v-model="mapForm.txt[n - 1]" maxlength="200" :placeholder="labels.source_text_ph" required>
+                                </label>
+                            </div>
+                            <div class="wa-tpl-actions">
+                                <button type="submit" class="wa-tpl-btn is-primary" :disabled="busy">@{{ labels.map_save }}</button>
+                                <button type="button" class="wa-tpl-btn" @click="editing = null">@{{ labels.cancel }}</button>
+                            </div>
+                        </form>
+                    </template>
                 </div>
             </div>
         </script>
@@ -165,6 +223,8 @@
                     labels: { type: Object, required: true },
                     categories: { type: Array, default: () => [] },
                     languages: { type: Array, default: () => [] },
+                    sourceOptions: { type: Object, default: () => ({ base: [], custom: [] }) },
+                    sourceLabels: { type: Object, default: () => ({}) },
                 },
 
                 data() {
@@ -173,6 +233,8 @@
                         sessionId: null,
                         templates: [],
                         form: null,
+                        editing: null,
+                        mapForm: { sel: [], txt: [] },
                         loading: true,
                         busy: false,
                         error: null,
@@ -238,10 +300,87 @@
                         this.templates = data.data || [];
                     },
 
+                    keyOf(template) {
+                        return template.name + '|' + template.language;
+                    },
+
+                    describe(source) {
+                        if (source.startsWith('text:')) {
+                            return this.labels.source_text.replace('...', '') + ': ' + source.slice(5);
+                        }
+
+                        if (source.startsWith('custom:')) {
+                            const field = this.sourceOptions.custom.find(item => item.code === source.slice(7));
+
+                            return field ? field.name : source.slice(7);
+                        }
+
+                        return this.sourceLabels[source] || source;
+                    },
+
+                    // Select value + free text -> the source string the server stores.
+                    toSource(sel, txt) {
+                        return sel === '__text' ? 'text:' + (txt || '').trim() : sel;
+                    },
+
+                    // The reverse, to fill the selects of a saved mapping.
+                    toForm(sources, count) {
+                        const form = { sel: [], txt: [] };
+
+                        for (let index = 0; index < count; index++) {
+                            const source = sources[index] || '';
+
+                            form.sel[index] = source.startsWith('text:') ? '__text' : source;
+                            form.txt[index] = source.startsWith('text:') ? source.slice(5) : '';
+                        }
+
+                        return form;
+                    },
+
+                    openMap(template) {
+                        this.success = null;
+                        this.error = null;
+                        this.mapForm = this.toForm(template.sources || [], template.variables);
+                        this.editing = this.keyOf(template);
+                    },
+
+                    async saveMap(template) {
+                        const sources = Array.from({ length: template.variables }, (_, index) => this.toSource(this.mapForm.sel[index], this.mapForm.txt[index]));
+
+                        if (sources.some(source => ! source || source === 'text:')) {
+                            this.error = this.labels.map_incomplete;
+
+                            return;
+                        }
+
+                        this.busy = true;
+                        this.error = null;
+                        this.success = null;
+
+                        try {
+                            await this.$axios.put(this.urls.mapping, { name: template.name, language: template.language, sources });
+
+                            template.sources = sources;
+                            this.editing = null;
+                            this.success = this.labels.map_saved.replace(':name', template.name);
+                        } catch (error) {
+                            this.error = this.message(error);
+                        } finally {
+                            this.busy = false;
+                        }
+                    },
+
                     startNew() {
                         this.success = null;
                         this.error = null;
-                        this.form = { name: '', category: this.categories[0], language: this.languages[0], header: '', body: '', footer: '', examples: [] };
+                        this.form = { name: '', category: this.categories[0], language: this.languages[0], header: '', body: '', footer: '', examples: [], sel: [], txt: [] };
+                    },
+
+                    // All or nothing: a partly filled mapping is not saved.
+                    formSources() {
+                        const sources = Array.from({ length: this.variableCount }, (_, index) => this.toSource(this.form.sel[index], this.form.txt[index]));
+
+                        return sources.length && sources.every(source => source && source !== 'text:') ? sources : [];
                     },
 
                     async save() {
@@ -254,6 +393,7 @@
                                 ...this.form,
                                 session_id: this.sessionId,
                                 examples: this.form.examples.slice(0, this.variableCount),
+                                sources: this.formSources(),
                             });
 
                             this.form = null;
