@@ -127,7 +127,7 @@
             .wa-stage{align-self:flex-start;padding:0 6px;border-radius:4px;background:var(--wa-soft);color:var(--wa-muted);font-size:11px}
             .wa-compose-wrap{position:relative;flex:1;display:flex}
             .wa-compose-wrap textarea{width:100%}
-            .wa-qr-pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:6;max-height:260px;overflow-y:auto;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);box-shadow:0 6px 18px rgba(0,0,0,.14)}
+            .wa-qr-pop{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:6;max-height:320px;overflow-y:auto;border:1px solid var(--wa-border);border-radius:8px;background:var(--wa-bg);box-shadow:0 6px 18px rgba(0,0,0,.14)}
             .wa-qr-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--wa-border);background:transparent;text-align:left}
             .wa-qr-item:last-child{border-bottom:0}
             .wa-qr-item.is-active,.wa-qr-item:hover{background:var(--wa-soft)}
@@ -766,8 +766,7 @@
                         const query = this.draft.slice(1).toLowerCase();
 
                         return this.quickReplies
-                            .filter(reply => ! query || reply.shortcut.startsWith(query) || reply.title.toLowerCase().includes(query))
-                            .slice(0, 8);
+                            .filter(reply => ! query || reply.shortcut.startsWith(query) || reply.title.toLowerCase().includes(query));
                     },
 
                     recordClock() {
@@ -1661,6 +1660,9 @@
                                 const step = event.key === 'ArrowDown' ? 1 : -1;
 
                                 this.quickIndex = (this.quickIndex + step + matches.length) % matches.length;
+
+                                // The list shows every reply and scrolls: keep the highlighted one in view.
+                                this.$nextTick(() => document.querySelector('.wa-qr-item.is-active')?.scrollIntoView({ block: 'nearest' }));
 
                                 return;
                             }
