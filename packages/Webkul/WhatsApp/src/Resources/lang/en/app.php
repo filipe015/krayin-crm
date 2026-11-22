@@ -152,6 +152,7 @@ return [
         'template_none'      => 'No approved template found for this number.',
         'template_schedule'  => 'Schedule this template',
         'reminder_title'  => 'Reminder: :when before',
+        'automation_sender' => 'Automatic follow-up',
         'reminder_sender' => 'Automatic reminder',
         'reminder_days'   => '{1} :count day|[2,*] :count days',
         'reminder_hours'  => '{1} :count hour|[2,*] :count hours',

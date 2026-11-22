@@ -152,6 +152,7 @@ return [
         'template_none'      => 'Nenhum modelo aprovado encontrado neste número.',
         'template_schedule'  => 'Agendar o envio deste modelo',
         'reminder_title'  => 'Lembrete: :when antes',
+        'automation_sender' => 'Follow-up automático',
         'reminder_sender' => 'Lembrete automático',
         'reminder_days'   => '{1} :count dia|[2,*] :count dias',
         'reminder_hours'  => '{1} :count hora|[2,*] :count horas',

@@ -36,6 +36,23 @@ as de **leitura e escrita** também criam e alteram. Limite: 120 requisições p
 
 Regras iguais às da tela: agendamento com conflito devolve 409 com os horários; o ciclo de vendas usa a primeira Reunião criada.
 
+## Conversas do WhatsApp (follow-up automático)
+Só conversas do número **oficial (API da Meta)** com lead vinculado. Tudo o que é enviado passa pela Inbox (a equipe vê lá,
+com remetente "Follow-up automático"). Chave de **leitura** para os `GET`, de **escrita** para os `POST`.
+
+| Endpoint | Para quê |
+| --- | --- |
+| `GET /conversations` | lista conversas. Filtros: `stage_ids` (ids separados por vírgula), `idle_hours` (sem mensagem há pelo menos N h), `window=open\|closed` (janela de 24 h), `last_direction=inbound\|outbound` (quem falou por último), `followup_allowed=1`, `per_page`. Cada item traz o lead e a etapa, `window` (`open`, `expires_at`) e `followup` (`sent`, `last_at`, `allowed`, `reason`) |
+| `GET /conversations/{id}/messages?limit=30` | últimas mensagens (mais antiga primeiro), com `followup: true` nas enviadas como follow-up |
+| `GET /quick-replies` | respostas rápidas (`shortcut`, `title`, `body`) |
+| `GET /whatsapp-templates` | modelos aprovados e suportados, com `variables` e `sources` (o significado de cada `{{n}}`) |
+| `POST /conversations/{id}/send-text` | `text`, `followup?`. Só com a janela aberta (senão 409 `window_closed`) |
+| `POST /conversations/{id}/send-template` | `name`, `language`, `variables?` (se omitidas, usa o significado salvo do modelo com os dados do lead), `followup?` |
+
+**Trava de follow-up** (vale quando `followup: true`; 409 com o código em `error`): no máximo **2** por conversa
+(`followup_limit`), com pelo menos **24 h** entre eles (`followup_gap`), e nunca se o lead já tem agendamento futuro
+(`has_appointment`). As regras ficam no CRM, não na automação: uma automação errada não consegue passar delas.
+
 ## Exclusões
 Exigem uma chave com a permissão **Exclusão** ("Leitura, escrita e exclusão" ao criar a chave). O que está em uso é
 **recusado** (409), nunca apagado junto com o que depende dele.
