@@ -76,10 +76,11 @@
                 </label>
 
                 <form v-if="form" class="wa-tpl-card wa-tpl-form" @submit.prevent="save">
+                    <div v-if="form.editing" class="wa-tpl-muted">@{{ labels.edit_hint }}</div>
                     <div class="wa-tpl-grid">
                         <label>
                             @{{ labels.name }} <span>(@{{ labels.name_hint }})</span>
-                            <input type="text" v-model="form.name" maxlength="512" pattern="[a-z0-9_]+" required>
+                            <input type="text" v-model="form.name" maxlength="512" pattern="[a-z0-9_]+" :disabled="!! form.editing" required>
                         </label>
 
                         <label>
@@ -91,7 +92,7 @@
 
                         <label>
                             @{{ labels.language }}
-                            <select v-model="form.language" required>
+                            <select v-model="form.language" :disabled="!! form.editing" required>
                                 <option v-for="language in languages" :key="language" :value="language">@{{ language }}</option>
                             </select>
                         </label>
@@ -150,7 +151,7 @@
                     </template>
 
                     <div class="wa-tpl-actions">
-                        <button type="submit" class="wa-tpl-btn is-primary" :disabled="busy">@{{ labels.create }}</button>
+                        <button type="submit" class="wa-tpl-btn is-primary" :disabled="busy">@{{ form.editing ? labels.save_changes : labels.create }}</button>
                         <button type="button" class="wa-tpl-btn" @click="form = null">@{{ labels.cancel }}</button>
                     </div>
                 </form>
@@ -175,6 +176,11 @@
                     <pre class="wa-tpl-body">@{{ template.body }}</pre>
                     <div v-if="template.footer" class="wa-tpl-muted">@{{ template.footer }}</div>
                     <div v-if="template.reason" class="wa-tpl-muted" style="color:#b91c1c">@{{ labels.reason }}: @{{ template.reason }}</div>
+
+                    <div class="wa-tpl-actions">
+                        <button v-if="template.supported && ['APPROVED', 'REJECTED', 'PAUSED'].includes(template.status)" type="button" class="wa-tpl-btn" :disabled="busy" @click="startEdit(template)">@{{ labels.edit }}</button>
+                        <button v-if="template.id" type="button" class="wa-tpl-btn" style="color:#b91c1c" :disabled="busy" @click="remove(template)">@{{ labels.delete }}</button>
+                    </div>
 
                     <template v-if="template.variables && template.status === 'APPROVED'">
                         <div v-if="editing !== keyOf(template)" class="wa-tpl-muted">
@@ -370,6 +376,51 @@
                         }
                     },
 
+                    startEdit(template) {
+                        this.success = null;
+                        this.error = null;
+                        this.editing = null;
+
+                        const map = this.toForm(template.sources || [], template.variables);
+
+                        this.form = {
+                            editing: template,
+                            name: template.name,
+                            category: template.category,
+                            language: template.language,
+                            header: template.header || '',
+                            body: template.body,
+                            footer: template.footer || '',
+                            examples: [...(template.examples || [])],
+                            sel: map.sel,
+                            txt: map.txt,
+                        };
+
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    },
+
+                    async remove(template) {
+                        if (! window.confirm(this.labels.delete_confirm.replace(':name', template.name))) {
+                            return;
+                        }
+
+                        this.busy = true;
+                        this.error = null;
+                        this.success = null;
+
+                        try {
+                            await this.$axios.delete(this.urls.destroy, { data: { session_id: this.sessionId, id: template.id, name: template.name, language: template.language } });
+
+                            this.success = this.labels.deleted.replace(':name', template.name);
+
+                            await this.load();
+                        } catch (error) {
+                            this.error = this.message(error);
+                        } finally {
+                            this.busy = false;
+                        }
+                    },
+
                     startNew() {
                         this.success = null;
                         this.error = null;
@@ -389,6 +440,26 @@
                         this.success = null;
 
                         try {
+                            if (this.form.editing) {
+                                const editing = this.form.editing;
+
+                                await this.$axios.put(this.urls.update, {
+                                    ...this.form,
+                                    editing: undefined,
+                                    id: editing.id,
+                                    session_id: this.sessionId,
+                                    examples: this.form.examples.slice(0, this.variableCount),
+                                    sources: this.formSources(),
+                                });
+
+                                this.form = null;
+                                this.success = this.labels.updated.replace(':name', editing.name);
+
+                                await this.load();
+
+                                return;
+                            }
+
                             const { data } = await this.$axios.post(this.urls.store, {
                                 ...this.form,
                                 session_id: this.sessionId,

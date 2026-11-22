@@ -456,6 +456,13 @@ com os valores do lead da conversa (editáveis) e os lembretes da Agenda usam o 
 vence a lista de variáveis da configuração do lembrete). Resolvedor: `Support/TemplateVariables.php`.
 **Tem migration nova** → rodar `php artisan migrate --force` no console após o deploy.
 
+**Editar e excluir modelos** (2026-11-22): botões em cada card de Modelos de mensagem. Excluir usa
+`DELETE /{waba_id}/message_templates?name=&hsm_id=` (só aquele idioma; nome bloqueado 30 dias na Meta se já foi
+aprovado; recusado se os lembretes de consulta usam o modelo). Editar usa `POST /{template_id}` com só o texto
+**ou** só a categoria (a Meta não aceita os dois juntos); devolve botões e cabeçalho de mídia sem mudança; vale só
+para APPROVED/REJECTED/PAUSED, com limite da Meta de 1 edição/24 h e 10/30 dias. Mesma permissão de "Criar e ver
+modelos de mensagem". Sem migration nova.
+
 #### Variáveis de ambiente novas (serviço `krayin`)
 
 | Variável | Para quê |

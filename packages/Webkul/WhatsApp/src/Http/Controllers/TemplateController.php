@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
 use Webkul\WhatsApp\Channels\Cloud\CloudClient;
+use Webkul\WhatsApp\Models\ReminderSetting;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Models\TemplateVariableMap;
 use Webkul\WhatsApp\Support\TemplateVariables;
@@ -32,6 +33,8 @@ class TemplateController extends Controller
                 'list'        => route('admin.whatsapp.templates.list'),
                 'store'       => route('admin.whatsapp.templates.store'),
                 'mapping'     => route('admin.whatsapp.templates.mapping'),
+                'update'      => route('admin.whatsapp.templates.update'),
+                'destroy'     => route('admin.whatsapp.templates.destroy'),
                 'connections' => route('admin.whatsapp.connections.index'),
                 'inbox'       => route('admin.whatsapp.inbox.index'),
             ],
@@ -67,6 +70,7 @@ class TemplateController extends Controller
 
         $payload['data'] = collect($templates)->map(fn ($template) => CloudTemplateController::describe((array) $template) + [
             'id'     => (string) ($template['id'] ?? ''),
+            'examples' => self::examplesOf((array) $template),
             'sources' => TemplateVariableMap::sourcesFor((string) ($template['name'] ?? ''), (string) ($template['language'] ?? '')),
             'status' => strtoupper((string) ($template['status'] ?? '')),
             'reason' => in_array(strtoupper((string) ($template['rejected_reason'] ?? 'NONE')), ['', 'NONE'], true) ? null : (string) $template['rejected_reason'],
@@ -98,6 +102,42 @@ class TemplateController extends Controller
 
         abort_if($session === null, 404, trans('whatsapp::app.templates.no_number'));
 
+        [$components, $numbers] = $this->components($data);
+
+        try {
+            $created = CloudClient::forSession($session)->createTemplate($data['name'], $data['category'], $data['language'], $components);
+        } catch (CloudApiException $exception) {
+            return response()->json(['message' => trans('whatsapp::app.templates.create_failed', ['reason' => $exception->getMessage()])], 422);
+        }
+
+        Cache::forget('whatsapp.cloud.templates.'.$session->id);
+
+        $sources = array_values($data['sources'] ?? []);
+
+        if ($numbers !== [] && count($sources) === count($numbers)) {
+            TemplateVariableMap::query()->updateOrCreate(
+                ['template_name' => $data['name'], 'template_language' => $data['language']],
+                ['sources' => $sources],
+            );
+        }
+
+        return response()->json(['data' => [
+            'id'       => (string) ($created['id'] ?? ''),
+            'name'     => $data['name'],
+            'language' => $data['language'],
+            'status'   => strtoupper((string) ($created['status'] ?? 'PENDING')),
+            'category' => strtoupper((string) ($created['category'] ?? $data['category'])),
+        ]], 201);
+    }
+
+    /**
+     * Validates the template text and builds Meta's components (header, body, footer).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: list<array<string, mixed>>, 1: list<int>}  components and the variable numbers found
+     */
+    private function components(array $data): array
+    {
         $body = (string) preg_replace('/\{\{\s*(\d+)\s*\}\}/', '{{$1}}', trim($data['body']));
         $header = trim((string) ($data['header'] ?? ''));
         $footer = trim((string) ($data['footer'] ?? ''));
@@ -126,13 +166,76 @@ class TemplateController extends Controller
             $components[] = ['type' => 'FOOTER', 'text' => $footer];
         }
 
+        return [$components, $numbers];
+    }
+
+    /**
+     * Edits a template at Meta (text, or category: Meta takes one of them per request) and
+     * keeps what this screen does not edit (buttons, media header).
+     */
+    public function update(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'integer'],
+            'id'         => ['required', 'string', 'max:64'],
+            'name'       => ['required', 'string', 'max:512'],
+            'language'   => ['required', 'string', 'max:20'],
+            'category'   => ['required', Rule::in(self::CATEGORIES)],
+            'header'     => ['nullable', 'string', 'max:60'],
+            'body'       => ['required', 'string', 'max:1024'],
+            'footer'     => ['nullable', 'string', 'max:60'],
+            'examples'   => ['nullable', 'array', 'max:20'],
+            'examples.*' => ['nullable', 'string', 'max:200'],
+            'sources'    => ['nullable', 'array', 'max:20'],
+            'sources.*'  => ['string', 'max:210', fn ($attribute, $value, $fail) => TemplateVariables::valid((string) $value) || $fail(trans('whatsapp::app.templates.invalid_source'))],
+        ]);
+
+        $session = $this->numbers()->firstWhere('id', (int) $data['session_id']);
+
+        abort_if($session === null, 404, trans('whatsapp::app.templates.no_number'));
+
         try {
-            $created = CloudClient::forSession($session)->createTemplate($data['name'], $data['category'], $data['language'], $components);
+            $client = CloudClient::forSession($session);
+            $current = collect($client->templates())->first(fn ($item) => (string) ($item['id'] ?? '') === $data['id'] && ($item['name'] ?? '') === $data['name']);
         } catch (CloudApiException $exception) {
-            return response()->json(['message' => trans('whatsapp::app.templates.create_failed', ['reason' => $exception->getMessage()])], 422);
+            return response()->json(['message' => trans('whatsapp::app.templates.list_failed', ['reason' => $exception->getMessage()])], 502);
         }
 
-        Cache::forget('whatsapp.cloud.templates.'.$session->id);
+        abort_if($current === null, 404, trans('whatsapp::app.inbox.template_unavailable'));
+        abort_unless(in_array(strtoupper((string) ($current['status'] ?? '')), ['APPROVED', 'REJECTED', 'PAUSED'], true), 422, trans('whatsapp::app.templates.not_editable'));
+
+        [$components, $numbers] = $this->components($data);
+
+        // What this screen does not edit goes back unchanged: Meta replaces ALL components.
+        $old = collect((array) ($current['components'] ?? []));
+        $oldHeader = $old->first(fn ($component) => strtoupper((string) ($component['type'] ?? '')) === 'HEADER');
+
+        if ($oldHeader !== null && strtoupper((string) ($oldHeader['format'] ?? 'TEXT')) !== 'TEXT') {
+            $components = array_values(array_filter($components, fn ($component) => $component['type'] !== 'HEADER'));
+            array_unshift($components, $oldHeader);
+        }
+
+        foreach ($old as $component) {
+            if (! in_array(strtoupper((string) ($component['type'] ?? '')), ['HEADER', 'BODY', 'FOOTER'], true)) {
+                $components[] = $component;
+            }
+        }
+
+        $before = CloudTemplateController::describe((array) $current);
+        $textChanged = trim((string) $before['header']) !== trim((string) ($data['header'] ?? ''))
+            || trim($before['body']) !== (string) preg_replace('/\{\{\s*(\d+)\s*\}\}/', '{{$1}}', trim($data['body']))
+            || trim((string) $before['footer']) !== trim((string) ($data['footer'] ?? ''));
+        $categoryChanged = strtoupper((string) ($current['category'] ?? '')) !== $data['category'];
+
+        abort_if($textChanged && $categoryChanged, 422, trans('whatsapp::app.templates.edit_one_thing'));
+
+        if ($textChanged || $categoryChanged) {
+            try {
+                $client->editTemplate($data['id'], $categoryChanged ? ['category' => $data['category']] : ['components' => $components]);
+            } catch (CloudApiException $exception) {
+                return response()->json(['message' => trans('whatsapp::app.templates.update_failed', ['reason' => $exception->getMessage()])], 422);
+            }
+        }
 
         $sources = array_values($data['sources'] ?? []);
 
@@ -141,15 +244,68 @@ class TemplateController extends Controller
                 ['template_name' => $data['name'], 'template_language' => $data['language']],
                 ['sources' => $sources],
             );
+        } elseif (count(TemplateVariableMap::sourcesFor($data['name'], $data['language'])) !== count($numbers)) {
+            // The variables changed and the old meaning no longer fits.
+            TemplateVariableMap::query()->where('template_name', $data['name'])->where('template_language', $data['language'])->delete();
         }
 
-        return response()->json(['data' => [
-            'id'       => (string) ($created['id'] ?? ''),
-            'name'     => $data['name'],
-            'language' => $data['language'],
-            'status'   => strtoupper((string) ($created['status'] ?? 'PENDING')),
-            'category' => strtoupper((string) ($created['category'] ?? $data['category'])),
-        ]], 201);
+        Cache::forget('whatsapp.cloud.templates.'.$session->id);
+
+        return response()->json(['saved' => true, 'sent_to_meta' => $textChanged || $categoryChanged]);
+    }
+
+    /**
+     * Deletes one template (one language) at Meta. Refused while the appointment reminders
+     * still use it. Meta keeps the name locked for 30 days after deleting an approved one.
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'integer'],
+            'id'         => ['required', 'string', 'max:64'],
+            'name'       => ['required', 'string', 'max:512'],
+            'language'   => ['required', 'string', 'max:20'],
+        ]);
+
+        $session = $this->numbers()->firstWhere('id', (int) $data['session_id']);
+
+        abort_if($session === null, 404, trans('whatsapp::app.templates.no_number'));
+
+        $reminder = ReminderSetting::query()->first();
+
+        abort_if(
+            $reminder !== null && $reminder->enabled && $reminder->template_name === $data['name'] && $reminder->template_language === $data['language'],
+            422,
+            trans('whatsapp::app.templates.delete_in_use'),
+        );
+
+        try {
+            CloudClient::forSession($session)->deleteTemplate($data['name'], $data['id']);
+        } catch (CloudApiException $exception) {
+            return response()->json(['message' => trans('whatsapp::app.templates.delete_failed', ['reason' => $exception->getMessage()])], 422);
+        }
+
+        TemplateVariableMap::query()->where('template_name', $data['name'])->where('template_language', $data['language'])->delete();
+        Cache::forget('whatsapp.cloud.templates.'.$session->id);
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * The samples Meta stored for the body variables.
+     *
+     * @param  array<string, mixed>  $template
+     * @return list<string>
+     */
+    private static function examplesOf(array $template): array
+    {
+        foreach ((array) ($template['components'] ?? []) as $component) {
+            if (strtoupper((string) ($component['type'] ?? '')) === 'BODY') {
+                return array_values(array_map('strval', (array) (($component['example']['body_text'][0] ?? []))));
+            }
+        }
+
+        return [];
     }
 
     /**

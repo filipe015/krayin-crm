@@ -68,6 +68,8 @@ return [
             'admin.whatsapp.templates.list',
             'admin.whatsapp.templates.store',
             'admin.whatsapp.templates.mapping',
+            'admin.whatsapp.templates.update',
+            'admin.whatsapp.templates.destroy',
         ],
         'sort'  => 5,
     ], [

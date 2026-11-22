@@ -184,6 +184,30 @@ final class CloudClient
     }
 
     /**
+     * Deletes one template (name + id: only that language) from the WhatsApp Business Account.
+     * Meta keeps the name locked for 30 days after an approved template is deleted.
+     *
+     * @throws CloudApiException
+     */
+    public function deleteTemplate(string $name, string $templateId): void
+    {
+        $this->request('DELETE', $this->requireWaba().'/message_templates?'.http_build_query(['name' => $name, 'hsm_id' => $templateId]));
+    }
+
+    /**
+     * Edits a template. Meta takes either the new category or the new components in one
+     * request, never both; an approved template goes back to review.
+     *
+     * @param  array{category?: string, components?: list<array<string, mixed>>}  $changes
+     *
+     * @throws CloudApiException
+     */
+    public function editTemplate(string $templateId, array $changes): void
+    {
+        $this->request('POST', $templateId, $changes);
+    }
+
+    /**
      * Lets the WABA deliver webhooks to the app. With a callback URL, Meta sends this
      * account's webhooks to that URL instead of the one saved in the app (one app serving
      * several CRM installations); Meta checks the URL with the verify token first.
