@@ -70,3 +70,4 @@ Route::put('reminders', [ReminderSettingController::class, 'update'])->name('adm
 Route::get('templates', [TemplateController::class, 'index'])->name('admin.whatsapp.templates.index');
 Route::get('templates/list', [TemplateController::class, 'list'])->name('admin.whatsapp.templates.list');
 Route::post('templates', [TemplateController::class, 'store'])->name('admin.whatsapp.templates.store');
+Route::put('templates/mapping', [TemplateController::class, 'mapping'])->name('admin.whatsapp.templates.mapping');

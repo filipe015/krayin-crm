@@ -432,7 +432,7 @@
                         <span v-else-if="templateModal.error" class="wa-note">@{{ templateModal.error }}</span>
                         <span v-else-if="! templateModal.items.length" class="wa-muted">@{{ labels.template_none }}</span>
 
-                        <select v-if="templateModal.items.length" v-model="templateModal.pick" @change="templateModal.values = []">
+                        <select v-if="templateModal.items.length" v-model="templateModal.pick" @change="onPickTemplate">
                             <option value="">@{{ labels.template_choose }}</option>
                             <option v-for="(item, index) in templateModal.items" :key="index" :value="String(index)" :disabled="! item.supported">
                                 @{{ item.name }} (@{{ item.language }}, @{{ item.category }})@{{ item.supported ? '' : ' — ' + labels.template_unsupported }}
@@ -441,7 +441,7 @@
 
                         <template v-if="pickedTemplate">
                             <label v-for="n in pickedTemplate.variables" :key="n">
-                                &#123;&#123;@{{ n }}&#125;&#125;
+                                &#123;&#123;@{{ n }}&#125;&#125;<span v-if="pickedTemplate.sources && pickedTemplate.sources[n - 1]" class="wa-muted"> — @{{ pickedTemplate.sources[n - 1] }}</span>
                                 <input type="text" v-model="templateModal.values[n - 1]" maxlength="1024" required>
                             </label>
 
@@ -1548,6 +1548,13 @@
                                 this.templateModal.loading = false;
                             }
                         }
+                    },
+
+                    onPickTemplate() {
+                        // A template with its variables mapped in the CRM arrives pre-filled for this lead.
+                        const template = this.pickedTemplate;
+
+                        this.templateModal.values = template && template.suggested ? [...template.suggested] : [];
                     },
 
                     async sendTemplate() {

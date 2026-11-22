@@ -13,6 +13,7 @@ use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Reminder;
 use Webkul\WhatsApp\Models\ReminderSetting;
+use Webkul\WhatsApp\Models\TemplateVariableMap;
 use Webkul\WhatsApp\Models\Session;
 
 /**
@@ -25,14 +26,9 @@ use Webkul\WhatsApp\Models\Session;
  */
 final class AppointmentReminders
 {
-    public const SOURCES = [
-        'contact_first_name', 'contact_name', 'owner_name',
-        'appointment_date', 'appointment_time', 'appointment_datetime', 'appointment_location', 'lead_title',
-    ];
+    public const SOURCES = TemplateVariables::BASE;
 
     public const OFFSETS = [60, 120, 240, 720, 1440, 2880, 4320];
-
-    private const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
     /**
      * @return array{created: int, updated: int, cancelled: int}
@@ -235,7 +231,8 @@ final class AppointmentReminders
      */
     private function values(ReminderSetting $settings, array $template, Lead $lead, Activity $activity, ?Conversation $conversation): array
     {
-        $sources = array_values((array) ($settings->variables ?? []));
+        // The meaning saved with the template wins; the reminder's own list is the fallback.
+        $sources = TemplateVariableMap::sourcesFor((string) $template['name'], (string) $template['language']) ?: array_values((array) ($settings->variables ?? []));
         $values = [];
 
         for ($index = 0; $index < (int) $template['variables']; $index++) {
@@ -246,38 +243,11 @@ final class AppointmentReminders
     }
 
     /**
-     * The text a template variable receives. Never empty, because the Cloud API refuses
-     * empty parameters.
+     * The text a template variable receives (see TemplateVariables).
      */
     public static function resolve(string $source, Lead $lead, Activity $activity, ?Conversation $conversation): string
     {
-        $when = $activity->schedule_from?->copy()->setTimezone(config('app.timezone'));
-        $name = trim((string) ($lead->person?->name ?: $conversation?->contact_name ?: ''));
-
-        $value = match ($source) {
-            'contact_first_name'   => Str::before($name, ' '),
-            'contact_name'         => $name,
-            'owner_name'           => (string) ($lead->user?->name ?: $activity->user?->name ?: ''),
-            'appointment_date'     => $when?->format('d/m') ?? '',
-            'appointment_time'     => $when !== null ? self::time($when) : '',
-            'appointment_datetime' => $when !== null ? self::WEEKDAYS[$when->dayOfWeek].', '.$when->format('d/m').' às '.self::time($when) : '',
-            'appointment_location' => (string) ($activity->location ?? ''),
-            'lead_title'           => (string) $lead->title,
-            default                => '',
-        };
-
-        $value = trim($value);
-
-        return $value !== '' ? $value : match ($source) {
-            'contact_first_name', 'contact_name' => 'cliente',
-            'owner_name'                         => 'nossa equipe',
-            default                              => '-',
-        };
-    }
-
-    private static function time(Carbon $when): string
-    {
-        return $when->minute === 0 ? $when->format('G').'h' : $when->format('G\hi');
+        return TemplateVariables::resolve($source, $lead, $activity, $conversation);
     }
 
     public static function offsetLabel(int $minutes): string

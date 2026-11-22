@@ -10,12 +10,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
 use Webkul\WhatsApp\Channels\Cloud\CloudClient;
+use Webkul\Lead\Models\Lead;
 use Webkul\WhatsApp\Jobs\SendWhatsAppMessage;
 use Webkul\WhatsApp\Models\Conversation;
 use Webkul\WhatsApp\Models\Message;
 use Webkul\WhatsApp\Models\Session;
 use Webkul\WhatsApp\Support\InboxPresenter;
 use Webkul\WhatsApp\Support\ScheduleTime;
+use Webkul\WhatsApp\Models\TemplateVariableMap;
+use Webkul\WhatsApp\Support\TemplateVariables;
 
 /**
  * Approved message templates of an official WhatsApp number: the only way to write to a
@@ -30,7 +33,7 @@ class CloudTemplateController extends Controller
         $conversation = $this->conversation($id);
 
         try {
-            return response()->json(['data' => $this->usable($conversation->session)]);
+            return response()->json(['data' => $this->withSuggestions($this->usable($conversation->session), $conversation)]);
         } catch (CloudApiException $exception) {
             return response()->json(['message' => $exception->getMessage()], 502);
         }
@@ -109,6 +112,32 @@ class CloudTemplateController extends Controller
         }
 
         return response()->json(['data' => InboxPresenter::message($message->refresh())], 201);
+    }
+
+    /**
+     * Adds, to each template that has its variables mapped, the values they take for this
+     * conversation's lead. The Inbox pre-fills the form with them; the operator can still edit.
+     *
+     * @param  list<array<string, mixed>>  $templates
+     * @return list<array<string, mixed>>
+     */
+    private function withSuggestions(array $templates, Conversation $conversation): array
+    {
+        $lead = $conversation->lead_id ? Lead::query()->with(['person:id,name', 'user:id,name'])->find($conversation->lead_id) : null;
+        $appointment = $lead !== null ? TemplateVariables::nextAppointment($lead) : null;
+        $user = auth()->guard('user')->user();
+        $customNames = collect(TemplateVariables::customFields())->pluck('name', 'code')->all();
+
+        return array_map(function (array $template) use ($lead, $appointment, $conversation, $user, $customNames) {
+            $sources = TemplateVariableMap::sourcesFor($template['name'], $template['language']);
+
+            $template['sources'] = array_map(fn ($source) => TemplateVariables::label($source, $customNames), $sources);
+            $template['suggested'] = count($sources) === $template['variables']
+                ? array_map(fn ($source) => TemplateVariables::resolve($source, $lead, $appointment, $conversation, $user), $sources)
+                : [];
+
+            return $template;
+        }, $templates);
     }
 
     private function conversation(int $id): Conversation

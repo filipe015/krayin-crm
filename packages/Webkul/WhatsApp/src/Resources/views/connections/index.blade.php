@@ -276,12 +276,19 @@
 
                     <div v-if="reminderTemplate" class="wa-conn-muted" style="white-space:pre-wrap">@{{ reminderTemplate.body }}</div>
 
-                    <label v-for="n in (reminderTemplate ? reminderTemplate.variables : 0)" :key="'v' + n" class="wa-conn-field">
-                        @{{ labels.reminder_variable.replace(':n', n) }}
-                        <select v-model="reminder.variables[n - 1]" required>
-                            <option v-for="source in reminderOptions.sources" :key="source" :value="source">@{{ labels.reminder_sources[source] || source }}</option>
-                        </select>
-                    </label>
+                    <div v-if="reminderTemplate && reminderTemplate.sources.length" class="wa-conn-muted">
+                        <div>@{{ labels.reminder_mapped }}</div>
+                        <div v-for="(label, index) in reminderTemplate.source_labels" :key="'m' + index">&#123;&#123;@{{ index + 1 }}&#125;&#125; → @{{ label }}</div>
+                    </div>
+
+                    <template v-else>
+                        <label v-for="n in (reminderTemplate ? reminderTemplate.variables : 0)" :key="'v' + n" class="wa-conn-field">
+                            @{{ labels.reminder_variable.replace(':n', n) }}
+                            <select v-model="reminder.variables[n - 1]" required>
+                                <option v-for="source in reminderOptions.sources" :key="source" :value="source">@{{ labels.reminder_sources[source] || source }}</option>
+                            </select>
+                        </label>
+                    </template>
 
                     <div class="wa-conn-field">
                         @{{ labels.reminder_offsets }}

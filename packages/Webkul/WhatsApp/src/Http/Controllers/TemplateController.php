@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 use Webkul\WhatsApp\Channels\Cloud\CloudApiException;
 use Webkul\WhatsApp\Channels\Cloud\CloudClient;
 use Webkul\WhatsApp\Models\Session;
+use Webkul\WhatsApp\Models\TemplateVariableMap;
+use Webkul\WhatsApp\Support\TemplateVariables;
 
 /**
  * Message templates of an official WhatsApp number: lists them with Meta's review status
@@ -29,11 +31,13 @@ class TemplateController extends Controller
             'urls' => [
                 'list'        => route('admin.whatsapp.templates.list'),
                 'store'       => route('admin.whatsapp.templates.store'),
+                'mapping'     => route('admin.whatsapp.templates.mapping'),
                 'connections' => route('admin.whatsapp.connections.index'),
                 'inbox'       => route('admin.whatsapp.inbox.index'),
             ],
             'categories' => self::CATEGORIES,
             'languages'  => self::LANGUAGES,
+            'sourceOptions' => ['base' => TemplateVariables::BASE, 'custom' => TemplateVariables::customFields()],
         ]);
     }
 
@@ -63,6 +67,7 @@ class TemplateController extends Controller
 
         $payload['data'] = collect($templates)->map(fn ($template) => CloudTemplateController::describe((array) $template) + [
             'id'     => (string) ($template['id'] ?? ''),
+            'sources' => TemplateVariableMap::sourcesFor((string) ($template['name'] ?? ''), (string) ($template['language'] ?? '')),
             'status' => strtoupper((string) ($template['status'] ?? '')),
             'reason' => in_array(strtoupper((string) ($template['rejected_reason'] ?? 'NONE')), ['', 'NONE'], true) ? null : (string) $template['rejected_reason'],
         ])->sortBy('name')->values();
@@ -82,6 +87,8 @@ class TemplateController extends Controller
             'footer'     => ['nullable', 'string', 'max:60'],
             'examples'   => ['nullable', 'array', 'max:20'],
             'examples.*' => ['nullable', 'string', 'max:200'],
+            'sources'    => ['nullable', 'array', 'max:20'],
+            'sources.*'  => ['string', 'max:210', fn ($attribute, $value, $fail) => TemplateVariables::valid((string) $value) || $fail(trans('whatsapp::app.templates.invalid_source'))],
         ], [
             'name.regex'     => trans('whatsapp::app.templates.invalid_name'),
             'language.regex' => trans('whatsapp::app.templates.invalid_language'),
@@ -127,6 +134,15 @@ class TemplateController extends Controller
 
         Cache::forget('whatsapp.cloud.templates.'.$session->id);
 
+        $sources = array_values($data['sources'] ?? []);
+
+        if ($numbers !== [] && count($sources) === count($numbers)) {
+            TemplateVariableMap::query()->updateOrCreate(
+                ['template_name' => $data['name'], 'template_language' => $data['language']],
+                ['sources' => $sources],
+            );
+        }
+
         return response()->json(['data' => [
             'id'       => (string) ($created['id'] ?? ''),
             'name'     => $data['name'],
@@ -134,6 +150,39 @@ class TemplateController extends Controller
             'status'   => strtoupper((string) ($created['status'] ?? 'PENDING')),
             'category' => strtoupper((string) ($created['category'] ?? $data['category'])),
         ]], 201);
+    }
+
+    /**
+     * Saves what each variable of an existing template means in the CRM. Only the CRM
+     * keeps it, so it works for approved templates and changes nothing at Meta.
+     */
+    public function mapping(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name'      => ['required', 'string', 'max:512'],
+            'language'  => ['required', 'string', 'max:20'],
+            'sources'   => ['required', 'array', 'min:1', 'max:20'],
+            'sources.*' => ['string', 'max:210', fn ($attribute, $value, $fail) => TemplateVariables::valid((string) $value) || $fail(trans('whatsapp::app.templates.invalid_source'))],
+        ]);
+
+        $session = $this->numbers()->first();
+
+        abort_if($session === null, 404, trans('whatsapp::app.templates.no_number'));
+
+        $cached = Cache::get('whatsapp.cloud.templates.'.$session->id);
+        $known = collect($cached ?? CloudClient::forSession($session)->templates())
+            ->map(fn ($template) => CloudTemplateController::describe((array) $template))
+            ->first(fn ($item) => $item['name'] === $data['name'] && $item['language'] === $data['language']);
+
+        abort_if($known === null, 404, trans('whatsapp::app.inbox.template_unavailable'));
+        abort_if(count($data['sources']) !== $known['variables'], 422, trans('whatsapp::app.connections.reminder_variables'));
+
+        TemplateVariableMap::query()->updateOrCreate(
+            ['template_name' => $data['name'], 'template_language' => $data['language']],
+            ['sources' => array_values($data['sources'])],
+        );
+
+        return response()->json(['saved' => true]);
     }
 
     /**
