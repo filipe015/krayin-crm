@@ -517,10 +517,40 @@
 
                         <template v-else>
                             <span class="wa-muted">@{{ labels.no_lead }}</span>
-                            <div v-if="! linkOpen" class="wa-row">
-                                <button type="button" class="wa-btn is-primary" :disabled="busy" @click="createLead">@{{ labels.create_lead }}</button>
+                            <div v-if="! linkOpen && ! leadForm" class="wa-row">
+                                <button type="button" class="wa-btn is-primary" :disabled="busy" @click="openLeadForm">@{{ labels.create_lead }}</button>
                                 <button type="button" class="wa-btn" @click="linkOpen = true">@{{ labels.link_lead }}</button>
                             </div>
+
+                            {{-- "Criar lead": nothing is created until the operator confirms the pipeline and stage. --}}
+                            <template v-else-if="leadForm">
+                                <span v-if="leadForm.loading" class="wa-muted">@{{ labels.loading }}</span>
+
+                                <template v-else>
+                                    <span v-if="! leadForm.pipelines.length" class="wa-muted">@{{ labels.create_lead_no_pipelines }}</span>
+
+                                    <template v-else>
+                                        <label class="wa-muted">@{{ labels.create_lead_pipeline }}</label>
+                                        <select v-model.number="leadForm.pipeline_id" :disabled="busy" @change="leadForm.stage_id = leadFormStages[0]?.id ?? null">
+                                            <option v-for="pipeline in leadForm.pipelines" :key="pipeline.id" :value="pipeline.id">@{{ pipeline.name }}</option>
+                                        </select>
+
+                                        <label class="wa-muted">@{{ labels.create_lead_stage }}</label>
+                                        <select v-model.number="leadForm.stage_id" :disabled="busy">
+                                            <option v-for="stage in leadFormStages" :key="stage.id" :value="stage.id">@{{ stage.name }}</option>
+                                        </select>
+                                    </template>
+
+                                    <div class="wa-row">
+                                        <button
+                                            type="button" class="wa-btn is-primary"
+                                            :disabled="busy || ! leadForm.pipeline_id || ! leadForm.stage_id"
+                                            @click="createLead"
+                                        >@{{ labels.create_lead_confirm }}</button>
+                                        <button type="button" class="wa-btn" :disabled="busy" @click="leadForm = null">@{{ labels.create_lead_cancel }}</button>
+                                    </div>
+                                </template>
+                            </template>
 
                             <template v-else>
                                 <input type="text" v-model="linkQuery" :placeholder="labels.search_lead">
@@ -703,6 +733,7 @@
                         linkQuery: '',
                         linkResults: [],
                         linkSearched: false,
+                        leadForm: null,
 
                         listTimer: null,
                         threadTimer: null,
@@ -714,6 +745,10 @@
                 computed: {
                     current() {
                         return this.conversations.find(conversation => conversation.id === this.selectedId) || this.selectedConversation;
+                    },
+
+                    leadFormStages() {
+                        return this.leadForm?.pipelines.find(pipeline => pipeline.id === this.leadForm.pipeline_id)?.stages ?? [];
                     },
 
                     currentUserId() {
@@ -966,6 +1001,7 @@
                         this.linkOpen = false;
                         this.linkQuery = '';
                         this.linkResults = [];
+                        this.leadForm = null;
 
                         await this.refreshThread(true);
                         this.markRead();
@@ -1154,14 +1190,47 @@
                         }
                     },
 
+                    // Pipelines and stages the operator may pick, the default pipeline and its first stage preselected.
+                    async openLeadForm() {
+                        const id = this.selectedId;
+
+                        this.leadForm = { loading: true, pipelines: [], pipeline_id: null, stage_id: null };
+
+                        try {
+                            const { data } = await this.$axios.get(this.url('leadOptions', id));
+
+                            if (! this.leadForm || this.selectedId !== id) {
+                                return;
+                            }
+
+                            const pipelines = data.pipelines || [];
+                            const pipeline = pipelines.find(item => item.id === data.default_pipeline_id) || pipelines[0] || null;
+
+                            this.leadForm = {
+                                loading: false,
+                                pipelines,
+                                pipeline_id: pipeline ? pipeline.id : null,
+                                stage_id: pipeline && pipeline.stages.length ? pipeline.stages[0].id : null,
+                            };
+                        } catch (error) {
+                            this.leadForm = null;
+                            this.$emitter.emit('add-flash', {
+                                type: 'error',
+                                message: (error.response && error.response.data && error.response.data.message) || this.labels.action_error,
+                            });
+                        }
+                    },
+
                     async createLead() {
                         const id = this.selectedId;
+                        const form = this.leadForm;
 
                         this.busy = true;
 
                         try {
-                            const { data } = await this.$axios.post(this.url('createLead', id));
+                            const { data } = await this.$axios.post(this.url('createLead', id), form ? { pipeline_id: form.pipeline_id, stage_id: form.stage_id } : {});
 
+                            this.leadForm = null;
                             this.patch(id, { lead: data.lead });
                             this.loadConversations({ poll: true });
                             this.$emitter.emit('add-flash', {

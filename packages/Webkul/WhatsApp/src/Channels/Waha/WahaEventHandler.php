@@ -275,11 +275,12 @@ class WahaEventHandler
             }
         }
 
-        // WHATSAPP_AUTO_LEAD: a contact writing in a chat without a lead gets one. Never
-        // throws, so the message above is always kept.
+        // Automatic lead (Configurações → Criação de leads pelo WhatsApp, else WHATSAPP_AUTO_LEAD):
+        // a contact writing in a chat without a lead gets one. Never throws, so the message
+        // above is always kept.
         $createdLead = false;
 
-        if ($message->wasRecentlyCreated && ! $event->fromMe && $conversation->lead_id === null && $event->unsupported === null && AutoLead::mode() !== 'off') {
+        if ($message->wasRecentlyCreated && ! $event->fromMe && $conversation->lead_id === null && $event->unsupported === null && AutoLead::mode() !== 'manual') {
             $this->autoLead->handle($conversation);
             $createdLead = $this->autoLead->createdLeadId !== null;
         }

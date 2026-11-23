@@ -47,6 +47,7 @@ class InboxController extends Controller
                 'status'        => route('admin.whatsapp.inbox.status', ['id' => '__ID__']),
                 'link'          => route('admin.whatsapp.inbox.lead.link', ['id' => '__ID__']),
                 'createLead'    => route('admin.whatsapp.inbox.lead.create', ['id' => '__ID__']),
+                'leadOptions'   => route('admin.whatsapp.inbox.lead.options', ['id' => '__ID__']),
                 'send'          => route('admin.whatsapp.inbox.send', ['id' => '__ID__']),
                 'typing'        => config('whatsapp.send_typing') ? route('admin.whatsapp.inbox.typing', ['id' => '__ID__']) : null,
                 'retry'         => route('admin.whatsapp.inbox.retry', ['id' => '__ID__']),

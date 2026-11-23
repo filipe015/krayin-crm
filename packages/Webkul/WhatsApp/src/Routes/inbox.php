@@ -22,6 +22,7 @@ Route::post('conversations/{id}/read', [InboxController::class, 'markRead'])->na
 Route::post('conversations/{id}/claim', [InboxController::class, 'claim'])->name('admin.whatsapp.inbox.claim');
 Route::post('conversations/{id}/status', [InboxController::class, 'status'])->name('admin.whatsapp.inbox.status');
 Route::post('conversations/{id}/lead', [InboxLeadController::class, 'link'])->name('admin.whatsapp.inbox.lead.link');
+Route::get('conversations/{id}/lead/options', [InboxLeadController::class, 'options'])->name('admin.whatsapp.inbox.lead.options');
 Route::post('conversations/{id}/lead/create', [InboxLeadController::class, 'create'])->name('admin.whatsapp.inbox.lead.create');
 Route::post('conversations/{id}/messages', [InboxMessageController::class, 'store'])->name('admin.whatsapp.inbox.send');
 Route::post('conversations/{id}/typing', [InboxMessageController::class, 'typing'])->name('admin.whatsapp.inbox.typing');

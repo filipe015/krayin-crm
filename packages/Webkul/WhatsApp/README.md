@@ -220,6 +220,32 @@ todas opcionais). Em **cada** CRM: `php artisan migrate --force` no console do s
 
 ### Lead automático
 
+**Tela de configuração (recomendado):** Configurações → Outras configurações → **Criação de leads pelo WhatsApp**
+(permissões "Criação de leads pelo WhatsApp" para ver e "Alterar a criação de leads pelo WhatsApp" para salvar). Vale
+para a instalação inteira (todos os números). Modos:
+
+- **Manual** (padrão): nenhum lead é criado sozinho; a equipe usa **Criar lead** na Inbox (escolhendo funil e etapa)
+  ou **Vincular a um lead**.
+- **Só anúncios**: cria lead só para conversa que veio de anúncio click-to-WhatsApp.
+- **Toda conversa nova**: todo contato novo que escrever vira lead.
+
+Padrões da criação automática na tela: funil, etapa (tem que ser uma etapa aberta do funil), origem, etiquetas e
+responsável — equivalem às variáveis abaixo.
+
+**Precedência:** se a tela já foi salva (existe a linha em `whatsapp_lead_settings`), **ela manda** e as variáveis
+`WHATSAPP_AUTO_LEAD*` não são mais lidas. Enquanto a tela nunca foi salva, valem as variáveis (comportamento antigo,
+nada muda no deploy). `off` é aceito como sinônimo de `manual`. A leitura é feita a cada mensagem recebida com cache
+de 60 s (limpo ao salvar a tela); se a tabela não existir ou a leitura falhar, usa as variáveis e segue.
+
+**Migração nova:** `2026_11_23_000001_create_whatsapp_lead_settings_table`. Em **cada** CRM:
+`php artisan migrate --force`.
+
+**Criar lead na Inbox:** o botão abre um mini-formulário com **Funil** (pré-selecionado no funil padrão) e **Etapa**
+(1ª etapa aberta do funil); só cria ao clicar em **Confirmar**. Exige a permissão `leads.create`; respeita a restrição de
+funis do usuário. Se já existir lead para o número, ele é vinculado (o funil/etapa escolhidos não se aplicam).
+
+Variáveis de ambiente (valor inicial, usado só enquanto a tela não foi salva):
+
 | Variável | Padrão | O que faz |
 |---|---|---|
 | `WHATSAPP_AUTO_LEAD` | `off` | `off` = não cria nada. `ads` = cria lead só para conversa que veio de anúncio. `all` = todo contato novo que escrever vira lead. |

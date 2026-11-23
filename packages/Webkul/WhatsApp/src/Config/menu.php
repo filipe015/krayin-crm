@@ -47,6 +47,14 @@ return [
         'icon-class' => 'icon-leads',
     ],
     [
+        'key'        => 'settings.other_settings.whatsapp-leads',
+        'name'       => 'whatsapp::app.menu.lead_settings',
+        'info'       => 'whatsapp::app.menu.lead_settings_info',
+        'route'      => 'admin.whatsapp.lead-settings.index',
+        'sort'       => 6,
+        'icon-class' => 'icon-leads',
+    ],
+    [
         'key'        => 'settings.other_settings.api',
         'name'       => 'whatsapp::app.menu.api_settings',
         'info'       => 'whatsapp::app.menu.api_settings_info',
