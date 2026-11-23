@@ -10,14 +10,15 @@ use Webkul\Lead\Models\Stage;
 use Webkul\WhatsApp\Models\Conversation;
 
 /**
- * Opens a lead by itself when a contact writes in a conversation without one
- * (WHATSAPP_AUTO_LEAD = off | ads | all). The caller only calls it for a message received
+ * Opens a lead by itself when a contact writes in a conversation without one (mode manual |
+ * ads | all, from LeadCreationSettings: the Configurações screen once saved, else the
+ * WHATSAPP_AUTO_LEAD* env, where the legacy "off" means manual). The caller only calls it for a message received
  * from the contact (not sent by us, never a group or status: those never become a
  * conversation). It never throws: a failure is logged and the message is kept.
  */
 class AutoLead
 {
-    public const MODES = ['off', 'ads', 'all'];
+    public const MODES = LeadCreationSettings::MODES;
 
     /**
      * Lead created by the last handle() call (null when it only linked one or did nothing),
@@ -29,9 +30,7 @@ class AutoLead
 
     public static function mode(): string
     {
-        $mode = strtolower(trim((string) config('whatsapp.auto_lead.mode', 'off')));
-
-        return in_array($mode, self::MODES, true) ? $mode : 'off';
+        return LeadCreationSettings::mode();
     }
 
     public static function applies(Conversation $conversation): bool
@@ -99,18 +98,20 @@ class AutoLead
             return $existingId;
         }
 
-        [$pipeline, $stage] = $this->placement();
+        $settings = LeadCreationSettings::current();
+
+        [$pipeline, $stage] = $this->placement($settings);
 
         $fromAd = $fresh->ad_captured_at !== null;
         $label = ConversationLead::label($fresh, trans('whatsapp::app.inbox.unknown'));
-        $source = trim((string) config('whatsapp.auto_lead.source'));
-        $userId = $fresh->assigned_user_id ?? (filled(config('whatsapp.auto_lead.user_id')) ? (int) config('whatsapp.auto_lead.user_id') : null);
+        $source = (string) $settings['source'];
+        $userId = $fresh->assigned_user_id ?? $settings['user_id'];
 
         $lead = $this->service->open($fresh, [
             'title'       => $label.' - WhatsApp'.($fromAd && filled($fresh->ad_title) ? ' ('.$fresh->ad_title.')' : ''),
             'description' => $this->description($fresh),
             'source'      => $source !== '' ? $source : ($fromAd ? 'WhatsApp Anúncio' : 'WhatsApp'),
-            'tags'        => array_filter(array_map('trim', explode(',', (string) config('whatsapp.auto_lead.tags', '')))),
+            'tags'        => $settings['tags'],
             'user_id'     => $userId,
             'pipeline'    => $pipeline,
             'stage'       => $stage,
@@ -126,18 +127,22 @@ class AutoLead
     }
 
     /**
-     * Pipeline: WHATSAPP_AUTO_LEAD_PIPELINE_ID or the default one. Stage: by id, else by
-     * name (WHATSAPP_AUTO_LEAD_STAGE) inside that pipeline, else its first stage.
+     * Pipeline: the configured one (screen or WHATSAPP_AUTO_LEAD_PIPELINE_ID) or the default
+     * one. Stage: by id, else by name (WHATSAPP_AUTO_LEAD_STAGE, env only) inside that
+     * pipeline, else its first stage.
      *
+     * @param  array|null  $settings  LeadCreationSettings::current(), read when not given.
      * @return array{0: ?Pipeline, 1: ?Stage}
      */
-    public function placement(): array
+    public function placement(?array $settings = null): array
     {
-        $pipelineId = config('whatsapp.auto_lead.pipeline_id');
-        $pipeline = filled($pipelineId) ? Pipeline::query()->find((int) $pipelineId) : null;
+        $settings ??= LeadCreationSettings::current();
 
-        if (filled($pipelineId) && $pipeline === null) {
-            Log::warning('WhatsApp: WHATSAPP_AUTO_LEAD_PIPELINE_ID not found, using the default pipeline.', ['pipeline_id' => $pipelineId]);
+        $pipelineId = $settings['pipeline_id'];
+        $pipeline = $pipelineId !== null ? Pipeline::query()->find($pipelineId) : null;
+
+        if ($pipelineId !== null && $pipeline === null) {
+            Log::warning('WhatsApp: the automatic lead pipeline was not found, using the default pipeline.', ['pipeline_id' => $pipelineId]);
         }
 
         $pipeline ??= $this->service->defaultPlacement()[0] ?? null;
@@ -147,15 +152,15 @@ class AutoLead
         }
 
         $stages = $pipeline->stages()->orderBy('sort_order')->get();
-        $stageId = config('whatsapp.auto_lead.stage_id');
-        $stageName = trim((string) config('whatsapp.auto_lead.stage'));
+        $stageId = $settings['stage_id'];
+        $stageName = (string) $settings['stage'];
         $stage = null;
 
-        if (filled($stageId)) {
-            $stage = $stages->firstWhere('id', (int) $stageId);
+        if ($stageId !== null) {
+            $stage = $stages->firstWhere('id', $stageId);
 
             if ($stage === null) {
-                Log::warning('WhatsApp: WHATSAPP_AUTO_LEAD_STAGE_ID is not a stage of the pipeline.', ['stage_id' => $stageId, 'pipeline_id' => $pipeline->id]);
+                Log::warning('WhatsApp: the automatic lead stage is not a stage of the pipeline.', ['stage_id' => $stageId, 'pipeline_id' => $pipeline->id]);
             }
         }
 

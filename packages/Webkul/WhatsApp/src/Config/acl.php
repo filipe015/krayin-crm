@@ -24,6 +24,7 @@ return [
             'admin.whatsapp.inbox.status',
             'admin.whatsapp.inbox.lead.link',
             'admin.whatsapp.inbox.lead.create',
+            'admin.whatsapp.inbox.lead.options',
             'admin.whatsapp.inbox.funnel.stage',
             'admin.whatsapp.inbox.funnel.tags.attach',
             'admin.whatsapp.inbox.funnel.tags.detach',
@@ -136,6 +137,17 @@ return [
         'key'   => 'settings.other_settings.lost-reasons.edit',
         'name'  => 'whatsapp::app.acl.lost_reasons_edit',
         'route' => ['admin.lost-reasons.store', 'admin.lost-reasons.update', 'admin.lost-reasons.delete'],
+        'sort'  => 1,
+    ],
+    [
+        'key'   => 'settings.other_settings.whatsapp-leads',
+        'name'  => 'whatsapp::app.acl.lead_settings',
+        'route' => 'admin.whatsapp.lead-settings.index',
+        'sort'  => 10,
+    ], [
+        'key'   => 'settings.other_settings.whatsapp-leads.edit',
+        'name'  => 'whatsapp::app.acl.lead_settings_edit',
+        'route' => 'admin.whatsapp.lead-settings.update',
         'sort'  => 1,
     ],
     [

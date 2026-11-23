@@ -19,6 +19,10 @@ const ZZ_AUTO_SECRET = 'zz-auto-lead-hmac-secret-0123456789';
 beforeEach(function () {
     Http::preventStrayRequests();
 
+    // These tests cover the env (WHATSAPP_AUTO_LEAD*): a row saved on the settings screen would win.
+    \Webkul\WhatsApp\Models\LeadSetting::query()->delete();
+    \Webkul\WhatsApp\Support\LeadCreationSettings::forget();
+
     if (! DB::table('lead_types')->exists()) {
         DB::table('lead_types')->insert(['name' => 'ZZ tipo', 'created_at' => now(), 'updated_at' => now()]);
     }
