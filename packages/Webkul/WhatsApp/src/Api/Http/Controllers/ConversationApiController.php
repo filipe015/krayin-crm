@@ -4,6 +4,7 @@ namespace Webkul\WhatsApp\Api\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Webkul\Lead\Models\Lead;
@@ -37,24 +38,42 @@ class ConversationApiController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
-            'stage_ids'                => ['nullable', 'string', 'max:200'],
-            'idle_hours'               => ['nullable', 'integer', 'min:0', 'max:2160'],
-            'last_direction'           => ['nullable', 'in:inbound,outbound'],
-            'window'                   => ['nullable', 'in:open,closed'],
-            'followup_allowed'         => ['nullable', 'boolean'],
-            'per_page'                 => ['nullable', 'integer', 'min:1', 'max:100'],
+            'stage_ids' => ['nullable', 'string', 'max:200'],
+            'idle_hours' => ['nullable', 'integer', 'min:0', 'max:2160'],
+            'last_direction' => ['nullable', 'in:inbound,outbound'],
+            'window' => ['nullable', 'in:open,closed'],
+            'followup_allowed' => ['nullable', 'boolean'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'channel' => ['nullable', 'in:cloud,waha,all'],
+            'include_unlinked' => ['nullable', 'boolean'],
         ]);
 
         $stageIds = array_values(array_filter(array_map('intval', explode(',', (string) ($filters['stage_ids'] ?? '')))));
 
+        // "cloud" stays the default so existing automations keep seeing only the official number.
+        $channel = $filters['channel'] ?? 'cloud';
+        $window = $filters['window'] ?? null;
+        $cutoff = now()->subHours(ConversationWindow::HOURS);
+
+        $cloudIds = Session::query()->where('channel', 'cloud')->select('id');
+        $wahaIds = Session::query()->where('channel', 'waha')->select('id');
+
         $query = Conversation::query()
-            ->whereNotNull('lead_id')
+            ->with('session:id,channel,status')
+            ->when(! ($filters['include_unlinked'] ?? false), fn ($q) => $q->whereNotNull('lead_id'))
             ->where('status', '!=', 'closed')
-            ->whereIn('session_id', Session::query()->where('channel', 'cloud')->select('id'))
+            // Groups (like the VIP group) and broadcasts are never follow-up targets.
+            ->where(fn ($q) => $q->whereNull('chat_id')->orWhere(fn ($inner) => $inner->where('chat_id', 'not like', '%@g.us')->where('chat_id', 'not like', '%@broadcast')->where('chat_id', 'not like', '%@newsletter')))
+            ->whereIn('session_id', match ($channel) {
+                'waha' => $wahaIds,
+                'all' => Session::query()->whereIn('channel', ['cloud', 'waha'])->select('id'),
+                default => $cloudIds,
+            })
             ->when($stageIds !== [], fn ($q) => $q->whereIn('lead_id', DB::table('leads')->whereIn('lead_pipeline_stage_id', $stageIds)->select('id')))
             ->when(isset($filters['idle_hours']), fn ($q) => $q->where('last_message_at', '<=', now()->subHours((int) $filters['idle_hours'])))
-            ->when(($filters['window'] ?? null) === 'open', fn ($q) => $q->where('last_inbound_at', '>', now()->subHours(ConversationWindow::HOURS)))
-            ->when(($filters['window'] ?? null) === 'closed', fn ($q) => $q->where(fn ($inner) => $inner->whereNull('last_inbound_at')->orWhere('last_inbound_at', '<=', now()->subHours(ConversationWindow::HOURS))))
+            // The 24h window only exists on the official channel: WAHA conversations are always "open".
+            ->when($window === 'open', fn ($q) => $q->where(fn ($inner) => $inner->whereIn('session_id', $wahaIds)->orWhere('last_inbound_at', '>', $cutoff)))
+            ->when($window === 'closed', fn ($q) => $q->whereIn('session_id', $cloudIds)->where(fn ($inner) => $inner->whereNull('last_inbound_at')->orWhere('last_inbound_at', '<=', $cutoff)))
             ->orderBy('last_message_at');
 
         $page = $query->paginate((int) ($filters['per_page'] ?? 50));
@@ -71,9 +90,9 @@ class ConversationApiController extends ApiController
         }
 
         return $this->ok($items->values(), [
-            'page'      => $page->currentPage(),
+            'page' => $page->currentPage(),
             'last_page' => $page->lastPage(),
-            'total'     => $page->total(),
+            'total' => $page->total(),
         ]);
     }
 
@@ -92,13 +111,13 @@ class ConversationApiController extends ApiController
             ->values();
 
         return $this->ok($rows->map(fn (Message $message) => [
-            'id'         => $message->id,
-            'direction'  => $message->direction,
-            'type'       => $message->message_type,
-            'content'    => $message->content,
-            'status'     => $message->status,
-            'followup'   => $message->source === self::FOLLOWUP_SOURCE,
-            'sender'     => $message->sender_name,
+            'id' => $message->id,
+            'direction' => $message->direction,
+            'type' => $message->message_type,
+            'content' => $message->content,
+            'status' => $message->status,
+            'followup' => $message->source === self::FOLLOWUP_SOURCE,
+            'sender' => $message->sender_name,
             'created_at' => $message->created_at?->toIso8601String(),
         ]));
     }
@@ -130,29 +149,29 @@ class ConversationApiController extends ApiController
         }
 
         return $this->ok($templates->where('supported', true)->map(fn ($template) => [
-            'name'      => $template['name'],
-            'language'  => $template['language'],
-            'category'  => $template['category'],
-            'body'      => $template['body'],
+            'name' => $template['name'],
+            'language' => $template['language'],
+            'category' => $template['category'],
+            'body' => $template['body'],
             'variables' => $template['variables'],
-            'sources'   => TemplateVariableMap::sourcesFor($template['name'], $template['language']),
+            'sources' => TemplateVariableMap::sourcesFor($template['name'], $template['language']),
         ])->values());
     }
 
     public function sendText(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
-            'text'     => ['required', 'string', 'max:4096'],
+            'text' => ['required', 'string', 'max:4096'],
             'followup' => ['nullable', 'boolean'],
         ]);
 
-        $conversation = $this->conversation($id);
+        $conversation = $this->conversation($id, allowWaha: true);
 
         if ($conversation instanceof JsonResponse) {
             return $conversation;
         }
 
-        if (! ConversationWindow::isOpen($conversation->last_inbound_at)) {
+        if (! ConversationWindow::isOpenFor($conversation)) {
             return $this->fail('window_closed', 'A janela de 24 h está fechada: só é possível enviar um modelo aprovado.', 409);
         }
 
@@ -168,11 +187,11 @@ class ConversationApiController extends ApiController
     public function sendTemplate(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:512'],
-            'language'    => ['required', 'string', 'max:20'],
-            'variables'   => ['nullable', 'array', 'max:20'],
+            'name' => ['required', 'string', 'max:512'],
+            'language' => ['required', 'string', 'max:20'],
+            'variables' => ['nullable', 'array', 'max:20'],
             'variables.*' => ['nullable', 'string', 'max:1024'],
-            'followup'    => ['nullable', 'boolean'],
+            'followup' => ['nullable', 'boolean'],
         ]);
 
         $conversation = $this->conversation($id);
@@ -216,10 +235,10 @@ class ConversationApiController extends ApiController
         }
 
         $payload = [
-            'name'       => $template['name'],
-            'language'   => $template['language'],
+            'name' => $template['name'],
+            'language' => $template['language'],
             'components' => $values === [] ? [] : [[
-                'type'       => 'body',
+                'type' => 'body',
                 'parameters' => array_map(fn ($value) => ['type' => 'text', 'text' => $value], $values),
             ]],
         ];
@@ -229,23 +248,49 @@ class ConversationApiController extends ApiController
         return $this->ok($this->summary($message), [], 201);
     }
 
-    private function conversation(int $id): Conversation|JsonResponse
+    /**
+     * Free-form text also goes through WAHA; templates exist only on the official channel.
+     */
+    private function conversation(int $id, bool $allowWaha = false): Conversation|JsonResponse
     {
         $conversation = Conversation::query()->with('session')->findOrFail($id);
+        $channel = $conversation->session?->channel;
 
-        if ($conversation->session?->channel !== 'cloud') {
-            return $this->fail('not_cloud', 'Só conversas do número oficial (API da Meta) são aceitas.', 422);
+        if ($channel !== 'cloud' && ! ($allowWaha && $channel === 'waha')) {
+            return $this->fail('not_cloud', $allowWaha
+                ? 'Só conversas do número oficial (API da Meta) ou do WhatsApp via WAHA são aceitas.'
+                : 'Só conversas do número oficial (API da Meta) aceitam modelos.', 422);
+        }
+
+        // Never message a group (e.g. the VIP group) or a broadcast list automatically.
+        if (preg_match('/@(g\.us|broadcast|newsletter)$/', (string) $conversation->chat_id)) {
+            return $this->fail('not_direct_chat', 'Só conversas individuais são aceitas.', 422);
         }
 
         if ($conversation->session->status !== 'WORKING') {
             return $this->fail('session_offline', 'O número está desconectado.', 409);
         }
 
-        if (blank($conversation->contact_phone)) {
+        // WAHA can also reach a contact by its LID, so the phone is only mandatory on the Cloud API.
+        if (blank($conversation->contact_phone) && ! ($channel === 'waha' && filled($conversation->contact_lid))) {
             return $this->fail('no_phone', 'A conversa não tem telefone.', 422);
         }
 
         return $conversation;
+    }
+
+    /**
+     * @return array{max: int, gap_hours: int, daily_cap: int}
+     */
+    private function limits(Conversation $conversation): array
+    {
+        $channel = $conversation->session?->channel === 'waha' ? 'waha' : 'cloud';
+
+        return [
+            'max' => (int) config("whatsapp.api_followup.{$channel}.max", self::MAX_FOLLOWUPS),
+            'gap_hours' => (int) config("whatsapp.api_followup.{$channel}.gap_hours", self::GAP_HOURS),
+            'daily_cap' => $channel === 'waha' ? (int) config('whatsapp.api_followup.waha.daily_cap', 0) : 0,
+        ];
     }
 
     /**
@@ -255,14 +300,14 @@ class ConversationApiController extends ApiController
     {
         $message = DB::transaction(function () use ($conversation, $content, $templatePayload, $followup) {
             $message = Message::query()->create([
-                'conversation_id'  => $conversation->id,
-                'direction'        => 'outbound',
-                'status'           => 'queued',
-                'source'           => $followup ? self::FOLLOWUP_SOURCE : 'api',
-                'content'          => $content,
-                'message_type'     => $templatePayload !== null ? 'template' : 'text',
+                'conversation_id' => $conversation->id,
+                'direction' => 'outbound',
+                'status' => 'queued',
+                'source' => $followup ? self::FOLLOWUP_SOURCE : 'api',
+                'content' => $content,
+                'message_type' => $templatePayload !== null ? 'template' : 'text',
                 'template_payload' => $templatePayload,
-                'sender_name'      => trans('whatsapp::app.inbox.automation_sender'),
+                'sender_name' => trans('whatsapp::app.inbox.automation_sender'),
             ]);
 
             $conversation->last_message_at = $message->created_at;
@@ -288,30 +333,45 @@ class ConversationApiController extends ApiController
 
         $reason = $this->followupReason($conversation);
 
+        $limits = $this->limits($conversation);
+
         return $reason === null ? null : $this->fail($reason, match ($reason) {
-            'followup_limit'  => 'Esta conversa já recebeu o máximo de '.self::MAX_FOLLOWUPS.' follow-ups.',
-            'followup_gap'    => 'O último follow-up foi há menos de '.self::GAP_HOURS.' horas.',
+            'followup_limit' => 'Esta conversa já recebeu o máximo de '.$limits['max'].' follow-ups.',
+            'followup_gap' => 'O último follow-up foi há menos de '.$limits['gap_hours'].' horas.',
+            'daily_limit' => 'O limite diário de '.$limits['daily_cap'].' follow-ups deste número foi atingido.',
             'has_appointment' => 'O lead já tem agendamento: follow-up automático não se aplica.',
-            default           => 'Follow-up não permitido.',
+            default => 'Follow-up não permitido.',
         }, 409);
     }
 
     private function followupReason(Conversation $conversation): ?string
     {
+        $limits = $this->limits($conversation);
+
         $sent = Message::query()
             ->where('conversation_id', $conversation->id)
             ->where('source', self::FOLLOWUP_SOURCE)
             ->where('direction', 'outbound')
             ->where('status', '!=', 'failed');
 
-        if ((clone $sent)->count() >= self::MAX_FOLLOWUPS) {
+        if ((clone $sent)->count() >= $limits['max']) {
             return 'followup_limit';
         }
 
         $last = (clone $sent)->max('created_at');
 
-        if ($last !== null && now()->diffInHours($last, true) < self::GAP_HOURS) {
+        if ($last !== null && now()->diffInHours($last, true) < $limits['gap_hours']) {
             return 'followup_gap';
+        }
+
+        if ($limits['daily_cap'] > 0 && Message::query()
+            ->whereIn('conversation_id', Conversation::query()->where('session_id', $conversation->session_id)->select('id'))
+            ->where('source', self::FOLLOWUP_SOURCE)
+            ->where('direction', 'outbound')
+            ->where('status', '!=', 'failed')
+            ->where('created_at', '>', now()->subDay())
+            ->count() >= $limits['daily_cap']) {
+            return 'daily_limit';
         }
 
         $lead = $conversation->lead_id ? Lead::query()->find($conversation->lead_id) : null;
@@ -341,29 +401,30 @@ class ConversationApiController extends ApiController
         $reason = $this->followupReason($conversation);
 
         return [
-            'id'              => $conversation->id,
-            'session_id'      => $conversation->session_id,
-            'contact_name'    => $conversation->contact_name,
-            'contact_phone'   => $conversation->contact_phone,
-            'lead'            => $lead === null ? null : [
-                'id'     => $lead->id,
-                'title'  => $lead->title,
+            'id' => $conversation->id,
+            'session_id' => $conversation->session_id,
+            'channel' => $conversation->session?->channel ?? 'cloud',
+            'contact_name' => $conversation->contact_name,
+            'contact_phone' => $conversation->contact_phone,
+            'lead' => $lead === null ? null : [
+                'id' => $lead->id,
+                'title' => $lead->title,
                 'person' => $lead->person?->name,
-                'stage'  => $lead->stage ? ['id' => $lead->stage->id, 'name' => $lead->stage->name] : null,
-                'owner'  => $lead->user?->name,
+                'stage' => $lead->stage ? ['id' => $lead->stage->id, 'name' => $lead->stage->name] : null,
+                'owner' => $lead->user?->name,
             ],
             'last_message_at' => $conversation->last_message_at?->toIso8601String(),
             'last_inbound_at' => $conversation->last_inbound_at?->toIso8601String(),
-            'last_direction'  => $last?->direction,
-            'window'          => [
-                'open'       => ConversationWindow::isOpen($conversation->last_inbound_at),
-                'expires_at' => ConversationWindow::expiresAt($conversation)?->toIso8601String(),
+            'last_direction' => $last?->direction,
+            'window' => [
+                'open' => ConversationWindow::isOpenFor($conversation),
+                'expires_at' => ConversationWindow::expiresAtFor($conversation)?->toIso8601String(),
             ],
-            'followup'        => [
-                'sent'    => (clone $followups)->count(),
-                'last_at' => ($at = (clone $followups)->max('created_at')) ? \Illuminate\Support\Carbon::parse($at)->toIso8601String() : null,
+            'followup' => [
+                'sent' => (clone $followups)->count(),
+                'last_at' => ($at = (clone $followups)->max('created_at')) ? Carbon::parse($at)->toIso8601String() : null,
                 'allowed' => $reason === null,
-                'reason'  => $reason,
+                'reason' => $reason,
             ],
         ];
     }
@@ -374,12 +435,12 @@ class ConversationApiController extends ApiController
     private function summary(Message $message): array
     {
         return [
-            'id'              => $message->id,
+            'id' => $message->id,
             'conversation_id' => $message->conversation_id,
-            'type'            => $message->message_type,
-            'status'          => $message->status,
-            'followup'        => $message->source === self::FOLLOWUP_SOURCE,
-            'content'         => $message->content,
+            'type' => $message->message_type,
+            'status' => $message->status,
+            'followup' => $message->source === self::FOLLOWUP_SOURCE,
+            'content' => $message->content,
         ];
     }
 }

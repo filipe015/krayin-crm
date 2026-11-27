@@ -22,4 +22,21 @@ final class ConversationWindow
     {
         return $conversation->last_inbound_at?->copy()->addHours(self::HOURS);
     }
+
+    /**
+     * Only the official channel has the 24-hour rule; the unofficial one (WAHA) can always send.
+     */
+    public static function isOpenFor(Conversation $conversation): bool
+    {
+        if (($conversation->session?->channel ?? 'cloud') !== 'cloud') {
+            return true;
+        }
+
+        return self::isOpen($conversation->last_inbound_at);
+    }
+
+    public static function expiresAtFor(Conversation $conversation): ?Carbon
+    {
+        return ($conversation->session?->channel ?? 'cloud') !== 'cloud' ? null : self::expiresAt($conversation);
+    }
 }
